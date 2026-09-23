@@ -1,0 +1,11 @@
+# Real env holds PLEX_CLAIM and, in later phases, API keys — only the example is tracked.
+.env
+
+# Claude Code worktrees live inside the repo directory.
+.claude/worktrees/
+
+# Editor and OS noise.
+.idea/
+.vscode/
+.DS_Store
+*.swp
