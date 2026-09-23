@@ -1,0 +1,73 @@
+# pms-arr-setup — the containerized media stack.
+#
+# Services are added phase by phase; docs/phases.md is the runbook and says
+# which profile each phase starts. State lives in ${APPDATA} (on /), never in
+# this repo and never on /mnt/data.
+#
+# Data is mounted at its HOST path (/mnt/data/..., not /data). That keeps the
+# Plex database's library paths and qBittorrent's .fastresume paths valid
+# across the move. See docs/phases.md → "Rules that span phases".
+
+name: pms
+
+x-common-env: &common-env
+  PUID: ${PUID:?set PUID in .env}
+  PGID: ${PGID:?set PGID in .env}
+  TZ: ${TZ:?set TZ in .env}
+
+services:
+
+  # ── Phase 1a: shadow Plex ──────────────────────────────────────────────────
+  # A second, throwaway server beside the native one: its own identity, its own
+  # config, the library read-only. Exists to prove the image plays and scans
+  # before anything native is stopped. Deleted in Phase 1b.
+  plex-shadow:
+    profiles: [shadow]
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex-shadow
+    environment:
+      <<: *common-env
+      VERSION: docker
+      PLEX_CLAIM: ${PLEX_CLAIM:-}
+      ADVERTISE_IP: ${PLEX_SHADOW_ADVERTISE:-}
+    ports:
+      - "32420:32400"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/plex-shadow:/config
+      - /mnt/data/streaming:/mnt/data/streaming:ro
+    restart: "no"
+
+  # ── Phase 1b: Plex ─────────────────────────────────────────────────────────
+  # Takes over from native plexmediaserver with a copy of its database, so the
+  # server identity and watch history carry over.
+  #
+  # The cutover profile keeps a bare `docker compose up -d` from starting this
+  # while native Plex still owns :32400 — and from seeding a fresh config in
+  # ${APPDATA}/plex that the migration would then have to fight. Phase 1b's last
+  # step deletes the profiles line.
+  #
+  # Host networking: same ports, GDM discovery and LAN detection as the native
+  # server, and pms-local's scripts keep reaching it at localhost:32400.
+  # The library is read-write because "Allow media deletion" needs it, and
+  # pms-local's plex-watch depends on deletes made in Plex.
+  #
+  # No GPU: the GTX 560 is too old for Plex's NVENC and there is no /dev/dri
+  # render node, so transcoding is CPU — the same as native.
+  plex:
+    profiles: [cutover]
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+    network_mode: host
+    environment:
+      <<: *common-env
+      VERSION: docker
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/plex:/config
+      - /mnt/data/streaming:/mnt/data/streaming
+    restart: unless-stopped
+
+# Shared by the arr services from Phase 2 on, so they reach each other by
+# service name. Host-networked Plex is not on it.
+networks:
+  arr:
+    name: arr
