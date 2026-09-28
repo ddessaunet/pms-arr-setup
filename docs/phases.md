@@ -10,9 +10,9 @@ you like.
 Tick these as phases finish, and commit the tick. This list is how you (or the next session)
 tell what has been done. If it looks stale, check the server rather than trusting it.
 
-- [ ] Phase 0 — foundation
-- [ ] Phase 1a — shadow Plex beside the native one
-- [ ] Phase 1b — Plex cutover
+- [x] Phase 0 — foundation
+- [x] Phase 1a — shadow Plex beside the native one
+- [x] Phase 1b — Plex cutover (2026-09-28: identity `f3860770…`, counts 132/7/2/5 carried over)
 - [ ] Phase 2 — qBittorrent, parallel instance
 - [ ] Phase 3 — Prowlarr + FlareSolverr
 - [ ] Phase 4 — Radarr + Sonarr

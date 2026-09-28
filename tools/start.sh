@@ -3,9 +3,9 @@
 #
 #   tools/start.sh        (npm start)
 #
-# Never passes --profile. plex-shadow (shadow) and plex before cutover
-# (cutover) start only through their runbook steps in docs/phases.md, so this
-# can be run at any time without starting something a phase has not reached.
+# Never passes --profile. Profiled services (plex-shadow) start only through
+# their runbook steps in docs/phases.md, so this can be run at any time without
+# starting something a phase has not reached.
 
 set -uo pipefail
 
