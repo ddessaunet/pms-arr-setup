@@ -1,0 +1,32 @@
+{
+  "//": [
+    "This repo is bash and compose. npm is a task runner for it, nothing more:",
+    "there are no dependencies and nothing is ever installed.",
+    "Run `npm run deploy`, never `sudo npm run deploy` - node lives in nvm,",
+    "which sudo strips from PATH; the sudo calls are inside tools/deploy.sh.",
+    "Never name a script install, prepare or postinstall - npm fires those",
+    "automatically on `npm install`.",
+    "deploy installs the pms-update units and arms the timer only while",
+    "plexmediaserver is masked - the same signal pms-local's deploy uses.",
+    "start never passes --profile: shadow and cutover are runbook steps.",
+    "stop keeps containers and config; nothing here runs `down -v`."
+  ],
+  "name": "pms-arr-setup",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Containerized media stack for the pms home server (bash + docker compose; npm is only a task runner)",
+  "license": "UNLICENSED",
+  "scripts": {
+    "lint": "command -v shellcheck >/dev/null || { echo 'shellcheck not installed (sudo apt install shellcheck)' >&2; exit 1; }; shellcheck -x tools/*.sh tests/*.sh && docker compose config -q",
+    "test": "tests/run-all.sh",
+    "check": "tools/deploy.sh --check",
+    "predeploy": "npm run lint && npm test",
+    "deploy": "tools/deploy.sh",
+    "start": "tools/start.sh",
+    "stop": "docker compose stop",
+    "status": "docker compose ps; echo; systemctl list-timers pms-update.timer --all --no-pager",
+    "logs": "docker compose logs -f --tail 100",
+    "update": "tools/update-stack.sh",
+    "update:dry": "tools/update-stack.sh --dry-run"
+  }
+}

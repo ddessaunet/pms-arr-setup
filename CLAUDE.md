@@ -33,15 +33,21 @@ deletes torrent data when library files disappear. Confirm before anything destr
 4. **The `plex` service carries `profiles: [cutover]` until Phase 1b is done.** A bare
    `up -d` would otherwise bind `:32400` against native Plex and seed a fresh config.
 5. **Two updaters, one Sunday slot.** pms-local's `plex-update.timer` updates native Plex;
-   this repo's `pms-update.timer` updates the containers. After Phase 1b only the second may
-   be armed. pms-local#14 makes its `deploy-system` keep its timer off while
-   `plexmediaserver` is masked. Until that's deployed, running it re-arms the native one.
+   this repo's `pms-update.timer` updates the containers. Both deploys key off the same
+   signal, whether `plexmediaserver` is masked, so exactly one is armed: this repo's
+   `npm run deploy` arms its timer only while masked, and pms-local's (from pms-local#14)
+   only while not. Until #14 is deployed, pms-local's deploy re-arms its timer
+   unconditionally.
 6. **`systemd/pms-update.service` hardcodes this clone's path** in `ExecStart`, because
-   compose needs `compose.yaml` and `.env` beside it. Moving the clone means editing that
-   line and reinstalling the unit.
+   compose needs `compose.yaml` and `.env` beside it. `npm run deploy` refuses to install it
+   if the path doesn't match the clone. Moving the clone means editing that line.
 
 ## Conventions
 
 - Commit subjects are lowercase and imperative; bodies explain *why*.
 - `.env` holds secrets and is gitignored. Only `.env.example` is tracked.
-- `tools/*.sh` and `tests/*.sh` must pass `shellcheck -x`, and `tests/*.test.sh` must pass.
+- npm is only a task runner (see README). Run `npm run lint && npm test` before committing,
+  and never `sudo npm`. npm lives in nvm, so from a non-login shell load it first:
+  `. ~/.nvm/nvm.sh`.
+- `npm run check` is the read-only drift report. `npm run deploy` changes init state and
+  needs sudo, so it's the user's to run.

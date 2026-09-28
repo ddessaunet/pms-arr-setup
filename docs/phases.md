@@ -193,18 +193,16 @@ Plan for a few minutes of downtime. Check nobody is streaming first.
    emptied. Rehearse it first:
 
    ```bash
-   tools/update-stack.sh --dry-run
+   npm run update:dry
    ```
 
    ```bash
-   sudo install -m 644 systemd/pms-update.service systemd/pms-update.timer /etc/systemd/system/
+   npm run deploy
    ```
 
-   ```bash
-   sudo systemctl daemon-reload && sudo systemctl enable --now pms-update.timer
-   ```
-
-   See [Updating](updating.md) for what it does and how to read its runs.
+   The deploy installs the units and arms the timer, because step 3 masked
+   `plexmediaserver`. It gates on lint and tests first. `npm run check` confirms there's no
+   drift. See [Updating](updating.md) for what the updater does and how to read its runs.
 
 **Verify**
 
@@ -236,12 +234,16 @@ docker compose stop plex
 sudo systemctl unmask plexmediaserver && sudo systemctl start plexmediaserver
 ```
 
+Then swap the updaters. Both deploys read the mask, so re-running each one puts its own
+timer right: this repo's disarms `pms-update.timer`, and pms-local's (with
+[pms-local#14](https://github.com/ddessaunet/pms-local/pull/14)) re-arms `plex-update.timer`.
+
 ```bash
-sudo systemctl enable --now plex-update.timer
+npm run deploy
 ```
 
 ```bash
-sudo systemctl disable --now pms-update.timer
+cd ../pms-local && npm run deploy-system
 ```
 
 Anything watched while the container was running is lost, because the native database

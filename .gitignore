@@ -4,6 +4,9 @@
 # Claude Code worktrees live inside the repo directory.
 .claude/worktrees/
 
+# npm is only a task runner here (see package.json) — nothing is ever installed.
+node_modules/
+
 # Editor and OS noise.
 .idea/
 .vscode/
