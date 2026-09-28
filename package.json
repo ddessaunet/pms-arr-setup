@@ -9,7 +9,9 @@
     "deploy installs the pms-update units and arms the timer only while",
     "plexmediaserver is masked - the same signal pms-local's deploy uses.",
     "start never passes --profile: shadow and cutover are runbook steps.",
-    "stop keeps containers and config; nothing here runs `down -v`."
+    "stop keeps containers and config; nothing here runs `down -v`.",
+    "cutover:dry rehearses Phase 1b; the real cutover and its rollback are",
+    "run as tools/cutover-plex.sh on purpose, never through an npm alias."
   ],
   "name": "pms-arr-setup",
   "version": "0.0.0",
@@ -27,6 +29,7 @@
     "status": "docker compose ps; echo; systemctl list-timers pms-update.timer --all --no-pager",
     "logs": "docker compose logs -f --tail 100",
     "update": "tools/update-stack.sh",
-    "update:dry": "tools/update-stack.sh --dry-run"
+    "update:dry": "tools/update-stack.sh --dry-run",
+    "cutover:dry": "tools/cutover-plex.sh --dry-run"
   }
 }

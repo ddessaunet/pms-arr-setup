@@ -39,6 +39,7 @@ native Plex database and qBittorrent state move across unchanged.
 | `tools/preflight.sh` | Read-only checks before a phase: docker, `.env`, same-filesystem hardlinks, ports, native service state. |
 | `tools/start.sh` | Preflight, then `docker compose up -d` for whatever the current phase has enabled. Never passes `--profile`. |
 | `tools/deploy.sh` | Installs the `pms-update` units, and arms the timer only while native Plex is masked. `--check` reports drift. |
+| `tools/cutover-plex.sh` | Phase 1b in one command: preconditions, native → container with a copy of the database, automatic verification, and rollback on its own if it fails. `--dry-run`, `--rollback`. |
 | `tools/update-stack.sh` | Pulls new images, skips the run if anyone is streaming, recreates the container, verifies it, and rolls back if it's unhealthy. Run weekly by `pms-update.timer`. |
 | `systemd/pms-update.{service,timer}` | Sunday 05:00, the same slot as pms-local's native updater. Installed by `npm run deploy`. |
 | `tests/*.test.sh` | Offline unit tests; `tests/run-all.sh` runs them all. |
@@ -62,6 +63,7 @@ lives in `/opt/appdata`.
 | `npm run deploy` | Lint and test, then install the units and arm or disarm the timer. |
 | `npm run update:dry` | Updater rehearsal: pulls, but recreates nothing. |
 | `npm run update` | Update now, outside the Sunday schedule. |
+| `npm run cutover:dry` | Phase 1b rehearsal: checks every precondition and changes nothing. The real run is `tools/cutover-plex.sh`, deliberately not an npm alias. |
 
 Before a phase:
 

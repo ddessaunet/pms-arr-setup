@@ -125,72 +125,51 @@ Then remove the extra server from plex.tv → Settings → Authorized Devices.
 ## Phase 1b — Plex cutover
 
 The container takes over with a **copy** of the native database: same server identity, same
-watch history, same library paths. The original stays in `/var/lib/plexmediaserver` for
-rollback.
+watch history, same library paths. The original stays in `/var/lib/plexmediaserver`, never
+written, so rollback is a restart.
 
-Plan for a few minutes of downtime. Check nobody is streaming first.
+`tools/cutover-plex.sh` runs the whole phase. It checks every precondition first and changes
+nothing if one fails. It stops at the first failing step, and **rolls back by itself** if
+the container doesn't come up as the same server with the same library. Plan for about five
+minutes of downtime. It asks for sudo once, up front.
+
+**Before:** finish Phase 1a's checks. A 720p transcode plays smoothly, and a delete on the
+test server is refused.
 
 **Do**
 
-1. **Disable the updater.** Otherwise its next Sunday run installs a `.deb` and restarts
-   native Plex onto `:32400`, fighting the container.
+1. **Rehearse.** This checks everything and changes nothing:
 
    ```bash
-   sudo systemctl disable --now plex-update.timer
+   npm run cutover:dry
    ```
 
-   > Once [pms-local#14](https://github.com/ddessaunet/pms-local/pull/14) is deployed,
-   > pms-local's `npm run deploy-system` leaves this timer disabled while `plexmediaserver`
-   > is masked (step 3). Before that, the deploy re-enables it, so don't run it after cutover.
+   All of these must pass:
+   - no one is streaming
+   - the image's Plex version is the same as native, or newer
+   - the library paths are present
+   - no leftover `/opt/appdata/plex/Library`
+   - enough space
 
-2. **Record the server identity**. `tools/preflight.sh 1b` prints it if sudo is cached:
+2. **Cut over:**
 
    ```bash
-   sudo grep -o 'ProcessedMachineIdentifier="[^"]*"' "/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Preferences.xml"
+   tools/cutover-plex.sh
    ```
 
-3. **Stop native Plex and make sure nothing restarts it.** Masking also blocks a
-   `plexmediaserver` package upgrade from starting it:
+   It prints each step and appends to `/opt/appdata/cutover-plex.log`. Exit `0` means the
+   container is serving the same server with the same library counts. Exit `3` means a step
+   failed and it rolled back: native Plex is serving again, and the reason is on the last
+   `FAIL` line.
 
-   ```bash
-   sudo systemctl stop plexmediaserver && sudo systemctl mask plexmediaserver
-   ```
+3. **Check by hand** (the list under Verify below), then clean up:
+   - Remove "PMS shadow" from plex.tv → Settings → Authorized Devices, then run
+     `rm -rf /opt/appdata/plex-shadow`.
+   - Delete the `profiles: [cutover]` line from `compose.yaml` and commit it. From then on
+     `npm start` includes Plex.
 
-4. **Remove the shadow server** — run the Phase 1a rollback.
-
-5. **Copy the database.** The linuxserver image expects it under
-   `/config/Library/Application Support/Plex Media Server`:
-
-   ```bash
-   sudo install -d -o 1000 -g 1001 "/opt/appdata/plex/Library/Application Support"
-   ```
-
-   ```bash
-   sudo rsync -a "/var/lib/plexmediaserver/Library/Application Support/Plex Media Server" "/opt/appdata/plex/Library/Application Support/"
-   ```
-
-   ```bash
-   sudo chown -R 1000:1001 /opt/appdata/plex
-   ```
-
-   Only the copy is chowned. `/var/lib/plexmediaserver` stays `plex:plex` so that rollback
-   is just a restart.
-
-6. **Start it:**
-
-   ```bash
-   docker compose --profile cutover up -d plex
-   ```
-
-   ```bash
-   docker compose logs -f plex
-   ```
-
-7. Once Verify passes, delete the `profiles: [cutover]` line from `compose.yaml` and commit.
-   From then on a plain `docker compose up -d` includes Plex.
-
-8. **Arm the container updater.** It takes over the weekly Sunday 05:00 slot that step 1
-   emptied. Rehearse it first:
+4. **Arm the container updater.** It takes the Sunday 05:00 slot that the script took from
+   native Plex:
 
    ```bash
    npm run update:dry
@@ -200,21 +179,37 @@ Plan for a few minutes of downtime. Check nobody is streaming first.
    npm run deploy
    ```
 
-   The deploy installs the units and arms the timer, because step 3 masked
-   `plexmediaserver`. It gates on lint and tests first. `npm run check` confirms there's no
-   drift. See [Updating](updating.md) for what the updater does and how to read its runs.
+   The deploy arms the timer because the cutover masked `plexmediaserver`. See
+   [Updating](updating.md).
 
-**Verify**
+<details>
+<summary>What the script does, step by step</summary>
 
-- The identity matches step 2:
+1. Records the server identity, per-section item counts and `autoEmptyTrash` in
+   `/opt/appdata/.cutover-plex.state`.
+2. Sets **`autoEmptyTrash=0`** on native Plex *before* stopping it, so the copied settings
+   carry it. If the container ever started without its library mount, titles would show as
+   unavailable instead of being deleted along with their watch state. It's restored once
+   the counts match.
+3. `systemctl disable --now plex-update.timer`, then `stop` and **`mask`**
+   `plexmediaserver`. It waits until no `plex` process is left, so the database is closed.
+   pms-local's deploy and updater both stand down while Plex is masked (pms-local#14).
+4. Removes the `plex-shadow` container. Its config is left for you.
+5. `rsync -a` of `/var/lib/plexmediaserver/Library/Application Support/Plex Media Server`
+   into `/opt/appdata/plex/Library/Application Support/`, then `chown -R 1000:1001` on the
+   **copy only**.
+6. `docker compose --profile cutover up -d plex`.
+7. Waits up to 180 s for `/identity` to report the recorded server, and for every section's
+   item count to match. It also checks that the container can see every library path.
 
-  ```bash
-  curl -s localhost:32400/identity
-  ```
+</details>
 
-- Clients reconnect to the same server without being re-added, and watch state and "On
-  Deck" are intact.
-- Settings → Library → *Allow media deletion* is still on.
+**Verify** (what the script can't check)
+
+- Clients reconnect to "Local PMS" without being re-added, and watch state and "On Deck"
+  are intact.
+- Settings → Library → *Allow media deletion* is still on, and *Empty trash automatically*
+  is back on.
 - **pms-local still works end to end.** Let a native qBittorrent download finish:
   `/var/log/plex-move.log` should show the library refresh succeed. It still reaches Plex at
   `localhost:32400` because of host networking. Then delete a throwaway title in Plex and
@@ -227,24 +222,15 @@ Plan for a few minutes of downtime. Check nobody is streaming first.
 **Rollback**
 
 ```bash
-docker compose stop plex
+tools/cutover-plex.sh --rollback
 ```
 
-```bash
-sudo systemctl unmask plexmediaserver && sudo systemctl start plexmediaserver
-```
-
-Then swap the updaters. Both deploys read the mask, so re-running each one puts its own
-timer right: this repo's disarms `pms-update.timer`, and pms-local's (with
-[pms-local#14](https://github.com/ddessaunet/pms-local/pull/14)) re-arms `plex-update.timer`.
-
-```bash
-npm run deploy
-```
-
-```bash
-cd ../pms-local && npm run deploy-system
-```
+This stops the container, then unmasks and starts native Plex, and waits until it's serving
+the recorded identity. It also:
+- restores `autoEmptyTrash`
+- re-arms `plex-update.timer` and disarms `pms-update.timer`
+- moves the container's copy aside to `/opt/appdata/plex.rolled-back-<time>`, so a retry
+  starts clean
 
 Anything watched while the container was running is lost, because the native database
 never saw it.
