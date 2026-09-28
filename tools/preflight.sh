@@ -28,8 +28,6 @@ env_get() {
 
 port_in_use() { ss -Hltn "sport = :$1" 2>/dev/null | grep -q .; }
 
-container_running() { docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$1"; }
-
 echo "── environment"
 
 if docker info >/dev/null 2>&1; then
@@ -111,9 +109,9 @@ done
 
 # Work out the phase from state when not given one.
 if [[ -z "$phase" ]]; then
-    if container_running plex; then
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx plex; then
         phase=complete
-    elif container_running plex-shadow; then
+    elif docker ps --format '{{.Names}}' 2>/dev/null | grep -qx plex-shadow; then
         phase=1b
     else
         phase=1a
@@ -127,18 +125,12 @@ case "$phase" in
         ok "nothing phase-specific"
         ;;
     1a)
-        # Re-running this mid-phase is normal, and then the port is ours.
-        if container_running plex-shadow; then
-            ok "plex-shadow already running on :32420"
-            [[ -z "$(env_get PLEX_CLAIM)" ]] || warn "PLEX_CLAIM still set — it was spent on first start; clear it in .env"
+        if port_in_use 32420; then
+            fail ":32420 already in use"
         else
-            if port_in_use 32420; then
-                fail ":32420 already in use"
-            else
-                ok ":32420 free for plex-shadow"
-            fi
-            [[ -n "$(env_get PLEX_CLAIM)" ]] || warn "PLEX_CLAIM empty — get one from https://plex.tv/claim right before starting (4-minute token)"
+            ok ":32420 free for plex-shadow"
         fi
+        [[ -n "$(env_get PLEX_CLAIM)" ]] || warn "PLEX_CLAIM empty — get one from https://plex.tv/claim right before starting (4-minute token)"
         ;;
     1b)
         prefs="/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Preferences.xml"
