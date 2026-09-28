@@ -32,11 +32,16 @@ deletes torrent data when library files disappear. Confirm before anything destr
    upgrades, no recycle bin.
 4. **The `plex` service carries `profiles: [cutover]` until Phase 1b is done.** A bare
    `up -d` would otherwise bind `:32400` against native Plex and seed a fresh config.
-5. **pms-local's `npm run deploy-system` re-enables `plex-update.timer`**, which reinstalls
-   and starts native Plex. Don't run it after Phase 1b.
+5. **Two updaters, one Sunday slot.** pms-local's `plex-update.timer` updates native Plex;
+   this repo's `pms-update.timer` updates the containers. After Phase 1b only the second may
+   be armed. pms-local#14 makes its `deploy-system` keep its timer off while
+   `plexmediaserver` is masked. Until that's deployed, running it re-arms the native one.
+6. **`systemd/pms-update.service` hardcodes this clone's path** in `ExecStart`, because
+   compose needs `compose.yaml` and `.env` beside it. Moving the clone means editing that
+   line and reinstalling the unit.
 
 ## Conventions
 
 - Commit subjects are lowercase and imperative; bodies explain *why*.
 - `.env` holds secrets and is gitignored. Only `.env.example` is tracked.
-- `tools/*.sh` must pass `shellcheck`.
+- `tools/*.sh` and `tests/*.sh` must pass `shellcheck -x`, and `tests/*.test.sh` must pass.

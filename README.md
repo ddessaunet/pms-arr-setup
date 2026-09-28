@@ -27,6 +27,7 @@ native Plex database and qBittorrent state move across unchanged.
 | document | covers |
 |---|---|
 | [Phases](docs/phases.md) | The runbook and progress checklist. Each phase has Do / Verify / Rollback. |
+| [Updating](docs/updating.md) | The weekly container updater: streaming check, health wait, rollback, exit codes, adding a service. |
 
 ## Files
 
@@ -35,6 +36,9 @@ native Plex database and qBittorrent state move across unchanged.
 | `compose.yaml` | The stack. Services are gated behind profiles until their phase is done. |
 | `.env.example` | Copy to `.env` (gitignored): UID/GID, timezone, appdata path, Plex claim. |
 | `tools/preflight.sh` | Read-only checks before a phase: docker, `.env`, same-filesystem hardlinks, ports, native service state. |
+| `tools/update-stack.sh` | Pulls new images, skips the run if anyone is streaming, recreates the container, verifies it, and rolls back if it's unhealthy. Run weekly by `pms-update.timer`. |
+| `systemd/pms-update.{service,timer}` | Sunday 05:00, the same slot as pms-local's native updater. Installed in Phase 1b. |
+| `tests/*.test.sh` | Offline unit tests. Run each directly. |
 
 ## Running it
 

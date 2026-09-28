@@ -139,8 +139,9 @@ Plan for a few minutes of downtime. Check nobody is streaming first.
    sudo systemctl disable --now plex-update.timer
    ```
 
-   > pms-local's `npm run deploy-system` re-enables this timer. Don't run it after cutover
-   > until pms-local drops the timer from its deploy.
+   > Once [pms-local#14](https://github.com/ddessaunet/pms-local/pull/14) is deployed,
+   > pms-local's `npm run deploy-system` leaves this timer disabled while `plexmediaserver`
+   > is masked (step 3). Before that, the deploy re-enables it, so don't run it after cutover.
 
 2. **Record the server identity**. `tools/preflight.sh 1b` prints it if sudo is cached:
 
@@ -188,6 +189,23 @@ Plan for a few minutes of downtime. Check nobody is streaming first.
 7. Once Verify passes, delete the `profiles: [cutover]` line from `compose.yaml` and commit.
    From then on a plain `docker compose up -d` includes Plex.
 
+8. **Arm the container updater.** It takes over the weekly Sunday 05:00 slot that step 1
+   emptied. Rehearse it first:
+
+   ```bash
+   tools/update-stack.sh --dry-run
+   ```
+
+   ```bash
+   sudo install -m 644 systemd/pms-update.service systemd/pms-update.timer /etc/systemd/system/
+   ```
+
+   ```bash
+   sudo systemctl daemon-reload && sudo systemctl enable --now pms-update.timer
+   ```
+
+   See [Updating](updating.md) for what it does and how to read its runs.
+
 **Verify**
 
 - The identity matches step 2:
@@ -220,6 +238,10 @@ sudo systemctl unmask plexmediaserver && sudo systemctl start plexmediaserver
 
 ```bash
 sudo systemctl enable --now plex-update.timer
+```
+
+```bash
+sudo systemctl disable --now pms-update.timer
 ```
 
 Anything watched while the container was running is lost, because the native database

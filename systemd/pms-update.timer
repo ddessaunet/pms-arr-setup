@@ -1,0 +1,26 @@
+# pms-update.timer — weekly container updates.
+#
+# Source of truth is <repo>/systemd/pms-update.timer.
+#   sudo systemctl enable --now pms-update.timer
+#   systemctl list-timers pms-update.timer
+#
+# The schedule is pms-local's plex-update.timer, unchanged: that timer is
+# disarmed once Plex runs here, and this one takes its slot.
+
+[Unit]
+Description=Weekly pms container update check
+Documentation=https://github.com/ddessaunet/pms-arr-setup/blob/main/docs/updating.md
+
+[Timer]
+# Sunday 05:00 local: the hour where "someone is streaming" is least likely,
+# which matters because a deferred run waits a whole week. The jitter staggers
+# the pull against apt-daily-upgrade.timer (06:00 +60m).
+OnCalendar=Sun *-*-* 05:00
+RandomizedDelaySec=45min
+
+# A run missed because the box was off fires shortly after the next boot.
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target
