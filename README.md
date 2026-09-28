@@ -33,21 +33,38 @@ native Plex database and qBittorrent state move across unchanged.
 
 | file | role |
 |---|---|
+| `package.json` | Task runner only: no dependencies, nothing installed. See [Running it](#running-it). |
 | `compose.yaml` | The stack. Services are gated behind profiles until their phase is done. |
 | `.env.example` | Copy to `.env` (gitignored): UID/GID, timezone, appdata path, Plex claim. |
 | `tools/preflight.sh` | Read-only checks before a phase: docker, `.env`, same-filesystem hardlinks, ports, native service state. |
+| `tools/start.sh` | Preflight, then `docker compose up -d` for whatever the current phase has enabled. Never passes `--profile`. |
+| `tools/deploy.sh` | Installs the `pms-update` units, and arms the timer only while native Plex is masked. `--check` reports drift. |
 | `tools/update-stack.sh` | Pulls new images, skips the run if anyone is streaming, recreates the container, verifies it, and rolls back if it's unhealthy. Run weekly by `pms-update.timer`. |
-| `systemd/pms-update.{service,timer}` | Sunday 05:00, the same slot as pms-local's native updater. Installed in Phase 1b. |
-| `tests/*.test.sh` | Offline unit tests. Run each directly. |
+| `systemd/pms-update.{service,timer}` | Sunday 05:00, the same slot as pms-local's native updater. Installed by `npm run deploy`. |
+| `tests/*.test.sh` | Offline unit tests; `tests/run-all.sh` runs them all. |
 
 ## Running it
 
-Compose runs from this repo; the state lives in `/opt/appdata`.
+npm is only a task runner here, as in pms-local: there are no dependencies, and node comes
+from nvm. Run it as yourself, never `sudo npm …` — sudo strips nvm from `PATH`, and the
+scripts ask for sudo themselves where they need it. Compose runs from this clone; the state
+lives in `/opt/appdata`.
+
+| command | does |
+|---|---|
+| `npm start` | Preflight, then start every service the current phase has enabled. |
+| `npm stop` | Stop them. Containers and config are kept; nothing here runs `down -v`. |
+| `npm run status` | `docker compose ps`, and when the updater runs next. |
+| `npm run logs` | Follow the logs; `npm run logs -- plex` for one service. |
+| `npm run lint` | `shellcheck` on `tools/` and `tests/`, and check that `compose.yaml` renders. |
+| `npm test` | The offline test suites. |
+| `npm run check` | Deploy drift: units missing, changed or wrong mode, or the timer armed wrongly. Changes nothing. |
+| `npm run deploy` | Lint and test, then install the units and arm or disarm the timer. |
+| `npm run update:dry` | Updater rehearsal: pulls, but recreates nothing. |
+| `npm run update` | Update now, outside the Sunday schedule. |
+
+Before a phase:
 
 ```bash
 tools/preflight.sh
-```
-
-```bash
-docker compose ps
 ```

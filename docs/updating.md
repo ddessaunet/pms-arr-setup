@@ -38,6 +38,25 @@ For each service in `UPDATE_SERVICES` (`.env`, default `plex`):
 A deferred run keeps the pulled image. The next run sees the running container is behind
 and goes straight to the gate.
 
+## Installing
+
+```bash
+npm run deploy
+```
+
+This installs `systemd/pms-update.{service,timer}` and arms the timer **only while
+`plexmediaserver` is masked**, which is to say only after the Phase 1b cutover. Otherwise it
+disarms it. That's the same signal pms-local's deploy uses to disarm its own
+`plex-update.timer`, so exactly one of the two updaters is armed at any time. The deploy
+refuses to run if the unit's `ExecStart` doesn't point at this clone.
+
+```bash
+npm run check
+```
+
+This reports drift (a missing, changed or wrong-mode unit, or a timer armed when it
+shouldn't be, or the reverse) and changes nothing.
+
 ## Reading runs
 
 ```bash
@@ -66,7 +85,7 @@ With several services, each one is tried and the worst exit code wins.
 ## Running it by hand
 
 ```bash
-tools/update-stack.sh --dry-run
+npm run update:dry
 ```
 
 `--dry-run` still **pulls**, because that's how it finds out whether there's anything new.
