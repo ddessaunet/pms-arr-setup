@@ -91,6 +91,40 @@ ok_eq "a disabled TV library is visible" "Movies" \
 ok_eq "only the admin signs in" '{"newPlexLogin":false}' "$(want_main)"
 ok_eq "Plex through the host gateway, no read-only fields" '{"ip":"host.docker.internal","port":32400,"useSsl":false}' "$(want_plex)"
 
+# ─── the profile appears late (right after a Recyclarr sync) ──────────────────
+echo
+echo "settled_profile_id"
+# api answers from a queue of test responses; each call takes the next one and
+# the last one repeats. sleep is a no-op so the retries cost nothing.
+# shellcheck disable=SC2329  # stubs, called indirectly
+sleep() { :; }
+CALLS=0
+# shellcheck disable=SC2329
+api() {
+    CALLS=$((CALLS + 1))
+    [[ "${API_FAIL:-0}" == 1 ]] && { HTTP=500; return 1; }
+    local i=$(( CALLS <= ${#ANSWERS[@]} ? CALLS - 1 : ${#ANSWERS[@]} - 1 ))
+    printf '%s' "${ANSWERS[$i]}" > "$BODY"; HTTP=200
+}
+BODY="$TMP/body"
+OLD='{"profiles":[{"id":4,"name":"HD-1080p"}]}'
+NEW='{"profiles":[{"id":4,"name":"HD-1080p"},{"id":7,"name":"UHD Bluray + WEB"}]}'
+ANSWERS=("$OLD" "$OLD" "$NEW"); CALLS=0
+settled_profile_id radarr '{}' < /dev/null; rc=$?
+ok_eq "missing twice, then there → found"   "0 7 3" "$rc $PID $CALLS"
+ANSWERS=("$OLD"); CALLS=0; PROFILE_SETTLE=4
+settled_profile_id radarr '{}' < /dev/null; rc=$?
+ok_eq "never there → 2 after PROFILE_SETTLE tries" "2  4" "$rc $PID $CALLS"
+ANSWERS=("$NEW"); CALLS=0
+settled_profile_id radarr '{}' < /dev/null; rc=$?
+ok_eq "there at once → one call"             "0 7 1" "$rc $PID $CALLS"
+API_FAIL=1; CALLS=0
+settled_profile_id radarr '{}' < /dev/null; rc=$?
+ok_eq "the test itself fails → 1, no retries" "1 1" "$rc $CALLS"
+API_FAIL=0
+ok_eq "the message no longer assumes the sync was skipped" "1" \
+    "$(profile_missing_msg radarr | grep -c "did npm run recyclarr:sync finish")"
+
 echo
 printf '%d passed, %d failed\n' "$PASS" "$FAIL"
 [[ "$FAIL" -eq 0 ]]
