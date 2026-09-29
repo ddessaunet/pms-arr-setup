@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# preflight.sh — read-only checks before a phase. Changes nothing.
+# preflight.sh — read-only checks before starting the stack or a new phase.
+# Changes nothing.
 #
-#   tools/preflight.sh            checks for the next phase to run
-#   tools/preflight.sh 1b         checks for a specific phase (0, 1a, 1b)
+#   tools/preflight.sh      (also run by `npm start`)
 #
 # Exit 0 when every hard check passes, 1 otherwise. Warnings never fail.
 
@@ -13,7 +13,6 @@ DATA_ROOT="${DATA_ROOT:-/mnt/data}"
 TORRENTS="$DATA_ROOT/torrents"
 STREAMING="$DATA_ROOT/streaming"
 
-phase="${1:-}"
 fails=0
 
 ok()   { printf '  \033[32mok\033[0m    %s\n' "$*"; }
@@ -25,8 +24,6 @@ env_get() {
     [[ -f "$REPO/.env" ]] || return 1
     sed -n "s/^$1=//p" "$REPO/.env" | tail -n1
 }
-
-port_in_use() { ss -Hltn "sport = :$1" 2>/dev/null | grep -q .; }
 
 container_running() { docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$1"; }
 
@@ -89,11 +86,7 @@ if [[ -d "$appdata" ]]; then
         fail "$appdata is on the same filesystem as $DATA_ROOT — keep appdata on /"
     fi
 else
-    if [[ "$phase" == "0" || -z "$phase" ]]; then
-        warn "$appdata missing — sudo install -d -o ${puid:-1000} -g ${pgid:-1001} $appdata"
-    else
-        fail "$appdata missing — finish Phase 0 first"
-    fi
+    fail "$appdata missing — sudo install -d -o ${puid:-1000} -g ${pgid:-1001} $appdata"
 fi
 
 read -r avail pct < <(df --output=avail,pcent -BG "$DATA_ROOT" | tail -n1)
@@ -109,58 +102,25 @@ for unit in plexmediaserver qbittorrent-nox plex-watch plex-update.timer; do
     printf '  ....  %-20s %s\n' "$unit" "$(systemctl is-active "$unit" 2>/dev/null)/$(systemctl is-enabled "$unit" 2>/dev/null)"
 done
 
-# Work out the phase from state when not given one.
-if [[ -z "$phase" ]]; then
-    if container_running plex; then
-        phase=complete
-    elif container_running plex-shadow; then
-        phase=1b
-    else
-        phase=1a
-    fi
+echo "── plex"
+
+# The container owns :32400 on host networking. Native Plex is kept installed
+# and masked as the rollback until Phase 7; if it ever runs again the two fight
+# for the port, and whichever loses is the one clients cannot reach.
+native="$(systemctl is-enabled plexmediaserver 2>/dev/null)"
+if [[ "$native" == masked* ]]; then
+    ok "native plexmediaserver masked"
+elif [[ -z "$native" || "$native" == not-found ]]; then
+    ok "native plexmediaserver not installed"
+else
+    fail "native plexmediaserver is $native, not masked — it would fight the container for :32400 (sudo systemctl mask --now plexmediaserver)"
 fi
 
-echo "── phase $phase"
-
-case "$phase" in
-    0)
-        ok "nothing phase-specific"
-        ;;
-    1a)
-        # Re-running this mid-phase is normal, and then the port is ours.
-        if container_running plex-shadow; then
-            ok "plex-shadow already running on :32420"
-            [[ -z "$(env_get PLEX_CLAIM)" ]] || warn "PLEX_CLAIM still set — it was spent on first start; clear it in .env"
-        else
-            if port_in_use 32420; then
-                fail ":32420 already in use"
-            else
-                ok ":32420 free for plex-shadow"
-            fi
-            [[ -n "$(env_get PLEX_CLAIM)" ]] || warn "PLEX_CLAIM empty — get one from https://plex.tv/claim right before starting (4-minute token)"
-        fi
-        ;;
-    1b)
-        prefs="/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Preferences.xml"
-        if id="$(sudo -n grep -o 'ProcessedMachineIdentifier="[^"]*"' "$prefs" 2>/dev/null)"; then
-            ok "native $id — the container must report this after cutover"
-        else
-            warn "could not read native Preferences.xml without a password — record ProcessedMachineIdentifier by hand"
-        fi
-        if systemctl is-enabled plex-update.timer >/dev/null 2>&1; then
-            warn "plex-update.timer is enabled — step 1 disables it"
-        fi
-        if [[ -d "$appdata/plex/Library" ]]; then
-            warn "$appdata/plex/Library already exists — a previous attempt? check it before copying over it"
-        fi
-        ;;
-    complete)
-        ok "plex container running — Phase 1 complete"
-        ;;
-    *)
-        fail "unknown phase '$phase' (expected 0, 1a or 1b)"
-        ;;
-esac
+if container_running plex; then
+    ok "plex container running"
+else
+    warn "plex container not running — npm start brings it up"
+fi
 
 echo
 if [[ "$fails" -gt 0 ]]; then

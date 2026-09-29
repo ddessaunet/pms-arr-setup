@@ -11,7 +11,7 @@ Tick these as phases finish, and commit the tick. This list is how you (or the n
 tell what has been done. If it looks stale, check the server rather than trusting it.
 
 - [x] Phase 0 — foundation
-- [x] Phase 1a — shadow Plex beside the native one
+- [x] Phase 1a — test Plex beside the native one
 - [x] Phase 1b — Plex cutover (2026-09-28: identity `f3860770…`, counts 132/7/2/5 carried over)
 - [ ] Phase 2 — qBittorrent, parallel instance
 - [ ] Phase 3 — Prowlarr + FlareSolverr
@@ -54,7 +54,7 @@ Nothing on the server changes except one empty directory.
 
 ```bash
 cp .env.example .env
-$EDITOR .env                      # check TZ and the LAN IP in PLEX_SHADOW_ADVERTISE
+$EDITOR .env                      # check TZ; PLEX_CLAIM only for a fresh install
 ```
 
 ```bash
@@ -71,160 +71,48 @@ tools/preflight.sh 0
 
 ---
 
-## Phase 1a — Shadow Plex
+## Phase 1a — Test Plex (done 2026-09-28)
 
-A second, throwaway Plex server on `:32420` with its own identity and the library mounted
-**read-only**. It proves the image scans and plays on this box before anything native is
-stopped. Native Plex is untouched.
+A throwaway second server (`plex-shadow`, `:32420`, library read-only) proved the image on
+this box before anything native was stopped:
+- it scanned the same library (132 / 7 / 2 / 5)
+- it direct-played a title
+- it survived a real `update-stack.sh` run (image recreate, health check, old image removed)
 
-**Do**
+It has since been removed from `compose.yaml`.
 
-1. Get a claim token from <https://plex.tv/claim>. It expires in 4 minutes, so do this last,
-   then put it in `.env` as `PLEX_CLAIM=`.
-2. Start it:
-
-   ```bash
-   tools/preflight.sh 1a && docker compose --profile shadow up -d plex-shadow
-   ```
-
-   ```bash
-   docker compose logs -f plex-shadow
-   ```
-
-3. Open `http://192.168.0.86:32420/web` and add libraries pointing at
-   `/mnt/data/streaming/movies`, `/mnt/data/streaming/series` and `/mnt/data/streaming/music`.
-   Plex also offers `photos/` and `videos/`. Add them if the native server has them.
-4. Clear `PLEX_CLAIM` in `.env`. It is only read on first start.
-
-**Verify**
-
-- The scan finishes and titles match the native server.
-- Direct play works, and a forced transcode (drop the quality in the player) plays smoothly.
-  Watch the CPU in `docker stats plex-shadow`. Transcoding is CPU-only, the same as native.
-
-**Don't**
-
-- Copy the native `Preferences.xml` or database here. Two running servers with one machine
-  identity confuse plex.tv and every client.
-- Turn on Remote Access for the shadow server.
-
-**Rollback**
-
-```bash
-docker compose --profile shadow down
-```
-
-```bash
-sudo rm -rf /opt/appdata/plex-shadow
-```
-
-Then remove the extra server from plex.tv → Settings → Authorized Devices.
+A fresh install has no native server to test against. It starts `plex` directly, with
+`PLEX_CLAIM` set in `.env` for the first start.
 
 ---
 
-## Phase 1b — Plex cutover
+## Phase 1b — Plex cutover (done 2026-09-28)
 
-The container takes over with a **copy** of the native database: same server identity, same
-watch history, same library paths. The original stays in `/var/lib/plexmediaserver` for
-rollback.
+The `plex` container took over with a **copy** of the native database. It serves:
+- the same identity, `f3860770…`
+- the same version (1.43.4.10903) and the same library counts
+- 48 history entries and 12 On Deck items
 
-Plan for a few minutes of downtime. Check nobody is streaming first.
+The steps were:
+1. Hold *Empty trash automatically* off while copying, so a missing mount couldn't delete
+   titles.
+2. Disable `plex-update.timer`.
+3. Stop and **mask** `plexmediaserver`.
+4. `rsync` the native `Plex Media Server` directory into
+   `/opt/appdata/plex/Library/Application Support/`, and `chown` the copy to 1000:1001.
+5. Start the container.
+6. Check the identity and counts match, then restore the trash setting.
 
-**Do**
+Native `plexmediaserver` stays installed and masked, with its database untouched in
+`/var/lib/plexmediaserver`, until Phase 7. That's the rollback.
 
-1. **Disable the updater.** Otherwise its next Sunday run installs a `.deb` and restarts
-   native Plex onto `:32400`, fighting the container.
+**Still to do once:**
+- Arm the container updater with `npm run update:dry`, then `npm run deploy`. It's armed
+  only while native Plex is masked. See [Updating](updating.md).
+- Remove "PMS shadow" from plex.tv → Authorized Devices, then run
+  `rm -rf /opt/appdata/plex-shadow`.
 
-   ```bash
-   sudo systemctl disable --now plex-update.timer
-   ```
-
-   > Once [pms-local#14](https://github.com/ddessaunet/pms-local/pull/14) is deployed,
-   > pms-local's `npm run deploy-system` leaves this timer disabled while `plexmediaserver`
-   > is masked (step 3). Before that, the deploy re-enables it, so don't run it after cutover.
-
-2. **Record the server identity**. `tools/preflight.sh 1b` prints it if sudo is cached:
-
-   ```bash
-   sudo grep -o 'ProcessedMachineIdentifier="[^"]*"' "/var/lib/plexmediaserver/Library/Application Support/Plex Media Server/Preferences.xml"
-   ```
-
-3. **Stop native Plex and make sure nothing restarts it.** Masking also blocks a
-   `plexmediaserver` package upgrade from starting it:
-
-   ```bash
-   sudo systemctl stop plexmediaserver && sudo systemctl mask plexmediaserver
-   ```
-
-4. **Remove the shadow server** — run the Phase 1a rollback.
-
-5. **Copy the database.** The linuxserver image expects it under
-   `/config/Library/Application Support/Plex Media Server`:
-
-   ```bash
-   sudo install -d -o 1000 -g 1001 "/opt/appdata/plex/Library/Application Support"
-   ```
-
-   ```bash
-   sudo rsync -a "/var/lib/plexmediaserver/Library/Application Support/Plex Media Server" "/opt/appdata/plex/Library/Application Support/"
-   ```
-
-   ```bash
-   sudo chown -R 1000:1001 /opt/appdata/plex
-   ```
-
-   Only the copy is chowned. `/var/lib/plexmediaserver` stays `plex:plex` so that rollback
-   is just a restart.
-
-6. **Start it:**
-
-   ```bash
-   docker compose --profile cutover up -d plex
-   ```
-
-   ```bash
-   docker compose logs -f plex
-   ```
-
-7. Once Verify passes, delete the `profiles: [cutover]` line from `compose.yaml` and commit.
-   From then on a plain `docker compose up -d` includes Plex.
-
-8. **Arm the container updater.** It takes over the weekly Sunday 05:00 slot that step 1
-   emptied. Rehearse it first:
-
-   ```bash
-   npm run update:dry
-   ```
-
-   ```bash
-   npm run deploy
-   ```
-
-   The deploy installs the units and arms the timer, because step 3 masked
-   `plexmediaserver`. It gates on lint and tests first. `npm run check` confirms there's no
-   drift. See [Updating](updating.md) for what the updater does and how to read its runs.
-
-**Verify**
-
-- The identity matches step 2:
-
-  ```bash
-  curl -s localhost:32400/identity
-  ```
-
-- Clients reconnect to the same server without being re-added, and watch state and "On
-  Deck" are intact.
-- Settings → Library → *Allow media deletion* is still on.
-- **pms-local still works end to end.** Let a native qBittorrent download finish:
-  `/var/log/plex-move.log` should show the library refresh succeed. It still reaches Plex at
-  `localhost:32400` because of host networking. Then delete a throwaway title in Plex and
-  confirm `plex-watch` reacts:
-
-  ```bash
-  journalctl -u plex-watch -f
-  ```
-
-**Rollback**
+**Rollback** (until Phase 7)
 
 ```bash
 docker compose stop plex
@@ -234,9 +122,8 @@ docker compose stop plex
 sudo systemctl unmask plexmediaserver && sudo systemctl start plexmediaserver
 ```
 
-Then swap the updaters. Both deploys read the mask, so re-running each one puts its own
-timer right: this repo's disarms `pms-update.timer`, and pms-local's (with
-[pms-local#14](https://github.com/ddessaunet/pms-local/pull/14)) re-arms `plex-update.timer`.
+Then swap the updaters. Both deploys read the mask, so re-running each one puts its own timer
+right:
 
 ```bash
 npm run deploy
@@ -246,8 +133,8 @@ npm run deploy
 cd ../pms-local && npm run deploy-system
 ```
 
-Anything watched while the container was running is lost, because the native database
-never saw it.
+Anything watched while the container was running is lost, because the native database never
+saw it.
 
 ---
 
