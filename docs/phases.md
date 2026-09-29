@@ -19,7 +19,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 5 — Seerr (requests) (2026-09-29: two requests auto-approved → HD-1080p grab → hardlink import → Available)
 - [ ] Phase 6 — Recyclarr: 4K HDR as the default for movies
 - [x] Phase 7a — retire native qBittorrent and `plex-watch` (2026-09-29: 9 native torrents dropped, all 10 library files kept at 1 link; both services disabled)
-- [ ] Phase 7b — remove native Plex and pms-local's leftovers (~2 stable weeks after 7a)
+- [x] Phase 7b — remove native Plex and pms-local's leftovers (2026-09-29, same day as 7a by choice: DB archived to /root, packages, units, files and user removed)
 - [ ] Phase 8 — library cleanup (import and rename the existing library)
 
 Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
@@ -111,8 +111,9 @@ The steps were:
 5. Start the container.
 6. Check the identity and counts match, then restore the trash setting.
 
-Native `plexmediaserver` stays installed and masked, with its database untouched in
-`/var/lib/plexmediaserver`, until Phase 7b. That's the rollback.
+Native `plexmediaserver` stayed installed and masked, with its database untouched in
+`/var/lib/plexmediaserver`, until Phase 7b removed the package. It's archived in
+`/root/plexmediaserver-native.tgz`, and the mask stays.
 
 **Still to do once:**
 - Arm the container updater with `npm run update:dry`, then `npm run deploy`. It's armed
@@ -120,7 +121,7 @@ Native `plexmediaserver` stays installed and masked, with its database untouched
 - Remove "PMS shadow" from plex.tv → Authorized Devices, then run
   `rm -rf /opt/appdata/plex-shadow`.
 
-**Rollback** (until Phase 7b)
+**Rollback** (until Phase 7b; after it, see Phase 7b's rollback)
 
 ```bash
 docker compose stop plex
@@ -677,50 +678,73 @@ torrents don't come back, but their files never left the library.
 
 ---
 
-## Phase 7b — Remove native Plex and pms-local's leftovers
+## Phase 7b — Remove native Plex and pms-local's leftovers (done 2026-09-29)
 
-After about 2 stable weeks on 7a. Everything here is sudo, and none of it is needed for
-Phase 8.
+The runbook planned about 2 stable weeks on 7a first. It ran the same day, by choice. None
+of it is needed for Phase 8. Ollama stays, and so does the `plexmediaserver` mask, which
+guards against a reinstall fighting the container for `:32400`. `npm run deploy` counts a
+missing unit as masked too, so the container updater stays armed either way.
 
-1. **Archive native Plex, then remove it.** Keep the mask: it guards against a reinstall
-   fighting the container for `:32400`. `npm run deploy` counts a missing unit as masked
-   too, so the container updater stays armed either way.
+1. **Archive native Plex, then remove both packages.** `apt remove` shows exactly these two.
+   The `wants` link is a leftover from before the mask, and no package owns it:
 
    ```bash
-   sudo tar -C /var/lib -czf /root/plexmediaserver-native.tgz plexmediaserver
+   sudo tar -C /var/lib -czf /root/plexmediaserver-native.tgz plexmediaserver && sudo tar -tzf /root/plexmediaserver-native.tgz | wc -l
    ```
 
    ```bash
-   sudo apt remove plexmediaserver
+   sudo apt remove plexmediaserver qbittorrent-nox
    ```
 
-2. **Remove what pms-local installed.** It has no uninstall, so this is the list:
-   - `/opt/scripts/`
-   - `/etc/plex-move.conf`
-   - `/etc/sudoers.d/qbittorrent-plex`
-   - `/etc/logrotate.d/plex-move`
-   - `/etc/tmpfiles.d/plex-move.conf`
-   - `/var/log/plex-move.log*`
-   - `/var/cache/plex-update`
-   - `/etc/systemd/system/plex-watch.service`
-   - `/etc/systemd/system/plex-update.{service,timer}`
+   ```bash
+   sudo rm /etc/systemd/system/multi-user.target.wants/plexmediaserver.service
+   ```
 
-   Then run `sudo systemctl daemon-reload`.
+   `apt remove` keeps `/var/lib/plexmediaserver` (1.2 GB) and the package's config files,
+   and dpkg shows it as `rc`. The `plex` system user stays too.
 
-3. **Remove native qBittorrent:** the `qbittorrent-nox` package, its hand-made unit
-   `/etc/systemd/system/qbittorrent-nox.service`, and the user, group and `/home/qbittorrent-nox`. **Look in its `Downloads/`
-   first**; it predates pms-local. Once the group is gone, pms-local's `deploy.sh` stops
-   before installing anything, which is a second guard.
+2. **Remove what pms-local installed, and the hand-made `qbittorrent-nox` unit.** pms-local
+   has no uninstall, so this is the list:
 
-4. **Keep Ollama.**
+   ```bash
+   sudo rm -r /opt/scripts /var/cache/plex-update
+   ```
 
-**Verify:** `npm run check` still shows `pms-update.timer` armed, and Plex still answers
-as `f3860770…`.
+   ```bash
+   sudo rm /etc/plex-move.conf /etc/sudoers.d/qbittorrent-plex /etc/logrotate.d/plex-move /etc/tmpfiles.d/plex-move.conf /var/log/plex-move.log*
+   ```
 
-**Rollback:** `/root/plexmediaserver-native.tgz` holds the native database. Everything
-else is gone for good, which is why 7b waits for two quiet weeks.
+   ```bash
+   sudo rm /etc/systemd/system/plex-watch.service /etc/systemd/system/plex-update.service /etc/systemd/system/plex-update.timer /etc/systemd/system/qbittorrent-nox.service && sudo systemctl daemon-reload
+   ```
 
----
+3. **Remove the `qbittorrent-nox` user, its home and its group.** Its `Downloads/` held
+   only one `.nfo`.
+
+   ```bash
+   sudo userdel -r qbittorrent-nox && sudo groupdel qbittorrent-nox
+   ```
+
+   `userdel` warns that it kept the group because you're a member, and that there's no mail
+   spool. Both warnings are harmless, and `groupdel` removes the group.
+
+   With the group gone, pms-local's `deploy.sh` stops before installing anything. That
+   joins the unit files being gone as a guard against its deploys.
+
+**Verify**
+
+- Plex still answers as `f3860770…`.
+- `npm run check` still shows `pms-update.timer` armed.
+- `tools/preflight.sh` shows `plexmediaserver` masked and the other three `not-found`.
+- `systemctl --failed` is empty.
+
+**Rollback**
+
+Native qBittorrent and pms-local are gone for good.
+
+Native Plex can be reinstalled from Plex's apt repository and restored from
+`/root/plexmediaserver-native.tgz`. That database stops at the Phase 1b cutover, so
+everything watched or added since then is only in the container's database.
 
 ## Phase 8 — Library cleanup
 
