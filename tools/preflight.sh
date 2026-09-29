@@ -85,6 +85,16 @@ if [[ -d "$appdata" ]]; then
     if [[ "$(stat -c %d "$appdata")" == "$dev_s" ]]; then
         fail "$appdata is on the same filesystem as $DATA_ROOT — keep appdata on /"
     fi
+    # Each service's config dir must be ours too. A root-owned one is what
+    # Docker leaves when it creates a missing bind source itself; an image
+    # that runs unprivileged (Seerr) then cannot write its config and loops.
+    for d in "$appdata"/*/; do
+        [[ -d "$d" ]] || continue
+        d="${d%/}"
+        if [[ "$(stat -c %u "$d")" != "${puid:-1000}" ]]; then
+            fail "$d is owned $(stat -c %U:%G "$d") — sudo chown -R ${puid:-1000}:${pgid:-1001} $d"
+        fi
+    done
 else
     fail "$appdata missing — sudo install -d -o ${puid:-1000} -g ${pgid:-1001} $appdata"
 fi
