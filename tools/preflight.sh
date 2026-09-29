@@ -114,9 +114,10 @@ done
 
 echo "── plex"
 
-# The container owns :32400 on host networking. Native Plex is kept installed
-# and masked as the rollback until Phase 7b; if it ever runs again the two fight
-# for the port, and whichever loses is the one clients cannot reach.
+# The container owns :32400 on host networking. Native Plex was kept masked as
+# the rollback until Phase 7b removed it, and the mask stays; if it is ever
+# reinstalled and runs, the two fight for the port, and whichever loses is the
+# one clients cannot reach.
 native="$(systemctl is-enabled plexmediaserver 2>/dev/null)"
 if [[ "$native" == masked* ]]; then
     ok "native plexmediaserver masked"

@@ -19,8 +19,9 @@ disappear. Confirm before anything destructive:
 - `docker compose down -v`, or deleting anything under `/opt/appdata/plex` after Phase 1b
 - recursive `rm`, `chown` or `chmod` under `/mnt/data`
 - stopping, masking or uninstalling a native service outside the step that says to
-- anything under `/var/lib/plexmediaserver`, the native Plex database kept for rollback until
-  Phase 7b, or unmasking `plexmediaserver` (it would fight the container for `:32400`)
+- `/root/plexmediaserver-native.tgz` or `/var/lib/plexmediaserver`, the native Plex database
+  (Phase 7b removed the package and kept both), or unmasking `plexmediaserver` (a reinstall
+  would fight the container for `:32400`)
 
 ## Traps that span files
 
