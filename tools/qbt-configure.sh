@@ -7,9 +7,8 @@
 #
 # Normally reached through npm: `npm run qbt:configure` / `npm run qbt:check`.
 #
-# This is the container instance on :8081 that Radarr and Sonarr use — not
-# pms-local's native qbittorrent-nox on :8080, which keeps its own settings and
-# its import hook until Phase 7.
+# This is the container instance on :8081 that Radarr and Sonarr use — the
+# only one since Phase 7a retired pms-local's native qbittorrent-nox (:8080).
 #
 # The settings live below as data, so a reinstall gets exactly these in one
 # command. docs/phases.md points here rather than repeating them.

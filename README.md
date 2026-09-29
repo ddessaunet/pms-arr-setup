@@ -8,7 +8,6 @@ time, without breaking that setup until the last phase.
 ```
 /mnt/data/                        ← one ext4 volume: hardlinks work across the whole tree
 ├── torrents/                     ← qBittorrent save paths
-│   ├── <release name>/           ← native qBittorrent (pms-local), until Phase 7
 │   ├── radarr/  sonarr/          ← container qBittorrent, one category per app
 │   └── .incomplete*/
 └── streaming/                    ← the library; Radarr/Sonarr hardlink into it

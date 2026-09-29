@@ -8,9 +8,9 @@
 #   tools/arr-reclaim.sh run        reclaim once, now
 #   tools/arr-reclaim.sh --audit    report what `run` would do; changes nothing
 #
-# Ported from pms-local's plex-watch.sh / plex-reconcile.sh, which do this for
-# the native qBittorrent and are left exactly as they are. Both watch the same
-# library and each looks after its own qBittorrent. What differs is how a
+# Ported from pms-local's plex-watch.sh / plex-reconcile.sh, which did this for
+# the native qBittorrent until Phase 7a retired both (pms-local itself is left
+# exactly as it is). What differs is how a
 # torrent is known to be ours and deleted, because here Radarr and Sonarr
 # record it:
 #

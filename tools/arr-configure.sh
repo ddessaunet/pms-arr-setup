@@ -13,9 +13,9 @@
 # Indexers are therefore NOT managed here.
 #
 # What this deliberately never does: import the existing library, or run a
-# rename. Until pms-local's plex-watch is retired (Phase 7) any move under
-# /mnt/data/streaming reads as a Plex deletion and costs a native torrent; the
-# library is cleaned up in Phase 8. Renaming below applies to NEW imports only.
+# rename. That is Phase 8's job, planned on its own (moves have been safe since
+# Phase 7a retired pms-local's plex-watch). Renaming below applies to NEW
+# imports only.
 #
 # Exit: 0 applied and verified (or no drift; a FAILING connection test only
 # warns) · 1 drift, or a step failed · 2 usage · 3 unreachable/not configured.

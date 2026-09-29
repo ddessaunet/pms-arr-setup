@@ -18,7 +18,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 4 — Radarr + Sonarr (2026-09-29: grab → hardlink import → Plex delete → arr-reclaim freed 10 GB, unmonitored)
 - [x] Phase 5 — Seerr (requests) (2026-09-29: two requests auto-approved → HD-1080p grab → hardlink import → Available)
 - [ ] Phase 6 — Recyclarr: 4K HDR as the default for movies
-- [ ] Phase 7a — retire native qBittorrent and `plex-watch`
+- [x] Phase 7a — retire native qBittorrent and `plex-watch` (2026-09-29: 9 native torrents dropped, all 10 library files kept at 1 link; both services disabled)
 - [ ] Phase 7b — remove native Plex and pms-local's leftovers (~2 stable weeks after 7a)
 - [ ] Phase 8 — library cleanup (import and rename the existing library)
 
@@ -39,17 +39,18 @@ Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
 3. **Appdata lives on `/`** (`/opt/appdata`), never on `/mnt/data`.
 4. **Everything runs as `1000:1001` (dario:media).** The library is already `dario:media`,
    so no media file ever needs a chown.
-5. **`plex-watch` is live until Phase 7.** It treats *any* `delete` or `moved_from` under
-   `/mnt/data/streaming` as "deleted in Plex" and removes the matching native torrent **and
-   its data**. Anything that renames, upgrades or recycles library files — Radarr, Sonarr,
-   Recyclarr's upgrades — fires it. Until Phase 7 the arrs only *add* files: **never "Library
-   Import", "Rename Files" or "Organize" on existing media before Phase 8.** pms-local is not
-   modified by this migration; what the stack needs from it is ported here (`arr-reclaim`).
+5. **`plex-watch` was live until Phase 7a.** It treated *any* `delete` or `moved_from` under
+   `/mnt/data/streaming` as "deleted in Plex" and removed the matching native torrent **and
+   its data**, so until then the arrs only *added* files. It's retired now, and moves are
+   safe. Still, **"Library Import", "Rename Files" or "Organize" on existing media happen
+   only as Phase 8 plans them.** pms-local is not modified by this migration; what the stack
+   needs from it is ported here (`arr-reclaim`).
 6. **Upgrades only in the 4K movie profile (`UHD Bluray + WEB`), and every size is capped**
    (1080p 40, 2160p 150 MB/min; `arr-configure.sh`). Everything else is single-grab.
-7. **Media is deleted in Plex, and that frees the space.** For native imports that's
-   pms-local's `plex-watch`. For Radarr/Sonarr imports it's this repo's `arr-reclaim`
-   service. Both watch the same library, and each only touches its own qBittorrent.
+7. **Media is deleted in Plex, and that frees the space.** For Radarr/Sonarr imports,
+   this repo's `arr-reclaim` removes the torrent. For the rest of the library, including
+   the ex-native titles whose torrents Phase 7a dropped, the library file is the only link,
+   so deleting it frees the space by itself.
 
 ---
 
@@ -577,12 +578,15 @@ The container keeps `:8081` and peer port 13762. Ollama stays: it isn't only pms
 1. **Stop the watcher first**, so nothing reconciles while torrents go away:
 
    ```bash
-   sudo systemctl disable --now plex-watch && sudo systemctl mask plex-watch
+   sudo systemctl disable --now plex-watch
    ```
 
-   The mask is also a guard. pms-local has no uninstall, and its `npm run deploy-system`
-   always runs `enable` + `restart` on `plex-watch`. That now fails instead. **Don't run
-   pms-local's `deploy`, `deploy-system` or `deploy-all` again.**
+   Disable, don't mask. `systemctl mask` refuses a unit whose file is in
+   `/etc/systemd/system`, and pms-local installs `plex-watch.service` there. A mask wouldn't
+   guard against pms-local anyway, because its `npm run deploy-system` reinstalls the unit
+   file and then runs `enable` + `restart` on it. **Don't run pms-local's `deploy`,
+   `deploy-system` or `deploy-all` again.** If one did run, a revived `plex-watch` could do
+   no harm: it can only delete through native qBittorrent, which is stopped after step 4.
 
 2. **Check that every native torrent is in the library.** This is read-only. It logs in to
    `:8080` with `/etc/plex-move.conf`, which is readable through the `qbittorrent-nox`
@@ -637,19 +641,21 @@ The container keeps `:8081` and peer port 13762. Ollama stays: it isn't only pms
    - `/mnt/data/torrents/` holds only `radarr/`, `sonarr/` and `.incomplete*`.
 
 4. **Stop native qBittorrent.** Its config, and the torrent state in
-   `/home/qbittorrent-nox`, stay until 7b:
+   `/home/qbittorrent-nox`, stay until 7b. Its hand-made unit is in `/etc/systemd/system`
+   too, so it's disabled, not masked:
 
    ```bash
-   sudo systemctl disable --now qbittorrent-nox && sudo systemctl mask qbittorrent-nox
+   sudo systemctl disable --now qbittorrent-nox
    ```
 
-5. **Router:** remove the `13761` forward, and check that `13762` is forwarded to this box.
+5. **Router: nothing to do.** No port was ever forwarded by hand. Native qBittorrent opened
+   13761 through UPnP (its default), and the mapping went away when it stopped.
 
 `plex-update.timer` has been disabled since Phase 1b; leave it.
 
 **Verify**
 
-- `plex-watch` and `qbittorrent-nox` are masked and inactive. Nothing listens on `:8080`
+- `plex-watch` and `qbittorrent-nox` are disabled and inactive. Nothing listens on `:8080`
   or `13761`:
 
   ```bash
@@ -663,7 +669,7 @@ The container keeps `:8081` and peer port 13762. Ollama stays: it isn't only pms
 **Rollback**
 
 ```bash
-sudo systemctl unmask qbittorrent-nox plex-watch && sudo systemctl enable --now qbittorrent-nox plex-watch
+sudo systemctl enable --now qbittorrent-nox plex-watch
 ```
 
 The client comes back empty, and the hook imports new downloads as before. The dropped
@@ -699,11 +705,10 @@ Phase 8.
    - `/etc/systemd/system/plex-watch.service`
    - `/etc/systemd/system/plex-update.{service,timer}`
 
-   Unmask `plex-watch` before deleting its unit file, then run
-   `sudo systemctl daemon-reload`.
+   Then run `sudo systemctl daemon-reload`.
 
-3. **Remove native qBittorrent:** the `qbittorrent-nox` package, its hand-made unit (unmask
-   it first), and the user, group and `/home/qbittorrent-nox`. **Look in its `Downloads/`
+3. **Remove native qBittorrent:** the `qbittorrent-nox` package, its hand-made unit
+   `/etc/systemd/system/qbittorrent-nox.service`, and the user, group and `/home/qbittorrent-nox`. **Look in its `Downloads/`
    first**; it predates pms-local. Once the group is gone, pms-local's `deploy.sh` stops
    before installing anything, which is a second guard.
 
