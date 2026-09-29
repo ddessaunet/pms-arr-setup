@@ -648,7 +648,8 @@ The container keeps `:8081` and peer port 13762. Ollama stays: it isn't only pms
    sudo systemctl disable --now qbittorrent-nox
    ```
 
-5. **Router:** remove the `13761` forward, and check that `13762` is forwarded to this box.
+5. **Router: nothing to do.** No port was ever forwarded by hand. Native qBittorrent opened
+   13761 through UPnP (its default), and the mapping went away when it stopped.
 
 `plex-update.timer` has been disabled since Phase 1b; leave it.
 
