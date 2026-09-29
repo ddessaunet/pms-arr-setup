@@ -83,6 +83,8 @@ want_prefs() {
         max_seeding_time_enabled:              true,
         max_seeding_time:                      20160,
         max_ratio_act:                         0,
+        dl_limit:                              5242880,
+        dont_count_slow_torrents:              true,
         web_ui_host_header_validation_enabled: true,
         web_ui_domain_list:                    $domains
     }'
@@ -93,8 +95,16 @@ want_prefs() {
 # removing leaves the removal to Radarr/Sonarr's "Remove Completed", which also
 # tidies their queue. The library copy is its own hardlink and stays.
 #
-# Deleting in Plex does not wait for this: pms-local's plex-watch reconciles
-# this instance too (QBT_ARR_URL) and removes the torrent right away.
+# Deleting in Plex does not wait for this: arr-reclaim removes the torrent of
+# an imported file once its last library link is gone.
+#
+# Download limit 5 MiB/s (bytes/s here, ~42 Mbit/s): just under what the ~50
+# Mbit/s line delivered (41-45 Mbit/s on well-seeded grabs), so it costs little.
+# It is what lets Decluttarr's remove_slow tell a thin swarm from a busy line: it
+# pauses itself while qBittorrent runs above 80% of this limit, and with no
+# limit it assumes infinite capacity and never pauses (decluttarr/config.yaml).
+# dont_count_slow_torrents: a download stuck under 2 KiB/s stops holding one of
+# the 3 active slots, so the queue behind it keeps moving until it is replaced.
 
 # ─── API ──────────────────────────────────────────────────────────────────────
 JAR=""

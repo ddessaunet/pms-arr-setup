@@ -201,6 +201,39 @@ services:
       - ./recyclarr/recyclarr.yml:/config/recyclarr.yml:ro
     networks: [arr]
 
+  # ── Download health: Decluttarr ───────────────────────────────────────────
+  # Replaces a download that stalls or crawls: removes it from qBittorrent,
+  # blocklists that release in Radarr/Sonarr, and has them search for another.
+  # Only the queue (not-yet-imported downloads) is touched; which jobs run is
+  # decluttarr/config.yaml, mounted read-only. Secrets reach it through !ENV.
+  #
+  # No media or torrent mounts, on purpose: its detect_deletions watcher starts
+  # even when that job is not listed (v2.1.0), and it can only watch paths it
+  # sees. It removes torrents through the qBittorrent API, so it needs none.
+  #
+  # Pinned: v1 → v2 changed the config format, and a silent major bump would
+  # change what gets removed. Not in UPDATE_SERVICES for the same reason;
+  # bump the tag by hand after reading its release notes.
+  #
+  # First start in test mode, then for real (docs/phases.md → Download health):
+  #   DECLUTTARR_TEST_RUN=true docker compose up -d decluttarr
+  decluttarr:
+    image: ghcr.io/manimatter/decluttarr:v2.1.0
+    container_name: decluttarr
+    environment:
+      TZ: ${TZ:?set TZ in .env}
+      PUID: ${PUID:?set PUID in .env}
+      PGID: ${PGID:?set PGID in .env}
+      DECLUTTARR_TEST_RUN: ${DECLUTTARR_TEST_RUN:-false}
+      RADARR_API_KEY: ${RADARR_API_KEY:?set RADARR_API_KEY in .env}
+      SONARR_API_KEY: ${SONARR_API_KEY:?set SONARR_API_KEY in .env}
+      QBT_ARR_USER: ${QBT_ARR_USER:?set QBT_ARR_USER in .env}
+      QBT_ARR_PASS: ${QBT_ARR_PASS:?set QBT_ARR_PASS in .env}
+    volumes:
+      - ./decluttarr/config.yaml:/app/config/config.yaml:ro
+    networks: [arr]
+    restart: unless-stopped
+
 # Shared by the arr services from Phase 2 on, so they reach each other by
 # service name. Host-networked Plex is not on it.
 networks:

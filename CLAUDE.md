@@ -56,7 +56,10 @@ disappear. Confirm before anything destructive:
    `.env` (`PROWLARR__AUTH__APIKEY`), which Phase 4 wires into Radarr and Sonarr. Changing
    the key means changing it everywhere. Indexers that go through FlareSolverr are listed
    there; add `flare` only for ones Cloudflare actually blocks, since each such search runs
-   a headless Chromium.
+   a headless Chromium. It also owns **Minimum Seeders** (`MIN_SEEDERS`, on the sync
+   profile): Prowlarr's full sync overwrites it on the Radarr/Sonarr indexers, so never set
+   it there. A sync-profile edit does not push by itself; the script runs
+   `ApplicationIndexerSync` after applying.
 8. **The library is not tidy.** 107 of 134 movies are loose files at the `movies/` root, and
    several series folders are misfiled. Radarr/Sonarr manage new content only; the rest
    waits for Phase 8.
@@ -70,6 +73,8 @@ disappear. Confirm before anything destructive:
 11. **Quality has three owners, in this order:**
     - **Recyclarr** (`recyclarr/recyclarr.yml`, run on demand): the default profiles, 4K HDR
       `UHD Bluray + WEB` for movies and `WEB-1080p` for series, and their custom formats.
+      Its 4K qualities are **one group** on purpose: Radarr ranks quality before score, so
+      split, any Bluray encode beat a well-seeded tiered WEB release.
     - **`arr-configure.sh`:** sizes (1080p 40, 2160p 150 MB/min; Recyclarr's
       `quality_definition` must stay out), and upgrades **only** on `UHD Bluray + WEB`.
     - **`seerr-configure.sh`:** requests default to those profiles.
@@ -86,6 +91,15 @@ disappear. Confirm before anything destructive:
     path** in `ExecStart`, because the scripts need `compose.yaml` and `.env` beside them.
     `npm run deploy` refuses to install a unit whose path doesn't match the clone. Moving
     the clone means editing those lines.
+
+14. **Decluttarr replaces queued downloads only, and only three jobs are on.**
+    `decluttarr/config.yaml` lists `remove_stalled`, `remove_slow` and
+    `remove_metadata_missing`; listing any job turns it on, and `remove_orphans` /
+    `remove_unmonitored` would delete seeding torrents or upgrades, so
+    `tests/decluttarr-config.test.sh` pins the list. What it removes was never imported, so
+    it never meets `arr-reclaim` (trap 9). `remove_slow` pauses while qBittorrent runs above
+    80% of its `dl_limit`; a limit of 0 means it never pauses. Its `detect_deletions`
+    watcher starts even when unlisted, so give it no media mounts. The image is pinned.
 
 ## Conventions
 
