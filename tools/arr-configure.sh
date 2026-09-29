@@ -99,7 +99,43 @@ want_plex_top() {
     esac
 }
 
+# Size caps, in MB per minute of runtime (the unit both apps use): 40 max is
+# ~4.8 GB for a 2-hour film and ~1.8 GB for a 45-minute episode; 25 preferred
+# is ~3 GB. /mnt/data runs near full: the defaults let Radarr take Bluray-1080p
+# and Remux-1080p at ANY size (the 10 GB Night of the Living Dead grab), and
+# offered a 31.5 GB Iron Man 2 pack.
+SIZE_MAX=40
+SIZE_PREFERRED=25
+# The 1080p qualities HD-1080p grabs, per app (their titles differ).
+size_capped() {
+    case "$1" in
+        radarr) printf '%s\n' HDTV-1080p WEBDL-1080p WEBRip-1080p Bluray-1080p ;;
+        sonarr) printf '%s\n' HDTV-1080p WEBRip-1080p WEBDL-1080p Bluray-1080p ;;
+    esac
+}
+PROFILE_NAME="HD-1080p"
+
 # ─── pure helpers (tests/arr-configure.test.sh) ───────────────────────────────
+
+# Quality definitions (a /qualitydefinition list) whose caps differ from ours,
+# returned already capped — ready to PUT to /qualitydefinition/update.
+sizes_to_fix() { # definitions-json titles(newline-separated)
+    jq -c --arg t "$2" --argjson mx "$SIZE_MAX" --argjson pf "$SIZE_PREFERRED" '
+        ($t | split("\n") | map(select(. != ""))) as $titles
+        | [.[] | select(.title as $x | $titles | index($x))
+               | select(.maxSize != $mx or .preferredSize != $pf)
+               | .maxSize = $mx | .preferredSize = $pf]' <<<"$1"
+}
+
+# A quality profile with every Remux quality disallowed, at any depth (groups
+# included). Remux-1080p is a 15-40 GB rip of the disc: never on this disk.
+profile_without_remux() {
+    jq -c 'walk(if type == "object" and ((.quality.name? // "") | test("Remux"))
+                then .allowed = false else . end)' <<<"$1"
+}
+profile_allows_remux() {
+    [[ "$(jq '[.. | objects | select(.allowed == true and ((.quality.name? // "") | test("Remux")))] | length' <<<"$1")" -gt 0 ]]
+}
 
 # fields_set, fields_drift, resource_want, resource_drift: tools/lib/servarr.sh
 
@@ -140,12 +176,67 @@ apply_profiles() {
     else log "  upgrades turned off on $n profile(s)"; fi
 }
 
+# The capped definitions, each read by id. Radarr 6.4 reports quality sizes a
+# few seconds late after a write — both the list and by-id reads — which made
+# a successful update read back as DRIFT; verify_sizes waits that out.
+capped_definitions() { # app
+    local ids id out="["
+    get /qualitydefinition || return 1
+    ids="$(body | jq -r --arg t "$(size_capped "$1")" \
+        '($t | split("\n") | map(select(. != ""))) as $ts | .[] | select(.title as $x | $ts | index($x)) | .id')"
+    for id in $ids; do
+        get "/qualitydefinition/$id" || return 1
+        out+="$(body),"
+    done
+    printf '%s' "${out%,}]"
+}
+
+# Up to SIZE_SETTLE re-reads, 2 s apart, before a difference counts as drift.
+SIZE_SETTLE="${SIZE_SETTLE:-5}"
+verify_sizes() { # app
+    local defs n try=0
+    while :; do
+        defs="$(capped_definitions "$1")" || { log "  FAIL  read quality definitions"; return 1; }
+        n="$(sizes_to_fix "$defs" "$(size_capped "$1")" | jq length)"
+        [[ "$n" -eq 0 ]] && { log "  ok       1080p sizes capped at ${SIZE_MAX} MB/min, preferred ${SIZE_PREFERRED}"; return 0; }
+        (( ++try < SIZE_SETTLE )) || break
+        sleep 2
+    done
+    log "  DRIFT    $n 1080p quality size(s) not capped"
+    return 1
+}
+
+apply_sizes() { # app
+    local fix n
+    local defs
+    defs="$(capped_definitions "$1")" || { log "  FAIL  read quality definitions (HTTP $HTTP)"; return 1; }
+    fix="$(sizes_to_fix "$defs" "$(size_capped "$1")")"
+    n="$(jq length <<<"$fix")"
+    if [[ "$n" -eq 0 ]]; then log "  1080p sizes already capped (${SIZE_MAX} MB/min)"; return 0; fi
+    api PUT /qualitydefinition/update < <(printf '%s' "$fix") \
+        || { log "  FAIL  quality sizes (HTTP $HTTP): $(api_error)"; return 1; }
+    log "  1080p sizes capped at ${SIZE_MAX} MB/min, preferred ${SIZE_PREFERRED} ($n quality/ies)"
+}
+
+apply_no_remux() {
+    local p
+    get /qualityprofile || { log "  FAIL  read quality profiles (HTTP $HTTP)"; return 1; }
+    p="$(body | jq -c --arg n "$PROFILE_NAME" '.[] | select(.name == $n)')"
+    [[ -n "$p" ]] || { log "  FAIL  no '$PROFILE_NAME' profile"; return 1; }
+    if ! profile_allows_remux "$p"; then log "  $PROFILE_NAME already without Remux"; return 0; fi
+    api PUT "/qualityprofile/$(jq -r .id <<<"$p")" < <(profile_without_remux "$p") \
+        || { log "  FAIL  $PROFILE_NAME profile (HTTP $HTTP): $(api_error)"; return 1; }
+    log "  Remux removed from $PROFILE_NAME"
+}
+
 apply_app() { # app
     apply_host &&
     apply_config "$1" naming "$(want_naming "$1")" &&
     apply_config "$1" mediamanagement "$(want_media "$1")" &&
     apply_root "$1" &&
     apply_profiles &&
+    apply_no_remux &&
+    apply_sizes "$1" &&
     apply_resource "download client" downloadclient QBittorrent \
         "$(want_client_top)" "$(want_client_fields "$1")" password "$QBT_ARR_PASS" &&
     apply_resource "Plex connection" notification PlexServer \
@@ -177,6 +268,13 @@ verify_app() { # app
     n="$(body | jq '[.[] | select(.upgradeAllowed == true)] | length')"
     if [[ "$n" -eq 0 ]]; then log "  ok       no quality profile allows upgrades"
     else log "  DRIFT    $n quality profile(s) allow upgrades"; rc=1; fi
+
+    local p
+    p="$(body | jq -c --arg n "$PROFILE_NAME" '.[] | select(.name == $n)')"
+    if [[ -n "$p" ]] && ! profile_allows_remux "$p"; then log "  ok       $PROFILE_NAME allows no Remux"
+    else log "  DRIFT    $PROFILE_NAME missing or allows Remux"; rc=1; fi
+
+    verify_sizes "$1" || rc=1
 
     verify_resource "download client" downloadclient QBittorrent "$(want_client_top)" "$(want_client_fields "$1")" || rc=1
     verify_resource "Plex connection" notification PlexServer "$(want_plex_top "$1")" "$(want_plex_fields)" || rc=1

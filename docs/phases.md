@@ -16,8 +16,8 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 2 — qBittorrent, parallel instance (2026-09-29: settings from qbt-configure, test download + hardlink verified)
 - [x] Phase 3 — Prowlarr + FlareSolverr (2026-09-29: 6 indexers pass, 1337x + EZTV via FlareSolverr)
 - [x] Phase 4 — Radarr + Sonarr (2026-09-29: grab → hardlink import → Plex delete → arr-reclaim freed 10 GB, unmonitored)
-- [ ] Phase 5 — Jellyseerr
-- [ ] Phase 6 — Recyclarr
+- [x] Phase 5 — Seerr (requests) (2026-09-29: two requests auto-approved → HD-1080p grab → hardlink import → Available)
+- [ ] Phase 6 — Recyclarr: 4K HDR as the default (decided 2026-09-29)
 - [ ] Phase 7 — retire the native setup
 - [ ] Phase 8 — library cleanup (import and rename the existing library)
 
@@ -305,7 +305,7 @@ retires `plex-watch`.
 |---|---|
 | Radarr | `:7878`, root `/mnt/data/streaming/movies`, new imports `Title (Year)/Title (Year).ext` |
 | Sonarr | `:8989`, root `/mnt/data/streaming/series`, `Show/Season 01/Show - S01E01.ext` |
-| quality | **1080p** (`HD-1080p`), **no upgrades** on any profile until Phase 6 |
+| quality | **1080p** (`HD-1080p`, **no Remux**), sizes **capped at 40 MB/min** (about 4.8 GB for a 2-hour film, 1.8 GB for a 45-minute episode; 25 preferred), **no upgrades** on any profile until Phase 6 |
 | downloads | the `:8081` qBittorrent, categories `radarr` / `sonarr`, **hardlinked** into the library |
 | seeding | ratio 2.0 or 14 days, then the torrent **stops**, and *Remove Completed* removes it (the library keeps its hardlink) |
 | deleted in Plex | **unmonitored**, never re-downloaded, and **`arr-reclaim`** removes its torrent **with its data** within about a minute |
@@ -401,41 +401,101 @@ Then delete the Radarr/Sonarr applications in Prowlarr, and take `radarr sonarr`
 
 ---
 
-## Phase 5 — Jellyseerr
+## Phase 5 — Seerr (requests)
 
-This phase has no risk. It only files requests with Radarr and Sonarr.
+The request UI in front of Radarr and Sonarr. It's **Seerr**, the merged successor of
+Jellyseerr and Overseerr (Overseerr is archived, and the old Jellyseerr image isn't updated
+any more).
 
-**Do:** Jellyseerr and Overseerr were being merged into **Seerr**. Check which image is
-current before pinning one. Put it on network `arr`, port `5055`, with
-`extra_hosts: host-gateway`.
+It only files requests and has **no media mounts**. A request becomes an ordinary
+Radarr/Sonarr add, so everything from Phase 4 applies to it: 1080p, hardlinked imports, no
+upgrades, unmonitor on delete, and `arr-reclaim` freeing the space of a Plex delete.
 
-- Plex: `host.docker.internal:32400`.
-- Radarr: `http://radarr:7878`. Sonarr: `http://sonarr:8989`.
+- **Only you sign in**, and your requests are approved automatically.
+- **The existing library shows as Available.** Seerr scans Plex, so titles already there
+  can't be requested again, even though Radarr/Sonarr don't know about them until Phase 8.
 
-**Verify:** a request from its UI shows up in Radarr and downloads.
+**Do**
 
-**Rollback:** remove the service and its appdata.
+1. Start it. Only `seerr` is created:
+
+   ```bash
+   npm start
+   ```
+
+2. **Sign in with Plex once**, in a browser: open `http://192.168.0.86:5055` and choose
+   *Sign in with Plex*. That's Seerr's first-run OAuth and the one step that can't be
+   scripted. **Stop after signing in**; don't continue the wizard.
+
+3. The script does the rest of the wizard:
+   - the Plex server, and the Movies and TV Shows libraries
+   - Radarr and Sonarr at HD-1080p, with their root folders
+   - sign-in limited to you
+   - marks the wizard finished and starts a full Plex scan
+
+   ```bash
+   npm run seerr:configure
+   ```
+
+   Its key is Seerr's own, read from `/opt/appdata/seerr/settings.json`; nothing goes in
+   `.env`. Run before the sign-in, it stops and tells you to sign in.
+
+**Verify**
+
+- `npm run seerr:check` exits 0:
+  - Plex is `f3860770…` (the same server as Phase 1b)
+  - Movies and TV Shows are the enabled libraries
+  - both server tests pass at HD-1080p
+  - sign-in is admin-only
+  - once the scan is done, the Available count is close to Plex's
+- A request auto-approves and appears in Radarr (monitored, HD-1080p, searching). It then
+  imports as in Phase 4 and turns Available in Seerr. Check the release size first.
+- A title already in the library (e.g. *Tenet*) shows as Available and can't be requested.
+
+**Rollback**
+
+```bash
+docker compose rm -sf seerr
+```
+
+```bash
+rm -rf /opt/appdata/seerr
+```
+
+Then take `seerr` out of `UPDATE_SERVICES`. Radarr, Sonarr and the library are untouched.
 
 ---
 
-## Phase 6 — Recyclarr
+## Phase 6 — Recyclarr: 4K HDR as the default
 
-This phase is what turns quality upgrades on. **Do the `plex-watch` decision in Phase 7
-first**, because every upgrade deletes a library file.
+**Decided 2026-09-29:** new grabs default to **4K HDR**, the quality you choose most, done
+properly here rather than as a quick profile switch in Phase 4/5. Until then the default stays
+`HD-1080p`, capped at 40 MB/min with no Remux.
 
-**Do:** add `ghcr.io/recyclarr/recyclarr` with its config in `${APPDATA}/recyclarr` and the
-Radarr and Sonarr API keys in `.env`. Choose TRaSH **1080p, size-capped** profiles (HD
-Bluray + WEB, WEB-1080p). No Remux, no 4K.
+Plan this phase on its own. What it has to cover:
 
-```bash
-docker compose run --rm recyclarr sync --preview
-```
+- **HDR isn't a quality level.** Radarr's `Ultra-HD` only means 2160p, including SDR. HDR
+  preference, and avoiding **Dolby Vision without an HDR10 fallback** (purple/green on
+  non-DV devices), take **custom formats**. Recyclarr applies them from TRaSH's UHD profile
+  (UHD Bluray + WEB), with the HDR, DV and HDR10+ formats and DV-without-fallback scored
+  down.
+- **2160p size caps.** The 1080p cap is 40 MB/min; 2160p needs its own, roughly 150 MB/min
+  (about 18 GB for 2 hours). No Remux.
+- **Disk.** At ~31 GB free, that's one or two 4K films. The free-space check stops outright
+  overflows, but not concurrent grabs (see Phase 4). Decide the free-space floor here.
+- **Playback.** Transcoding is CPU-only, and 4K HDR can't be transcoded or tone-mapped in
+  real time on this box. It has to **direct-play** (4K HDR TV apps, Shield, Apple TV).
+  Phones and browsers will struggle.
+- **The defaults that must follow:** `arr-configure.sh`'s `PROFILE_NAME` and size caps, and
+  `seerr-configure.sh`'s `PROFILE_NAME` (Seerr's default server profile).
+- **Upgrades.** This phase is where upgrades could come on. An upgrade deletes the old
+  library file: pms-local's `plex-watch` ignores it (not a native torrent), and
+  `arr-reclaim` removes the old torrent (its import is gone and its data unlinked), which is
+  the right outcome. Confirm both with a test before enabling upgrades.
 
-**Verify:** the preview output only touches what you expect. Then run a real sync, and
-check that profiles and custom formats appear in both apps.
-
-**Rollback:** Recyclarr only writes profiles and custom formats. Remove it and switch titles
-back to the profile you used before.
+**Rehearse** with `docker compose run --rm recyclarr sync --preview`. **Rollback:** Recyclarr
+only writes profiles and custom formats; remove it, switch titles back to the previous
+profile, and re-run `arr:configure` and `seerr:configure`.
 
 ---
 
@@ -474,7 +534,7 @@ back to the profile you used before.
    ```
 
 **Verify:** every torrent from the native instance shows in the container, seeding, with no
-errors. A new request goes all the way through: Jellyseerr → Radarr → qBittorrent → a
+errors. A new request goes all the way through: Seerr → Radarr → qBittorrent → a
 hardlink import → Plex.
 
 **Rollback:** until step 5, start `qbittorrent-nox` and `plex-watch` again. The native

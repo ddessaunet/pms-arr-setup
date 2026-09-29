@@ -1,7 +1,7 @@
 # pms-arr-setup
 
 The containerized media stack for this box: Plex, qBittorrent, Prowlarr + FlareSolverr,
-Radarr + Sonarr, Jellyseerr and Recyclarr, all in Docker Compose. It replaces the native
+Radarr + Sonarr, Seerr and Recyclarr, all in Docker Compose. It replaces the native
 setup in [pms-local](https://github.com/ddessaunet/pms-local), one reversible phase at a
 time, without breaking that setup until the last phase.
 
@@ -42,6 +42,7 @@ native Plex database and qBittorrent state move across unchanged.
 | `tools/prowlarr-configure.sh` | Applies Prowlarr's login, FlareSolverr proxy and indexer list through its API, then tests every indexer. Idempotent; `--check` reports drift. |
 | `tools/arr-configure.sh` | Applies Radarr's and Sonarr's login, naming, media management, root folder, no-upgrade profiles, qBittorrent client and Plex connection, then tests them. Never imports or renames existing media. `--check` reports drift. |
 | `tools/arr-reclaim.sh` | When media Radarr/Sonarr imported is deleted in Plex, removes its torrent with its data from the `:8081` qBittorrent. Run by `arr-reclaim.service`; `--audit` changes nothing. |
+| `tools/seerr-configure.sh` | After your one-time Plex sign-in, finishes Seerr's setup: Plex server and libraries, Radarr/Sonarr at HD-1080p, admin-only sign-in, then a full Plex scan. `--check` reports drift. |
 | `tools/lib/servarr.sh` | The API plumbing shared by the Prowlarr, Radarr and Sonarr configure scripts. |
 | `tools/deploy.sh` | Installs the `pms-update` units, and arms the timer only while native Plex is masked. `--check` reports drift. |
 | `tools/update-stack.sh` | Pulls new images, skips the run if anyone is streaming, recreates the container, verifies it, and rolls back if it's unhealthy. Run weekly by `pms-update.timer`. |
@@ -75,6 +76,8 @@ lives in `/opt/appdata`.
 | `npm run arr:configure` | Apply Radarr's and Sonarr's settings, then test their qBittorrent and Plex connections. |
 | `npm run arr:check` | Report Radarr/Sonarr drift. Changes nothing. |
 | `npm run reclaim:audit` | What `arr-reclaim` would remove right now. Changes nothing. |
+| `npm run seerr:configure` | Finish Seerr's setup after the Plex sign-in, then test its connections. |
+| `npm run seerr:check` | Report Seerr drift. Changes nothing. |
 
 Before a phase:
 

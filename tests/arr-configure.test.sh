@@ -80,6 +80,29 @@ ok_eq "never carries the token"  false "$(want_plex_fields | jq 'has("authToken"
 ok_eq "radarr refreshes on delete too" true "$(want_plex_top radarr | jq .onMovieFileDelete)"
 ok_eq "sonarr refreshes on delete too" true "$(want_plex_top sonarr | jq .onEpisodeFileDelete)"
 
+# ─── size caps and no Remux ───────────────────────────────────────────────────
+echo
+echo "sizes_to_fix / profile_*_remux"
+D='[{"id":20,"title":"WEBDL-1080p","minSize":0,"preferredSize":95,"maxSize":100},
+    {"id":22,"title":"Bluray-1080p","minSize":0,"preferredSize":null,"maxSize":null},
+    {"id":23,"title":"Remux-1080p","minSize":0,"preferredSize":null,"maxSize":null},
+    {"id":3,"title":"HDTV-720p","minSize":0,"preferredSize":95,"maxSize":100}]'
+F="$(sizes_to_fix "$D" "$(size_capped radarr)")"
+ok_eq "uncapped 1080p ones are fixed" "20 22" "$(jq -r '[.[].id] | join(" ")' <<<"$F")"
+ok_eq "to 40 max, 25 preferred" "40/25 40/25" "$(jq -r '[.[] | "\(.maxSize)/\(.preferredSize)"] | join(" ")' <<<"$F")"
+ok_eq "min and everything else kept" "0 WEBDL-1080p" "$(jq -r '.[0] | "\(.minSize) \(.title)"' <<<"$F")"
+ok_eq "Remux and 720p are not in the list" "0" "$(jq '[.[] | select(.title|test("Remux|720p"))] | length' <<<"$F")"
+ok_eq "already capped → nothing to fix" "0" "$(sizes_to_fix "$(jq -c 'map(.maxSize = 40 | .preferredSize = 25)' <<<"$D")" "$(size_capped radarr)" | jq length)"
+ok_eq "40 MB/min is ~4.8 GB for a 2-hour film" "4800" "$((SIZE_MAX * 120))"
+P='{"id":4,"name":"HD-1080p","items":[
+    {"quality":{"id":7,"name":"Bluray-1080p"},"allowed":true},
+    {"quality":{"id":30,"name":"Remux-1080p"},"allowed":true},
+    {"name":"WEB 1080p","allowed":true,"items":[{"quality":{"id":3,"name":"WEBDL-1080p"},"allowed":true}]}]}'
+if profile_allows_remux "$P"; then PASS=$((PASS+1)); echo "  ok    a profile allowing Remux is seen"; else FAIL=$((FAIL+1)); echo "  FAIL  Remux not seen"; fi
+NR="$(profile_without_remux "$P")"
+if profile_allows_remux "$NR"; then FAIL=$((FAIL+1)); echo "  FAIL  Remux still allowed"; else PASS=$((PASS+1)); echo "  ok    Remux disallowed"; fi
+ok_eq "and nothing else changed" "true true" "$(jq -r '"\(.items[0].allowed) \(.items[2].items[0].allowed)"' <<<"$NR")"
+
 # ─── resources (tools/lib/servarr.sh) ─────────────────────────────────────────
 echo
 echo "fields_set / fields_drift / resource_want / resource_drift"
