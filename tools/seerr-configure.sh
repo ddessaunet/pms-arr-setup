@@ -101,6 +101,33 @@ server_drift() { # got want
 enabled_libraries() { jq -r '[.[] | select(.enabled) | .name] | sort | .[]' <<<"$1"; }
 wanted_libraries() { printf '%s\n' "${LIBRARIES[@]}" | sort; }
 
+# ─── the profile id, as the app reports it ────────────────────────────────────
+# Right after `npm run recyclarr:sync` a new profile can be missing from what
+# Seerr relays for a few seconds (seen 2026-09-29: seerr:configure run straight
+# after the sync failed, and the same call a minute later listed it). Re-ask
+# for up to PROFILE_SETTLE tries, 2 s apart, before calling it missing.
+PROFILE_SETTLE="${PROFILE_SETTLE:-6}"
+PID=""
+# Sets PID. 0 found · 1 the connection test failed · 2 not visible after retries.
+# Never call inside $(...): api() sets $HTTP, which a subshell would lose.
+settled_profile_id() { # app test-body-json
+    local try=0
+    PID=""
+    while :; do
+        api POST "/settings/$1/test" < <(printf '%s' "$2") || return 1
+        PID="$(profile_id "$(body)" "$(profile_name "$1")")"
+        [[ -n "$PID" ]] && return 0
+        (( ++try < PROFILE_SETTLE )) || return 2
+        sleep 2
+    done
+}
+
+# What to tell the user when the profile is not there after the retries.
+profile_missing_msg() { # app
+    printf "%s has no '%s' profile visible after ~%ss — did npm run recyclarr:sync finish? (it creates it)" \
+        "$1" "$(profile_name "$1")" "$(( (PROFILE_SETTLE - 1) * 2 ))"
+}
+
 # ─── apply ────────────────────────────────────────────────────────────────────
 apply_plex() {
     local cur drift
@@ -134,11 +161,13 @@ apply_plex() {
 }
 
 apply_server() { # app
-    local app="$1" test pid want cur drift id
-    api POST "/settings/$app/test" < <(want_server "$app" 0) \
-        || { log "  FAIL  $app connection test (HTTP $HTTP): $(api_error)"; return 1; }
-    test="$(body)"; pid="$(profile_id "$test" "$(profile_name "$app")")"
-    [[ -n "$pid" ]] || { log "  FAIL  $app has no '$(profile_name "$app")' profile — npm run recyclarr:sync first"; return 1; }
+    local app="$1" pid want cur drift id rc=0
+    settled_profile_id "$app" "$(want_server "$app" 0)" || rc=$?
+    case "$rc" in
+        1) log "  FAIL  $app connection test (HTTP $HTTP): $(api_error)"; return 1 ;;
+        2) log "  FAIL  $(profile_missing_msg "$app")"; return 1 ;;
+    esac
+    pid="$PID"
     want="$(want_server "$app" "$pid")"
 
     get "/settings/$app" || { log "  FAIL  read $app servers (HTTP $HTTP)"; return 1; }
@@ -207,11 +236,11 @@ verify() {
         if [[ -z "$cur" ]]; then log "  DRIFT    $app server missing"; rc=1; continue; fi
         # The wanted profile id comes from the app itself, as in apply — never
         # from what is stored, or a wrong id would be compared with itself.
-        if ! api POST "/settings/$app/test" < <(printf '%s' "$cur"); then
-            log "  FAILING  $app server — test fails: $(api_error)"; continue
-        fi
-        pid="$(profile_id "$(body)" "$(profile_name "$app")")"
-        [[ -n "$pid" ]] || { log "  DRIFT    $app has no '$(profile_name "$app")' profile — npm run recyclarr:sync"; rc=1; continue; }
+        local src=0
+        settled_profile_id "$app" "$cur" || src=$?
+        if [[ "$src" -eq 1 ]]; then log "  FAILING  $app server — test fails: $(api_error)"; continue; fi
+        if [[ "$src" -eq 2 ]]; then log "  DRIFT    $(profile_missing_msg "$app")"; rc=1; continue; fi
+        pid="$PID"
         drift="$(server_drift "$cur" "$(want_server "$app" "$pid")")"
         if [[ -n "$drift" ]]; then log "  DRIFT    $app: $(tr '\n' ' ' <<<"$drift")"; rc=1; continue; fi
         log "  ok       $app server — test passes, $(profile_name "$app") (id $pid)"
