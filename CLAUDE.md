@@ -31,7 +31,10 @@ before anything destructive:
    copies on a nearly full volume.
 3. **`plex-watch` treats any delete or move in the library as a Plex deletion** and removes
    the native torrent's data. Until Phase 7 the arrs must only add files: no renames, no
-   upgrades, no recycle bin.
+   upgrades, no recycle bin, and no Library Import or Rename of existing media before
+   Phase 8.
+   **pms-local is not modified by this migration.** Anything needed from it is ported here
+   and adapted, as `tools/arr-reclaim.sh` ports `plex-watch` for the `:8081` instance.
 4. **`/opt/appdata/plex` is the live Plex database**, not a cache. `docker compose down`
    is safe (config is a bind mount), but deleting or re-seeding that directory loses the
    library and watch history. The container must keep identity `f3860770…`; one that
@@ -53,9 +56,20 @@ before anything destructive:
    the key means changing it everywhere. Indexers that go through FlareSolverr are listed
    there; add `flare` only for ones Cloudflare actually blocks, since each such search runs
    a headless Chromium.
-8. **`systemd/pms-update.service` hardcodes this clone's path** in `ExecStart`, because
-   compose needs `compose.yaml` and `.env` beside it. `npm run deploy` refuses to install it
-   if the path doesn't match the clone. Moving the clone means editing that line.
+8. **The library is not tidy.** 107 of 134 movies are loose files at the `movies/` root, and
+   several series folders are misfiled. Radarr/Sonarr manage new content only; the rest
+   waits for Phase 8.
+9. **`arr-reclaim` removes a torrent only when all three hold:** Radarr/Sonarr imported it
+   (its hash is in their import history, `eventType=3`, since the name is refused), every
+   imported file is gone, and no other link remains. Don't loosen this to category
+   ownership: a finished-but-not-yet-imported download has no library link either.
+10. **Servarr reads `allowedHosts` at startup only.** `apply_host` restarts the app after
+    changing it; without that, Prowlarr ↔ Radarr/Sonarr calls fail with "Invalid Hostname"
+    after the next unrelated restart.
+11. **`systemd/pms-update.service` and `systemd/arr-reclaim.service` hardcode this clone's
+    path** in `ExecStart`, because the scripts need `compose.yaml` and `.env` beside them.
+    `npm run deploy` refuses to install a unit whose path doesn't match the clone. Moving
+    the clone means editing those lines.
 
 ## Conventions
 

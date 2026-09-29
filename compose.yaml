@@ -110,6 +110,54 @@ services:
     networks: [arr]
     restart: unless-stopped
 
+  # ── Phase 4: Radarr + Sonarr ──────────────────────────────────────────────
+  # The first services besides pms-local that write into the library. NEW
+  # content only: nothing existing is imported or renamed before Phase 8 — any
+  # move under streaming/ reads to pms-local's plex-watch as a Plex deletion.
+  #
+  # /mnt/data is ONE bind mount: they hardlink from torrents/ into streaming/,
+  # and link() fails with EXDEV across two bind mounts on the same filesystem.
+  # Plex is host-networked, so they reach it through the host gateway.
+  #
+  # API keys from .env (fixed before first start, pushed to by Prowlarr); every
+  # other setting is applied by tools/arr-configure.sh. Space of a download
+  # deleted in Plex is reclaimed by tools/arr-reclaim.sh (arr-reclaim.service).
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      <<: *common-env
+      RADARR__AUTH__APIKEY: ${RADARR_API_KEY:?set RADARR_API_KEY in .env}
+      RADARR__AUTH__METHOD: Forms
+      RADARR__AUTH__REQUIRED: DisabledForLocalAddresses
+    ports:
+      - "7878:7878"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/radarr:/config
+      - /mnt/data:/mnt/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [arr]
+    restart: unless-stopped
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      <<: *common-env
+      SONARR__AUTH__APIKEY: ${SONARR_API_KEY:?set SONARR_API_KEY in .env}
+      SONARR__AUTH__METHOD: Forms
+      SONARR__AUTH__REQUIRED: DisabledForLocalAddresses
+    ports:
+      - "8989:8989"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/sonarr:/config
+      - /mnt/data:/mnt/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [arr]
+    restart: unless-stopped
+
 # Shared by the arr services from Phase 2 on, so they reach each other by
 # service name. Host-networked Plex is not on it.
 networks:

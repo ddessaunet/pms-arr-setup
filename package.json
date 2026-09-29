@@ -9,7 +9,8 @@
     "deploy installs the pms-update units and arms the timer only while",
     "plexmediaserver is masked - the same signal pms-local's deploy uses.",
     "start never passes --profile: profiled services are runbook steps.",
-    "stop keeps containers and config; nothing here runs `down -v`."
+    "stop keeps containers and config; nothing here runs `down -v`.",
+    "reclaim:audit shows what arr-reclaim.service would remove; it changes nothing."
   ],
   "name": "pms-arr-setup",
   "version": "0.0.0",
@@ -17,7 +18,7 @@
   "description": "Containerized media stack for the pms home server (bash + docker compose; npm is only a task runner)",
   "license": "UNLICENSED",
   "scripts": {
-    "lint": "command -v shellcheck >/dev/null || { echo 'shellcheck not installed (sudo apt install shellcheck)' >&2; exit 1; }; shellcheck -x tools/*.sh tests/*.sh && docker compose config -q",
+    "lint": "command -v shellcheck >/dev/null || { echo 'shellcheck not installed (sudo apt install shellcheck)' >&2; exit 1; }; shellcheck -x tools/*.sh tools/lib/*.sh tests/*.sh && docker compose config -q",
     "test": "tests/run-all.sh",
     "check": "tools/deploy.sh --check",
     "predeploy": "npm run lint && npm test",
@@ -31,6 +32,9 @@
     "qbt:configure": "tools/qbt-configure.sh",
     "qbt:check": "tools/qbt-configure.sh --check",
     "prowlarr:configure": "tools/prowlarr-configure.sh",
-    "prowlarr:check": "tools/prowlarr-configure.sh --check"
+    "prowlarr:check": "tools/prowlarr-configure.sh --check",
+    "arr:configure": "tools/arr-configure.sh",
+    "arr:check": "tools/arr-configure.sh --check",
+    "reclaim:audit": "tools/arr-reclaim.sh --audit"
   }
 }

@@ -22,10 +22,9 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 
-env_get() {
-    [[ -f "$REPO/.env" ]] || return 0
-    sed -n "s/^$1=//p" "$REPO/.env" | tail -n1
-}
+# env_get, the api() plumbing, login and allowed hosts — shared with arr-configure.sh.
+# shellcheck source=SCRIPTDIR/lib/servarr.sh
+. "$REPO/tools/lib/servarr.sh" || { echo "cannot load tools/lib/servarr.sh" >&2; exit 3; }
 
 PROWLARR_URL="${PROWLARR_URL:-http://127.0.0.1:9696}"
 PROWLARR_API_KEY="${PROWLARR_API_KEY:-$(env_get PROWLARR_API_KEY)}"
@@ -36,6 +35,11 @@ FLARESOLVERR_URL="${FLARESOLVERR_URL:-http://flaresolverr:8191/}"
 # FlareSolverr that alone is ~15-20 s, and a slow tracker adds to it.
 PROWLARR_TIMEOUT="${PROWLARR_TIMEOUT:-120}"
 PROWLARR_WAIT="${PROWLARR_WAIT:-90}"
+
+SVC_NAME=prowlarr SVC_API=v1
+SVC_URL="$PROWLARR_URL" SVC_KEY="$PROWLARR_API_KEY"
+SVC_USER="$PROWLARR_USER" SVC_PASS="$PROWLARR_PASS"
+SVC_TIMEOUT="$PROWLARR_TIMEOUT" SVC_WAIT="$PROWLARR_WAIT"
 
 # ─── the settings ─────────────────────────────────────────────────────────────
 # definitionName|route. "flare" sends that indexer through FlareSolverr (via
@@ -56,83 +60,29 @@ INDEXERS=(
 
 FLARE_TAG="flare"
 
-lan_ips() {
-    local ip
-    for ip in $(hostname -I 2>/dev/null); do
-        [[ "$ip" == *:* ]] && continue
-        [[ "$ip" == 127.* ]] && continue
-        [[ "$ip" =~ ^172\.(1[6-9]|2[0-9]|3[01])\. ]] && continue
-        printf '%s\n' "$ip"
-    done
+# Applications Prowlarr pushes its indexers to (full sync), as
+# implementation|compose service|port|.env key. Each is applied only when its
+# key is set, so Prowlarr on its own (Phase 3) still configures cleanly.
+# URLs are container names on the arr network; the *_APP_URL overrides exist
+# for rehearsing against throwaway containers.
+APPLICATIONS=(
+    "Radarr|radarr|7878|RADARR_API_KEY"
+    "Sonarr|sonarr|8989|SONARR_API_KEY"
+)
+PROWLARR_SELF_URL="${PROWLARR_SELF_URL:-http://prowlarr:9696}"
+
+app_entry_key() { local v="${1##*|}"; printf '%s' "${!v:-$(env_get "$v")}"; }
+app_entry_url() {
+    local rest="${1#*|}" svc port v
+    svc="${rest%%|*}"; rest="${rest#*|}"; port="${rest%%|*}"; v="${svc^^}_APP_URL"
+    printf '%s' "${!v:-http://$svc:$port}"
 }
-
-# Required by Prowlarr whenever auth is not required for local addresses.
-#   prowlarr   — Radarr/Sonarr on the arr network (Phase 4)
-#   127.0.0.1  — this script
-allowed_hosts() {
-    local h=(prowlarr localhost 127.0.0.1 "$(hostname)")
-    mapfile -t -O "${#h[@]}" h < <(lan_ips)
-    local IFS=','
-    printf '%s' "${h[*]}"
+want_app_fields() { # entry
+    jq -cn --arg p "$PROWLARR_SELF_URL" --arg b "$(app_entry_url "$1")" '{prowlarrUrl: $p, baseUrl: $b}'
 }
-
-# The host-config keys this script owns; everything else is left as Prowlarr has it.
-want_host() {
-    jq -cn --arg user "$PROWLARR_USER" --arg hosts "$(allowed_hosts)" '{
-        username:               $user,
-        authenticationMethod:   "forms",
-        authenticationRequired: "disabledForLocalAddresses",
-        allowedHosts:           $hosts
-    }'
-}
-
-# ─── API ──────────────────────────────────────────────────────────────────────
-BODY=""
-HTTP=""
-
-log() { printf '%s\n' "$*"; }
-
-# Sets $HTTP, leaves the response in $BODY. Never inside $(...) or at the end
-# of a pipe (subshells lose $HTTP); feed JSON with < <(...) — it is read from
-# stdin with -d @- whenever a method sends a body.
-api() { # METHOD path
-    local method="$1" path="$2" data=()
-    [[ "$method" == POST || "$method" == PUT ]] && data=(-H 'Content-Type: application/json' -d @-)
-    HTTP="$(curl -s --max-time "$PROWLARR_TIMEOUT" -X "$method" -o "$BODY" -w '%{http_code}' \
-        -H "X-Api-Key: $PROWLARR_API_KEY" "${data[@]}" "$PROWLARR_URL$path")" || HTTP=000
-    [[ "$HTTP" == 2* ]]
-}
-body() { cat "$BODY" 2>/dev/null; }
-
-get() { api GET "$1" </dev/null; }
-
-wait_ready() {
-    local deadline=$((SECONDS + PROWLARR_WAIT))
-    until get /api/v1/system/status; do
-        [[ "$HTTP" == 401 ]] && return 1        # up, but the key is wrong: waiting will not help
-        (( SECONDS < deadline )) || return 1
-        sleep 3
-    done
-}
-
-# 0 when the forms login accepts PROWLARR_USER/PASS. Success redirects to the
-# return URL; failure to /login?…loginFailed=true — both are 302.
-login_ok() {
-    local to
-    to="$(curl -s --max-time "$PROWLARR_TIMEOUT" -o /dev/null -w '%{redirect_url}' \
-        --data-urlencode "username=$PROWLARR_USER" --data-urlencode "password@-" \
-        "$PROWLARR_URL/login?returnUrl=/" < <(printf '%s' "$PROWLARR_PASS"))" || return 1
-    login_redirect_ok "$to"
-}
-login_redirect_ok() { [[ -n "$1" && "$1" != *loginFailed* ]]; }
+want_app_top() { jq -cn --arg n "${1%%|*}" '{name: $n, syncLevel: "fullSync"}'; }
 
 # ─── pure helpers (tests/prowlarr-configure.test.sh) ──────────────────────────
-
-# The keys of $want that differ in $got; empty when none do.
-host_drift() { # got want
-    jq -r --argjson want "$2" '. as $got | $want | to_entries[]
-        | select($got[.key] != .value) | .key' <<<"$1"
-}
 
 # A new indexer from its schema entry.
 indexer_new() { # schema-entry app-profile-id tags-json
@@ -154,41 +104,26 @@ proxy_differs() { # proxy host tag-id
 }
 
 # ─── apply ────────────────────────────────────────────────────────────────────
-apply_host() {
-    local cur want drift id
-    get /api/v1/config/host || { log "  FAIL  read host config (HTTP $HTTP)"; return 1; }
-    cur="$(body)"; want="$(want_host)"; drift="$(host_drift "$cur" "$want")"
-    if [[ -z "$drift" ]] && login_ok; then
-        log "  login and allowed hosts already set"
-        return 0
-    fi
-    id="$(jq -r .id <<<"$cur")"
-    api PUT "/api/v1/config/host/$id" < <(P="$PROWLARR_PASS" jq -c --argjson w "$want" \
-        '. + $w + {password: env.P, passwordConfirmation: env.P}' <<<"$cur") \
-        || { log "  FAIL  host config (HTTP $HTTP): $(body | jq -r '.[0].errorMessage? // empty' 2>/dev/null)"; return 1; }
-    log "  login and allowed hosts set"
-}
-
 FLARE_ID=""
 apply_flare() {
     local schema cur id
     # Prowlarr answers an existing label with that tag, so this is idempotent.
-    api POST /api/v1/tag < <(jq -cn --arg l "$FLARE_TAG" '{label: $l}') \
+    api POST /tag < <(jq -cn --arg l "$FLARE_TAG" '{label: $l}') \
         || { log "  FAIL  tag (HTTP $HTTP)"; return 1; }
     FLARE_ID="$(body | jq -r .id)"
 
-    get /api/v1/indexerProxy || { log "  FAIL  read proxies (HTTP $HTTP)"; return 1; }
+    get /indexerProxy || { log "  FAIL  read proxies (HTTP $HTTP)"; return 1; }
     cur="$(body | jq -c '[.[] | select(.implementation == "FlareSolverr")][0] // empty')"
     if [[ -z "$cur" ]]; then
-        get /api/v1/indexerProxy/schema || { log "  FAIL  proxy schema (HTTP $HTTP)"; return 1; }
+        get /indexerProxy/schema || { log "  FAIL  proxy schema (HTTP $HTTP)"; return 1; }
         schema="$(body | jq -c '.[] | select(.implementation == "FlareSolverr")')"
-        api POST /api/v1/indexerProxy < <(jq -c --arg h "$FLARESOLVERR_URL" --argjson t "$FLARE_ID" \
+        api POST /indexerProxy < <(jq -c --arg h "$FLARESOLVERR_URL" --argjson t "$FLARE_ID" \
             '.name = "FlareSolverr" | .tags = [$t] | (.fields[] | select(.name == "host") | .value) = $h' <<<"$schema") \
-            || { log "  FAIL  add FlareSolverr proxy (HTTP $HTTP): $(body | jq -r '.[0].errorMessage? // empty' 2>/dev/null)"; return 1; }
+            || { log "  FAIL  add FlareSolverr proxy (HTTP $HTTP): $(api_error)"; return 1; }
         log "  FlareSolverr proxy added ($FLARESOLVERR_URL, tag $FLARE_TAG)"
     elif proxy_differs "$cur" "$FLARESOLVERR_URL" "$FLARE_ID"; then
         id="$(jq -r .id <<<"$cur")"
-        api PUT "/api/v1/indexerProxy/$id" < <(jq -c --arg h "$FLARESOLVERR_URL" --argjson t "$FLARE_ID" \
+        api PUT "/indexerProxy/$id" < <(jq -c --arg h "$FLARESOLVERR_URL" --argjson t "$FLARE_ID" \
             '.tags = [$t] | (.fields[] | select(.name == "host") | .value) = $h' <<<"$cur") \
             || { log "  FAIL  update FlareSolverr proxy (HTTP $HTTP)"; return 1; }
         log "  FlareSolverr proxy updated"
@@ -199,13 +134,23 @@ apply_flare() {
 
 tags_for() { [[ "$1" == flare ]] && printf '[%s]' "$FLARE_ID" || printf '[]'; }
 
+apply_applications() {
+    local entry key
+    for entry in "${APPLICATIONS[@]}"; do
+        key="$(app_entry_key "$entry")"
+        if [[ -z "$key" ]]; then log "  ${entry%%|*}: no API key in .env — skipped"; continue; fi
+        apply_resource "application ${entry%%|*}" applications "${entry%%|*}" \
+            "$(want_app_top "$entry")" "$(want_app_fields "$entry")" apiKey "$key" || return 1
+    done
+}
+
 apply_indexers() {
     local schema existing profile entry def route tags cur
-    get /api/v1/indexer/schema || { log "  FAIL  indexer schema (HTTP $HTTP)"; return 1; }
+    get /indexer/schema || { log "  FAIL  indexer schema (HTTP $HTTP)"; return 1; }
     schema="$(body)"
-    get /api/v1/indexer || { log "  FAIL  read indexers (HTTP $HTTP)"; return 1; }
+    get /indexer || { log "  FAIL  read indexers (HTTP $HTTP)"; return 1; }
     existing="$(body)"
-    get /api/v1/appprofile || { log "  FAIL  app profiles (HTTP $HTTP)"; return 1; }
+    get /appprofile || { log "  FAIL  app profiles (HTTP $HTTP)"; return 1; }
     profile="$(body | jq -r '.[0].id')"
 
     for entry in "${INDEXERS[@]}"; do
@@ -215,11 +160,11 @@ apply_indexers() {
             local s
             s="$(jq -c --arg d "$def" '.[] | select(.definitionName == $d)' <<<"$schema")"
             [[ -n "$s" ]] || { log "  FAIL  $def: no such indexer definition in Prowlarr"; return 1; }
-            api POST /api/v1/indexer < <(indexer_new "$s" "$profile" "$tags") \
-                || { log "  FAIL  add $def (HTTP $HTTP): $(body | jq -r '.[0].errorMessage? // empty' 2>/dev/null)"; return 1; }
+            api POST /indexer < <(indexer_new "$s" "$profile" "$tags") \
+                || { log "  FAIL  add $def (HTTP $HTTP): $(api_error)"; return 1; }
             log "  $def added ($route)"
         elif indexer_differs "$cur" "$tags"; then
-            api PUT "/api/v1/indexer/$(jq -r .id <<<"$cur")" < <(indexer_fix "$cur" "$tags") \
+            api PUT "/indexer/$(jq -r .id <<<"$cur")" < <(indexer_fix "$cur" "$tags") \
                 || { log "  FAIL  update $def (HTTP $HTTP)"; return 1; }
             log "  $def updated ($route)"
         else
@@ -231,20 +176,22 @@ apply_indexers() {
 # ─── verify ───────────────────────────────────────────────────────────────────
 # Drift fails; an indexer failing its own test only warns — trackers go down.
 verify() {
-    local rc=0 cur drift proxy existing entry def route tags ix name
-    get /api/v1/config/host || { log "  FAIL  read host config (HTTP $HTTP)"; return 1; }
-    cur="$(body)"; drift="$(host_drift "$cur" "$(want_host)")"
-    if [[ -z "$drift" ]]; then log "  ok       host: forms login, not required locally; allowed hosts $(jq -r .allowedHosts <<<"$cur")"
-    else log "  DRIFT    host: $(tr '\n' ' ' <<<"$drift")"; rc=1; fi
-    if login_ok; then log "  ok       login as $PROWLARR_USER"
-    else log "  DRIFT    login as $PROWLARR_USER is refused"; rc=1; fi
+    local rc=0 proxy existing entry def route tags ix name
+    verify_host || rc=1
 
-    get /api/v1/tag || { log "  FAIL  read tags"; return 1; }
+    local entry
+    for entry in "${APPLICATIONS[@]}"; do
+        [[ -n "$(app_entry_key "$entry")" ]] || continue
+        verify_resource "application ${entry%%|*}" applications "${entry%%|*}" \
+            "$(want_app_top "$entry")" "$(want_app_fields "$entry")" || rc=1
+    done
+
+    get /tag || { log "  FAIL  read tags"; return 1; }
     FLARE_ID="$(body | jq -r --arg l "$FLARE_TAG" '[.[] | select(.label == $l)][0].id // empty')"
-    get /api/v1/indexerProxy || { log "  FAIL  read proxies"; return 1; }
+    get /indexerProxy || { log "  FAIL  read proxies"; return 1; }
     proxy="$(body | jq -c '[.[] | select(.implementation == "FlareSolverr")][0] // empty')"
     if [[ -n "$FLARE_ID" && -n "$proxy" ]] && ! proxy_differs "$proxy" "$FLARESOLVERR_URL" "$FLARE_ID"; then
-        if api POST /api/v1/indexerProxy/test < <(printf '%s' "$proxy"); then
+        if api POST /indexerProxy/test < <(printf '%s' "$proxy"); then
             log "  ok       FlareSolverr proxy $FLARESOLVERR_URL answers"
         else
             log "  WARN     FlareSolverr proxy set, but its test fails (HTTP $HTTP)"
@@ -253,7 +200,7 @@ verify() {
         log "  DRIFT    FlareSolverr proxy or '$FLARE_TAG' tag missing or changed"; rc=1
     fi
 
-    get /api/v1/indexer || { log "  FAIL  read indexers"; return 1; }
+    get /indexer || { log "  FAIL  read indexers"; return 1; }
     existing="$(body)"
     for entry in "${INDEXERS[@]}"; do
         def="${entry%%|*}"; route="${entry#*|}"; tags="$(tags_for "$route")"
@@ -261,7 +208,7 @@ verify() {
         if [[ -z "$ix" ]]; then log "  DRIFT    $def missing"; rc=1; continue; fi
         name="$(jq -r .name <<<"$ix")"
         if indexer_differs "$ix" "$tags"; then log "  DRIFT    $name disabled or tags changed (want $route)"; rc=1; continue; fi
-        if api POST /api/v1/indexer/test < <(printf '%s' "$ix"); then
+        if api POST /indexer/test < <(printf '%s' "$ix"); then
             log "  ok       $name ($route) — test passes"
         else
             log "  FAILING  $name ($route) — test fails: $(body | jq -r '.[0].errorMessage? // empty' 2>/dev/null | head -c 120)"
@@ -297,7 +244,7 @@ main() {
     log "  API up: $(body | jq -r .version)"
 
     if [[ "$mode" == apply ]]; then
-        apply_host && apply_flare && apply_indexers || exit 1
+        apply_host && apply_flare && apply_indexers && apply_applications || exit 1
     fi
 
     log "Read-back:"

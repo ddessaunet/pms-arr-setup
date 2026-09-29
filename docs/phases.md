@@ -19,6 +19,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [ ] Phase 5 — Jellyseerr
 - [ ] Phase 6 — Recyclarr
 - [ ] Phase 7 — retire the native setup
+- [ ] Phase 8 — library cleanup (import and rename the existing library)
 
 Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
 
@@ -40,9 +41,14 @@ Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
 5. **`plex-watch` is live until Phase 7.** It treats *any* `delete` or `moved_from` under
    `/mnt/data/streaming` as "deleted in Plex" and removes the matching native torrent **and
    its data**. Anything that renames, upgrades or recycles library files — Radarr, Sonarr,
-   Recyclarr's upgrades — fires it. Until Phase 7 the arrs only *add* files.
+   Recyclarr's upgrades — fires it. Until Phase 7 the arrs only *add* files: **never "Library
+   Import", "Rename Files" or "Organize" on existing media before Phase 8.** pms-local is not
+   modified by this migration; what the stack needs from it is ported here (`arr-reclaim`).
 6. **Nothing upgrades until Phase 6, and only size-capped profiles.** ~20 GB free (98%) is
    one Remux movie.
+7. **Media is deleted in Plex, and that frees the space.** For native imports that's
+   pms-local's `plex-watch`. For Radarr/Sonarr imports it's this repo's `arr-reclaim`
+   service. Both watch the same library, and each only touches its own qBittorrent.
 
 ---
 
@@ -146,8 +152,9 @@ only. Native `qbittorrent-nox` keeps `:8080`, peer port `13761`, its torrents an
 pms-local's `plex-reconcile` only ever sees the native instance.
 
 - **No VPN**, the same as native.
-- **No seeding limits yet.** Phase 4 decides how finished torrents are removed. Until then,
-  space held by this instance comes back only by hand.
+- **Seeding** (set in Phase 4): ratio 2.0 or 14 days, then the torrent stops, and
+  Radarr/Sonarr remove it. Deleting in Plex is faster: `arr-reclaim` removes the torrent
+  right away.
 
 **Do**
 
@@ -285,47 +292,112 @@ Then take both out of `UPDATE_SERVICES` in `.env`.
 
 ## Phase 4 — Radarr + Sonarr
 
-This is the highest-risk phase. It is the first time something other than pms-local writes
-into the library.
+The first services besides pms-local that write into the library. They handle **new content
+only**.
 
-**Do:** add `lscr.io/linuxserver/radarr` (`7878`) and `lscr.io/linuxserver/sonarr`
-(`8989`) on network `arr`:
+**The existing library stays exactly as it is.** 107 of its 134 movies are loose files at
+the `movies/` root, the 27 folders hold release-named files, and several series folders are
+misfiled. Organising any of that means moves, which `plex-watch` would read as deletions
+(rule 5). So nothing existing is imported or renamed now; that's **Phase 8**, after Phase 7
+retires `plex-watch`.
 
-- Volumes: `${APPDATA}/<app>:/config` and `/mnt/data:/mnt/data` (rule 2).
-- `extra_hosts: ["host.docker.internal:host-gateway"]` so they can reach host-networked
-  Plex.
+| | |
+|---|---|
+| Radarr | `:7878`, root `/mnt/data/streaming/movies`, new imports `Title (Year)/Title (Year).ext` |
+| Sonarr | `:8989`, root `/mnt/data/streaming/series`, `Show/Season 01/Show - S01E01.ext` |
+| quality | **1080p** (`HD-1080p`), **no upgrades** on any profile until Phase 6 |
+| downloads | the `:8081` qBittorrent, categories `radarr` / `sonarr`, **hardlinked** into the library |
+| seeding | ratio 2.0 or 14 days, then the torrent **stops**, and *Remove Completed* removes it (the library keeps its hardlink) |
+| deleted in Plex | **unmonitored**, never re-downloaded, and **`arr-reclaim`** removes its torrent **with its data** within about a minute |
+| indexers | pushed by Prowlarr (full sync); not configured here |
+| Plex | refreshed on import and delete, through `host.docker.internal:32400` |
 
-Configure, in this order:
+**How `arr-reclaim` decides.** `tools/arr-reclaim.sh`, run by `arr-reclaim.service`, ports
+pms-local's `plex-watch` + reconcile to the `:8081` instance. It watches the library with
+inotify and waits 60 s of quiet after a burst of deletions. It then removes a torrent **only
+when all three are true**:
+- Radarr or Sonarr **imported** it: its hash is in their import history.
+- **Every** file imported from it is gone from the library.
+- **No other link** to its data remains.
 
-1. **Media Management**
-   - Use hardlinks instead of copy: **on**.
-   - Recycling bin: **empty**. A recycle is a move, and a move fires `plex-watch`.
-   - Minimum free space: `20000` MB.
-2. **Naming, to match what pms-local produces**, so existing files are recognised as-is:
-   - Radarr folder and file: `{Movie Title} ({Release Year})`
-   - Sonarr: series folder `{Series Title}`, season folder `Season {season:00}`, episode
-     file `{Series Title} - S{season:00}E{episode:00}`
-3. **Root folders:** `/mnt/data/streaming/movies` and `/mnt/data/streaming/series`.
-4. **Download client:** qBittorrent at host `qbittorrent`, port `8081`, category `radarr` or
-   `sonarr`.
-5. **Prowlarr:** Settings → Apps → add both with full sync.
-6. **Connect → Plex:** host `host.docker.internal`, port `32400`, update library on import.
-7. **Library Import:** add existing titles **unmonitored**. Monitoring queues an upgrade
-   search for the whole library.
+So a finished download that isn't imported yet, one episode deleted out of a season pack, or
+a file that was only moved are all kept. There are at most 3 removals per run.
 
-**Don't:** run *Rename Files* or *Organize* on existing titles, or turn on upgrades. Rule 5
-explains why.
+**Do**
 
-**Verify:** request one new movie. Once it imports, both names should share an inode:
+1. Choose `ARR_USER` / `ARR_PASS` in `.env`. The API keys and `PLEX_TOKEN` are already
+   there. Then run the preflight:
+
+   ```bash
+   tools/preflight.sh
+   ```
+
+2. Start them. Only `radarr` and `sonarr` are created.
+
+   ```bash
+   npm start
+   ```
+
+3. Configure. These are idempotent, and each ends with a read-back:
+
+   ```bash
+   npm run qbt:configure
+   ```
+
+   ```bash
+   npm run arr:configure
+   ```
+
+   ```bash
+   npm run prowlarr:configure
+   ```
+
+   - `qbt:configure` sets the seeding limits.
+   - `arr:configure` restarts each app once to activate its allowed hosts.
+   - `prowlarr:configure` adds Radarr and Sonarr as applications and pushes the indexers.
+
+4. Install and start the `arr-reclaim` watcher (with the updater units):
+
+   ```bash
+   npm run deploy
+   ```
+
+**Verify**
+
+- `npm run arr:check` and `npm run prowlarr:check` show no drift. The download client and
+  Plex tests pass, and both apps list their synced indexers.
+- `npm run check` shows `arr-reclaim.service` enabled and running, and
+  `npm run reclaim:audit` has nothing to do.
+- **End to end:** add *Night of the Living Dead (1968)* (public domain) in Radarr, 1080p,
+  monitored, and search.
+  - It downloads under category `radarr`, and imports as
+    `movies/Night of the Living Dead (1968)/Night of the Living Dead (1968).<ext>` with
+    **2 links**.
+  - Plex shows it.
+  - Then **delete it in Plex**. Within about a minute,
+    `journalctl -u arr-reclaim` logs `Removed … with its data`, the space comes back
+    (`df -h /mnt/data`), the empty folder is pruned, and Radarr marks the movie
+    **unmonitored** without a new grab.
+- **Sonarr without downloading:** add a series unmonitored and run an interactive search for
+  one episode. Releases come back through the synced indexers.
+- Nothing else moved: native `qbittorrent-nox` and `plex-watch` are untouched.
+
+**Rollback**
 
 ```bash
-stat -c '%h %i %n' /mnt/data/torrents/radarr/<release>/<file> "/mnt/data/streaming/movies/<Title (Year)>/<Title (Year)>.mkv"
+sudo systemctl disable --now arr-reclaim
 ```
 
-The link count should be `2` and the inode the same on both lines. Plex should pick it up
-without a manual scan.
+```bash
+docker compose rm -sf radarr sonarr
+```
 
-**Rollback:** remove both services and their appdata. They only ever added files.
+```bash
+rm -rf /opt/appdata/radarr /opt/appdata/sonarr
+```
+
+Then delete the Radarr/Sonarr applications in Prowlarr, and take `radarr sonarr` out of
+`UPDATE_SERVICES`.
 
 ---
 
@@ -371,18 +443,22 @@ back to the profile you used before.
 
 **Do**
 
-1. **Decide on `plex-watch`.** Either:
-   - **Retire it** (`sudo systemctl disable --now plex-watch`). Space comes back when the
-     container qBittorrent's seeding limits remove the torrent, which is safe because the
-     library holds its own hardlink.
-   - **Or repoint it**: set `QBT_URL` in `/etc/plex-move.conf` to `http://127.0.0.1:8081`.
-     It then reconciles against the container. Test with `plex-reconcile.sh --audit` first.
+1. **Retire `plex-watch`** (`sudo systemctl disable --now plex-watch`). Once the native
+   torrents are gone (step 2), it has nothing left to reconcile, and `arr-reclaim` already
+   covers the `:8081` instance. pms-local itself isn't changed; its service is just
+   switched off. With `plex-watch` gone, moves under `streaming/` are safe, and that is
+   what unlocks Phase 8.
 2. **Move the native torrents into the container.** Stop both instances. Copy the
    `.torrent` and `.fastresume` files from
    `/home/qbittorrent-nox/.local/share/qBittorrent/BT_backup/` into
    `/opt/appdata/qbittorrent/qBittorrent/BT_backup/` (the files are named by infohash, so
    nothing collides) and chown the copies to `1000:1001`. The save paths already match
    (rule 1). Alternatively, let them finish seeding natively.
+
+   Moved torrents aren't in Radarr's or Sonarr's import history, so **`arr-reclaim` never
+   removes them**. Deleting one of those titles in Plex would free nothing, which is the
+   case `plex-watch` handles today. Letting them finish seeding natively avoids that
+   entirely. Decide this when planning Phase 7.
 3. `sudo systemctl disable --now qbittorrent-nox`. Move the container to WebUI `:8080` and
    peer port `13761`, then update the port in Radarr, Sonarr and your router.
 4. Retire what only the hook needed: `/opt/scripts`, the Ollama classifier, and the
@@ -403,3 +479,16 @@ hardlink import → Plex.
 
 **Rollback:** until step 5, start `qbittorrent-nox` and `plex-watch` again. The native
 `BT_backup` was copied, not moved.
+
+---
+
+## Phase 8 — Library cleanup
+
+After Phase 7 retires `plex-watch`, nothing reads a move as a deletion any more. Then Radarr
+and Sonarr can take over the existing library:
+- **Library Import** the 107 loose movie files and the 27 folders.
+- Sort out the misfiled series folders.
+- Run **Rename** so everything follows the Phase 4 naming.
+
+Plan this phase on its own when you get there. It's the one step that moves most of the
+library.

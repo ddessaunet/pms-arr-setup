@@ -79,15 +79,23 @@ want_prefs() {
         autorun_enabled:                       false,
         listen_port:                           13762,
         upnp:                                  false,
-        max_ratio_enabled:                     false,
-        max_seeding_time_enabled:              false,
+        max_ratio_enabled:                     true,
+        max_ratio:                             2,
+        max_seeding_time_enabled:              true,
+        max_seeding_time:                      20160,
+        max_ratio_act:                         0,
         web_ui_host_header_validation_enabled: true,
         web_ui_domain_list:                    $domains
     }'
 }
-# No seeding limits (max_ratio/max_seeding_time off) until Phase 4 decides how
-# the arrs remove finished torrents. Until then, this instance's space comes
-# back only by hand — plex-reconcile only ever sees the native instance.
+# Seeding: ratio 2.0 or 14 days (20160 min), whichever comes first, then the
+# torrent STOPS (max_ratio_act 0 — no ShareLimitAction line in the conf; 1 is
+# Remove and 3 RemoveWithContent, checked on 5.2.3). Stopping rather than
+# removing leaves the removal to Radarr/Sonarr's "Remove Completed", which also
+# tidies their queue. The library copy is its own hardlink and stays.
+#
+# Deleting in Plex does not wait for this: pms-local's plex-watch reconciles
+# this instance too (QBT_ARR_URL) and removes the torrent right away.
 
 # ─── API ──────────────────────────────────────────────────────────────────────
 JAR=""

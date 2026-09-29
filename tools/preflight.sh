@@ -174,6 +174,30 @@ if ! container_running flaresolverr; then
     fi
 fi
 
+echo "── radarr (:7878) + sonarr (:8989) + arr-reclaim"
+
+for svc in radarr:7878 sonarr:8989; do
+    name="${svc%%:*}"; port="${svc#*:}"
+    if container_running "$name"; then
+        ok "$name container running"
+    elif ss -Hltn "sport = :$port" 2>/dev/null | grep -q .; then
+        fail ":$port/tcp is taken by something else — $name cannot start"
+    else
+        ok ":$port/tcp free"
+    fi
+    key="$(env_get "${name^^}_API_KEY")"
+    if [[ "$key" =~ ^[0-9a-f]{32}$ ]]; then ok "${name^^}_API_KEY set"
+    else fail "${name^^}_API_KEY missing or not 32 hex characters — openssl rand -hex 16"; fi
+done
+if [[ -z "$(env_get ARR_USER)" || -z "$(env_get ARR_PASS)" ]]; then
+    warn "ARR_USER / ARR_PASS empty in .env — set them before npm run arr:configure"
+fi
+[[ -n "$(env_get PLEX_TOKEN)" ]] || warn "PLEX_TOKEN empty in .env — Radarr/Sonarr cannot refresh Plex"
+
+# arr-reclaim.service watches the library with inotify, as plex-watch does.
+if command -v inotifywait >/dev/null; then ok "inotifywait present (arr-reclaim)"
+else fail "inotifywait missing — sudo apt install inotify-tools"; fi
+
 echo
 if [[ "$fails" -gt 0 ]]; then
     echo "$fails check(s) failed."
