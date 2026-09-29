@@ -53,7 +53,11 @@ LIBRARIES=("Movies" "TV Shows")
 # Only the admin (you) signs in; the admin's requests are auto-approved.
 want_main() { jq -cn '{newPlexLogin: false}'; }
 
-PROFILE_NAME="HD-1080p"
+# The profile a request uses by default, per app — the ones Recyclarr creates
+# (recyclarr/recyclarr.yml) and arr-configure.sh's default_profile names.
+# Movies are 4K HDR; series stay 1080p. For a film with no 4K release, request
+# it with HD-1080p from the request's options (admin).
+profile_name() { case "$1" in radarr) echo "UHD Bluray + WEB" ;; sonarr) echo "WEB-1080p" ;; esac; }
 
 # The host's LAN address, for the "open in Radarr/Sonarr" links Seerr shows.
 lan_ip() { lan_ips | head -1; }
@@ -67,7 +71,7 @@ want_server() { # app profile-id
         sonarr) key="$SONARR_API_KEY"; port=8989; root=/mnt/data/streaming/series ;;
     esac
     jq -cn --arg app "$app" --arg key "$key" --argjson port "$port" --arg root "$root" \
-        --argjson pid "$pid" --arg pname "$PROFILE_NAME" --arg ext "http://$(lan_ip):$port" '
+        --argjson pid "$pid" --arg pname "$(profile_name "$app")" --arg ext "http://$(lan_ip):$port" '
         {
             name: ($app | .[0:1] | ascii_upcase) + ($app | .[1:]),
             hostname: $app, port: $port, apiKey: $key, useSsl: false, baseUrl: "",
@@ -133,8 +137,8 @@ apply_server() { # app
     local app="$1" test pid want cur drift id
     api POST "/settings/$app/test" < <(want_server "$app" 0) \
         || { log "  FAIL  $app connection test (HTTP $HTTP): $(api_error)"; return 1; }
-    test="$(body)"; pid="$(profile_id "$test" "$PROFILE_NAME")"
-    [[ -n "$pid" ]] || { log "  FAIL  $app has no '$PROFILE_NAME' profile"; return 1; }
+    test="$(body)"; pid="$(profile_id "$test" "$(profile_name "$app")")"
+    [[ -n "$pid" ]] || { log "  FAIL  $app has no '$(profile_name "$app")' profile — npm run recyclarr:sync first"; return 1; }
     want="$(want_server "$app" "$pid")"
 
     get "/settings/$app" || { log "  FAIL  read $app servers (HTTP $HTTP)"; return 1; }
@@ -142,7 +146,7 @@ apply_server() { # app
     if [[ -z "$cur" ]]; then
         api POST "/settings/$app" < <(printf '%s' "$want") \
             || { log "  FAIL  add $app (HTTP $HTTP): $(api_error)"; return 1; }
-        log "  $app server added ($PROFILE_NAME)"
+        log "  $app server added ($(profile_name "$app"))"
         return 0
     fi
     drift="$(server_drift "$cur" "$want")"
@@ -206,11 +210,11 @@ verify() {
         if ! api POST "/settings/$app/test" < <(printf '%s' "$cur"); then
             log "  FAILING  $app server — test fails: $(api_error)"; continue
         fi
-        pid="$(profile_id "$(body)" "$PROFILE_NAME")"
-        [[ -n "$pid" ]] || { log "  DRIFT    $app has no '$PROFILE_NAME' profile"; rc=1; continue; }
+        pid="$(profile_id "$(body)" "$(profile_name "$app")")"
+        [[ -n "$pid" ]] || { log "  DRIFT    $app has no '$(profile_name "$app")' profile — npm run recyclarr:sync"; rc=1; continue; }
         drift="$(server_drift "$cur" "$(want_server "$app" "$pid")")"
         if [[ -n "$drift" ]]; then log "  DRIFT    $app: $(tr '\n' ' ' <<<"$drift")"; rc=1; continue; fi
-        log "  ok       $app server — test passes, $PROFILE_NAME (id $pid)"
+        log "  ok       $app server — test passes, $(profile_name "$app") (id $pid)"
     done
 
     get /settings/main || { log "  FAIL  read main"; return 1; }

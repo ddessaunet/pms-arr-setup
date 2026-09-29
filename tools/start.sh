@@ -21,7 +21,7 @@ appdata="$(sed -n 's/^APPDATA=//p' .env 2>/dev/null | tail -n1)"; appdata="${app
 while IFS= read -r src; do
     [[ -n "$src" && ! -e "$src" ]] || continue
     mkdir -p -- "$src" && echo "created $src"
-done < <(docker compose config --format json 2>/dev/null \
+done < <(docker compose --profile '*' config --format json 2>/dev/null \
     | jq -r --arg a "$appdata/" '.services[].volumes[]? | select(.type == "bind") | .source | select(startswith($a))')
 
 tools/preflight.sh || { echo "Preflight failed — not starting anything." >&2; exit 1; }

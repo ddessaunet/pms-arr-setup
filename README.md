@@ -43,6 +43,8 @@ native Plex database and qBittorrent state move across unchanged.
 | `tools/arr-configure.sh` | Applies Radarr's and Sonarr's login, naming, media management, root folder, no-upgrade profiles, qBittorrent client and Plex connection, then tests them. Never imports or renames existing media. `--check` reports drift. |
 | `tools/arr-reclaim.sh` | When media Radarr/Sonarr imported is deleted in Plex, removes its torrent with its data from the `:8081` qBittorrent. Run by `arr-reclaim.service`; `--audit` changes nothing. |
 | `tools/seerr-configure.sh` | After your one-time Plex sign-in, finishes Seerr's setup: Plex server and libraries, Radarr/Sonarr at HD-1080p, admin-only sign-in, then a full Plex scan. `--check` reports drift. |
+| `recyclarr/recyclarr.yml` | The TRaSH profiles: 4K HDR movies (UHD Bluray + WEB), 1080p series (WEB-1080p), with their custom formats. |
+| `tools/recyclarr.sh` | Runs Recyclarr once, as a throwaway container (`recyclarr:preview` / `recyclarr:sync`). |
 | `tools/lib/servarr.sh` | The API plumbing shared by the Prowlarr, Radarr and Sonarr configure scripts. |
 | `tools/deploy.sh` | Installs the `pms-update` units, and arms the timer only while native Plex is masked. `--check` reports drift. |
 | `tools/update-stack.sh` | Pulls new images, skips the run if anyone is streaming, recreates the container, verifies it, and rolls back if it's unhealthy. Run weekly by `pms-update.timer`. |
@@ -78,6 +80,8 @@ lives in `/opt/appdata`.
 | `npm run reclaim:audit` | What `arr-reclaim` would remove right now. Changes nothing. |
 | `npm run seerr:configure` | Finish Seerr's setup after the Plex sign-in, then test its connections. |
 | `npm run seerr:check` | Report Seerr drift. Changes nothing. |
+| `npm run recyclarr:preview` | What a Recyclarr sync would change. Changes nothing (run in a terminal; the report is a table). |
+| `npm run recyclarr:sync` | Apply the TRaSH profiles. Then `arr:configure` and `seerr:configure`. |
 
 Before a phase:
 
