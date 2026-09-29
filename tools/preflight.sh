@@ -134,8 +134,8 @@ fi
 
 echo "── qbittorrent (:8081, for the arrs)"
 
-# Its ports must be free, or already held by the container itself. Native
-# qbittorrent-nox owns :8080 and peer port 13761; these must not collide.
+# Its ports must be free, or already held by the container itself. (Native
+# qbittorrent-nox, retired in Phase 7a, used :8080 and peer port 13761.)
 if container_running qbittorrent; then
     ok "qbittorrent container running"
 else

@@ -12,9 +12,9 @@ Compose runs from this clone. State lives in `/opt/appdata`, not in the repo.
 
 ## This is a live system
 
-The `plex` container serves the real library (since Phase 1b). Native qBittorrent seeds real
-data, and pms-local's `plex-watch` deletes torrent data when library files disappear. Confirm
-before anything destructive:
+The `plex` container serves the real library (since Phase 1b). The `:8081` qBittorrent seeds
+real data, and `arr-reclaim` deletes torrent data when library files Radarr/Sonarr imported
+disappear. Confirm before anything destructive:
 
 - `docker compose down -v`, or deleting anything under `/opt/appdata/plex` after Phase 1b
 - recursive `rm`, `chown` or `chmod` under `/mnt/data`
@@ -29,28 +29,28 @@ before anything destructive:
 2. **Hardlinking containers get `/mnt/data` as ONE bind mount.** Separate mounts for
    `torrents/` and `streaming/` make `link()` fail with `EXDEV`, and imports turn into
    copies on a nearly full volume.
-3. **`plex-watch` treats any delete or move in the library as a Plex deletion** and removes
-   the native torrent's data. Until Phase 7 the arrs must only add files: no renames, no
-   upgrades, no recycle bin, and no Library Import or Rename of existing media before
-   Phase 8.
-   **pms-local is not modified by this migration.** Anything needed from it is ported here
-   and adapted, as `tools/arr-reclaim.sh` ports `plex-watch` for the `:8081` instance.
+3. **`plex-watch` is retired (Phase 7a).** It treated any delete or move in the library as
+   a Plex deletion; now only `arr-reclaim` watches, and a move or rename leaves its data
+   linked, so it keeps the torrent. Moves are safe, but the existing library is still
+   imported and renamed only as Phase 8 plans it, not ad hoc.
+   **pms-local is not modified by this migration,** and its `deploy`/`deploy-system` must
+   not be run again: `deploy-system` re-enables `plex-watch` on every run. `plex-watch` and
+   `qbittorrent-nox` are disabled, not masked: their unit files are in
+   `/etc/systemd/system`, where `systemctl mask` refuses. Anything needed from pms-local is
+   ported here and adapted, as `tools/arr-reclaim.sh` ports `plex-watch`.
 4. **`/opt/appdata/plex` is the live Plex database**, not a cache. `docker compose down`
    is safe (config is a bind mount), but deleting or re-seeding that directory loses the
    library and watch history. The container must keep identity `f3860770…`; one that
    comes up with another has started on a fresh config.
-5. **Two updaters, one Sunday slot.** pms-local's `plex-update.timer` updates native Plex;
-   this repo's `pms-update.timer` updates the containers. Both deploys key off the same
-   signal, whether `plexmediaserver` is masked, so exactly one is armed: this repo's
-   `npm run deploy` arms its timer only while masked, and pms-local's (from pms-local#14)
-   only while not. Until #14 is deployed, pms-local's deploy re-arms its timer
-   unconditionally.
-6. **Two qBittorrents until Phase 7.** Native `qbittorrent-nox` (`:8080`, peer 13761) runs
-   pms-local's import hook, and it's the only one `plex-reconcile` sees. The container
-   (`:8081`, peer 13762) is for Radarr/Sonarr only: no hook, and **no seeding limits** until
-   Phase 4, so its torrents are only removed by hand. Its settings come from
-   `tools/qbt-configure.sh`; change them there, not in the WebUI, or `qbt:check` reports
-   drift.
+5. **One updater.** This repo's `pms-update.timer` (Sunday 05:00) updates the containers.
+   `npm run deploy` arms it while `plexmediaserver` is masked or not installed (Phase 7b),
+   and disarms it otherwise: unmasking native Plex is the Phase 1b rollback, and then
+   pms-local's `plex-update.timer` owns updates again. That one is disabled while masked.
+6. **One qBittorrent: the container on `:8081`, peer 13762** (kept there on purpose; native
+   `qbittorrent-nox` on `:8080`/13761 is disabled since Phase 7a, and its 9 torrents were
+   dropped, their files kept by the library's own hardlinks). It has no import hook:
+   Radarr/Sonarr import over its API. Its settings come from `tools/qbt-configure.sh`;
+   change them there, not in the WebUI, or `qbt:check` reports drift.
 7. **Prowlarr's settings come from `tools/prowlarr-configure.sh`**, and its API key from
    `.env` (`PROWLARR__AUTH__APIKEY`), which Phase 4 wires into Radarr and Sonarr. Changing
    the key means changing it everywhere. Indexers that go through FlareSolverr are listed

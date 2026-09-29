@@ -25,9 +25,9 @@ services:
   # The native copy stays in /var/lib/plexmediaserver, masked, until Phase 7b.
   #
   # Host networking: same ports, GDM discovery and LAN detection as the native
-  # server, and pms-local's scripts keep reaching it at localhost:32400.
+  # server had.
   # The library is read-write because "Allow media deletion" needs it, and
-  # pms-local's plex-watch depends on deletes made in Plex.
+  # arr-reclaim frees a torrent's space when its media is deleted in Plex.
   #
   # No GPU: the GTX 560 is too old for Plex's NVENC and there is no /dev/dri
   # render node, so transcoding is CPU — the same as native.
@@ -47,9 +47,8 @@ services:
     restart: unless-stopped
 
   # ── Phase 2: qBittorrent (for Radarr/Sonarr) ───────────────────────────────
-  # A SECOND instance. Native qbittorrent-nox keeps :8080, peer port 13761, its
-  # torrents and the on-complete.sh import hook until Phase 7; pms-local's
-  # plex-reconcile only ever sees that one. This one has no hook — the arrs
+  # The only qBittorrent since Phase 7a retired native qbittorrent-nox (:8080,
+  # peer port 13761); it stays on :8081 / 13762. It has no hook — the arrs
   # import from it over its API.
   #
   # /mnt/data is ONE bind mount on purpose: Radarr and Sonarr hardlink from
