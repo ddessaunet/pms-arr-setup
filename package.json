@@ -29,6 +29,8 @@
     "update": "tools/update-stack.sh",
     "update:dry": "tools/update-stack.sh --dry-run",
     "qbt:configure": "tools/qbt-configure.sh",
-    "qbt:check": "tools/qbt-configure.sh --check"
+    "qbt:check": "tools/qbt-configure.sh --check",
+    "prowlarr:configure": "tools/prowlarr-configure.sh",
+    "prowlarr:check": "tools/prowlarr-configure.sh --check"
   }
 }

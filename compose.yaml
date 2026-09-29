@@ -75,6 +75,41 @@ services:
     networks: [arr]
     restart: unless-stopped
 
+  # ── Phase 3: Prowlarr + FlareSolverr ───────────────────────────────────────
+  # Prowlarr manages the indexers and, from Phase 4, pushes them to Radarr and
+  # Sonarr. It only searches: no media mounts at all.
+  #
+  # The API key and auth mode come from .env, so the key is known before the
+  # first start and Phase 4 can use it without copying it out of the UI. The
+  # login, FlareSolverr proxy and indexers are applied by
+  # tools/prowlarr-configure.sh, not clicked in the WebUI.
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      <<: *common-env
+      PROWLARR__AUTH__APIKEY: ${PROWLARR_API_KEY:?set PROWLARR_API_KEY in .env}
+      PROWLARR__AUTH__METHOD: Forms
+      PROWLARR__AUTH__REQUIRED: DisabledForLocalAddresses
+    ports:
+      - "9696:9696"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/prowlarr:/config
+    networks: [arr]
+    restart: unless-stopped
+
+  # Solves Cloudflare challenges for the indexers tagged `flare` (a headless
+  # Chromium, the heavy part of this phase). Not published: only Prowlarr
+  # talks to it, as flaresolverr:8191 on the arr network.
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      TZ: ${TZ:?set TZ in .env}
+      LOG_LEVEL: info
+    networks: [arr]
+    restart: unless-stopped
+
 # Shared by the arr services from Phase 2 on, so they reach each other by
 # service name. Host-networked Plex is not on it.
 networks:

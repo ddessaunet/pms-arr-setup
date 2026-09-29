@@ -39,6 +39,7 @@ native Plex database and qBittorrent state move across unchanged.
 | `tools/preflight.sh` | Read-only checks before a phase: docker, `.env`, same-filesystem hardlinks, ports, native service state. |
 | `tools/start.sh` | Preflight, then `docker compose up -d` for whatever the current phase has enabled. Never passes `--profile`. |
 | `tools/qbt-configure.sh` | Applies the `:8081` qBittorrent's settings through its API (paths, categories, peer port, host-header domains) and reads them back. Idempotent; `--check` reports drift. |
+| `tools/prowlarr-configure.sh` | Applies Prowlarr's login, FlareSolverr proxy and indexer list through its API, then tests every indexer. Idempotent; `--check` reports drift. |
 | `tools/deploy.sh` | Installs the `pms-update` units, and arms the timer only while native Plex is masked. `--check` reports drift. |
 | `tools/update-stack.sh` | Pulls new images, skips the run if anyone is streaming, recreates the container, verifies it, and rolls back if it's unhealthy. Run weekly by `pms-update.timer`. |
 | `systemd/pms-update.{service,timer}` | Sunday 05:00, the same slot as pms-local's native updater. Installed by `npm run deploy`. |
@@ -65,6 +66,8 @@ lives in `/opt/appdata`.
 | `npm run update` | Update now, outside the Sunday schedule. |
 | `npm run qbt:configure` | Apply the `:8081` qBittorrent's settings; the first run also sets its login from `.env`. |
 | `npm run qbt:check` | Report qBittorrent settings drift. Changes nothing. |
+| `npm run prowlarr:configure` | Apply Prowlarr's login, FlareSolverr proxy and indexers, then test each indexer. |
+| `npm run prowlarr:check` | Report Prowlarr drift and test the indexers. Changes nothing. |
 
 Before a phase:
 
