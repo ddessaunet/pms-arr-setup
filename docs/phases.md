@@ -13,7 +13,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 0 — foundation
 - [x] Phase 1a — test Plex beside the native one
 - [x] Phase 1b — Plex cutover (2026-09-28: identity `f3860770…`, counts 132/7/2/5 carried over)
-- [ ] Phase 2 — qBittorrent, parallel instance
+- [x] Phase 2 — qBittorrent, parallel instance (2026-09-29: settings from qbt-configure, test download + hardlink verified)
 - [ ] Phase 3 — Prowlarr + FlareSolverr
 - [ ] Phase 4 — Radarr + Sonarr
 - [ ] Phase 5 — Jellyseerr
