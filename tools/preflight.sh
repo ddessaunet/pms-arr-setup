@@ -142,6 +142,38 @@ if [[ -z "$(env_get QBT_ARR_USER)" || -z "$(env_get QBT_ARR_PASS)" ]]; then
     warn "QBT_ARR_USER / QBT_ARR_PASS empty in .env — set them before npm run qbt:configure"
 fi
 
+echo "── prowlarr (:9696) + flaresolverr"
+
+if container_running prowlarr; then
+    ok "prowlarr container running"
+elif ss -Hltn "sport = :9696" 2>/dev/null | grep -q .; then
+    fail ":9696/tcp is taken by something else — prowlarr cannot start"
+else
+    ok ":9696/tcp free"
+fi
+
+# The key is fixed at first start from .env; one that is not 32 hex characters
+# is almost certainly a paste error, and Radarr/Sonarr will need it verbatim.
+key="$(env_get PROWLARR_API_KEY)"
+if [[ "$key" =~ ^[0-9a-f]{32}$ ]]; then
+    ok "PROWLARR_API_KEY set"
+else
+    fail "PROWLARR_API_KEY missing or not 32 hex characters — openssl rand -hex 16"
+fi
+if [[ -z "$(env_get PROWLARR_USER)" || -z "$(env_get PROWLARR_PASS)" ]]; then
+    warn "PROWLARR_USER / PROWLARR_PASS empty in .env — set them before npm run prowlarr:configure"
+fi
+
+# FlareSolverr's headless Chromium is the heaviest thing in the stack so far.
+if ! container_running flaresolverr; then
+    avail_mib="$(awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo)"
+    if [[ "$avail_mib" -lt 1024 ]]; then
+        warn "only ${avail_mib} MiB of memory available — FlareSolverr's Chromium wants ~500 MiB"
+    else
+        ok "${avail_mib} MiB of memory available for FlareSolverr"
+    fi
+fi
+
 echo
 if [[ "$fails" -gt 0 ]]; then
     echo "$fails check(s) failed."

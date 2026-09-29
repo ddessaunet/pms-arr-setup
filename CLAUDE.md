@@ -48,7 +48,12 @@ before anything destructive:
    Phase 4, so its torrents are only removed by hand. Its settings come from
    `tools/qbt-configure.sh`; change them there, not in the WebUI, or `qbt:check` reports
    drift.
-7. **`systemd/pms-update.service` hardcodes this clone's path** in `ExecStart`, because
+7. **Prowlarr's settings come from `tools/prowlarr-configure.sh`**, and its API key from
+   `.env` (`PROWLARR__AUTH__APIKEY`), which Phase 4 wires into Radarr and Sonarr. Changing
+   the key means changing it everywhere. Indexers that go through FlareSolverr are listed
+   there; add `flare` only for ones Cloudflare actually blocks, since each such search runs
+   a headless Chromium.
+8. **`systemd/pms-update.service` hardcodes this clone's path** in `ExecStart`, because
    compose needs `compose.yaml` and `.env` beside it. `npm run deploy` refuses to install it
    if the path doesn't match the clone. Moving the clone means editing that line.
 

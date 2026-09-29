@@ -213,18 +213,73 @@ Then take `qbittorrent` out of `UPDATE_SERVICES` in `.env`. Native was never tou
 
 ## Phase 3 — Prowlarr + FlareSolverr
 
-These touch no media paths, so this phase has no risk.
+Prowlarr manages the indexers, and from Phase 4 hands them to Radarr and Sonarr. FlareSolverr
+solves Cloudflare challenges for the indexers that need it. **Neither touches `/mnt/data`**,
+and nothing native changes, so this is the lowest-risk phase.
 
-**Do:** add `lscr.io/linuxserver/prowlarr` (`9696`) and
-`ghcr.io/flaresolverr/flaresolverr` (`8191`), both on network `arr`. In Prowlarr:
+- **Prowlarr:** `:9696` on the LAN. Login is forms-based, but not asked from local
+  addresses.
+- **FlareSolverr:** not published. Only Prowlarr reaches it, as `flaresolverr:8191` on
+  `arr`.
+- **The API key is fixed from `.env`** before the first start (`PROWLARR__AUTH__APIKEY`), so
+  Phase 4 uses it without copying it out of the UI.
+- **Indexers:** 1337x, The Pirate Bay, LimeTorrents, Knaben, YTS and EZTV. **1337x and EZTV
+  go through FlareSolverr.** Both passed a test once, then hit a Cloudflare challenge, and
+  pass through it. The list, and which ones use FlareSolverr, is data at the top of
+  [`tools/prowlarr-configure.sh`](../tools/prowlarr-configure.sh).
 
-- Settings → Indexers → add a FlareSolverr proxy at `http://flaresolverr:8191` with a tag
-  such as `flare`.
-- Add indexers, and give the `flare` tag only to the ones behind Cloudflare.
+**Do**
 
-**Verify:** each indexer's Test passes, and a manual search returns results.
+1. Check `.env`. `PROWLARR_API_KEY` must be 32 hex characters (`openssl rand -hex 16`). Also
+   choose `PROWLARR_USER` and `PROWLARR_PASS`:
 
-**Rollback:** remove both services and their appdata.
+   ```bash
+   $EDITOR .env
+   ```
+
+2. Start it. Only `prowlarr` and `flaresolverr` are created; `plex` and `qbittorrent` stay
+   running as they are.
+
+   ```bash
+   npm start
+   ```
+
+3. Apply the login, the FlareSolverr proxy and the indexers. It reads everything back and
+   **tests every indexer**. This takes a couple of minutes: each FlareSolverr test is about
+   15–20 s.
+
+   ```bash
+   npm run prowlarr:configure
+   ```
+
+   An indexer that fails its test is reported as `FAILING` but doesn't fail the run, because
+   public trackers come and go. If the failure message says *blocked by CloudFlare
+   Protection*, switch that entry to `flare` in the script and run it again.
+
+**Verify**
+
+- `npm run prowlarr:check` exits 0, and running `prowlarr:configure` again changes nothing.
+- A search returns results through a FlareSolverr indexer and a direct one: search a known
+  title in the WebUI (Search), or:
+
+  ```bash
+  curl -s -H "X-Api-Key: $(sed -n 's/^PROWLARR_API_KEY=//p' .env)" "http://127.0.0.1:9696/api/v1/search?query=draft%20day&type=search" | jq 'group_by(.indexer) | map({(.[0].indexer): length}) | add'
+  ```
+
+- Nothing else touched: `plex` and `qbittorrent` weren't recreated, and `plex-watch` is quiet.
+- `npm run update:dry` covers both (`UPDATE_SERVICES=… prowlarr flaresolverr`).
+
+**Rollback**
+
+```bash
+docker compose rm -sf prowlarr flaresolverr
+```
+
+```bash
+rm -rf /opt/appdata/prowlarr
+```
+
+Then take both out of `UPDATE_SERVICES` in `.env`.
 
 ---
 
