@@ -1,7 +1,6 @@
 # pms-arr-setup — the containerized media stack.
 #
-# Services are added phase by phase; docs/phases.md is the runbook and says
-# which profile each phase starts. State lives in ${APPDATA} (on /), never in
+# Services are added phase by phase; docs/phases.md is the runbook. State lives in ${APPDATA} (on /), never in
 # this repo and never on /mnt/data.
 #
 # Data is mounted at its HOST path (/mnt/data/..., not /data). That keeps the
@@ -14,6 +13,9 @@ x-common-env: &common-env
   PUID: ${PUID:?set PUID in .env}
   PGID: ${PGID:?set PGID in .env}
   TZ: ${TZ:?set TZ in .env}
+  # Group-writable files, as native qbittorrent-nox's UMask=002: the library
+  # and the torrent tree are shared through the media group (setgid dirs).
+  UMASK: "002"
 
 services:
 
@@ -42,6 +44,35 @@ services:
     volumes:
       - ${APPDATA:?set APPDATA in .env}/plex:/config
       - /mnt/data/streaming:/mnt/data/streaming
+    restart: unless-stopped
+
+  # ── Phase 2: qBittorrent (for Radarr/Sonarr) ───────────────────────────────
+  # A SECOND instance. Native qbittorrent-nox keeps :8080, peer port 13761, its
+  # torrents and the on-complete.sh import hook until Phase 7; pms-local's
+  # plex-reconcile only ever sees that one. This one has no hook — the arrs
+  # import from it over its API.
+  #
+  # /mnt/data is ONE bind mount on purpose: Radarr and Sonarr hardlink from
+  # torrents/ into streaming/, and link() fails with EXDEV across two bind
+  # mounts even on the same filesystem.
+  #
+  # Settings (paths, categories, port, host header domains) are applied by
+  # tools/qbt-configure.sh, not clicked in the WebUI.
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    environment:
+      <<: *common-env
+      WEBUI_PORT: 8081
+      TORRENTING_PORT: 13762
+    ports:
+      - "8081:8081"
+      - "13762:13762"
+      - "13762:13762/udp"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/qbittorrent:/config
+      - /mnt/data:/mnt/data
+    networks: [arr]
     restart: unless-stopped
 
 # Shared by the arr services from Phase 2 on, so they reach each other by

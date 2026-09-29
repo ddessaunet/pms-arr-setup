@@ -27,6 +27,8 @@
     "status": "docker compose ps; echo; systemctl list-timers pms-update.timer --all --no-pager",
     "logs": "docker compose logs -f --tail 100",
     "update": "tools/update-stack.sh",
-    "update:dry": "tools/update-stack.sh --dry-run"
+    "update:dry": "tools/update-stack.sh --dry-run",
+    "qbt:configure": "tools/qbt-configure.sh",
+    "qbt:check": "tools/qbt-configure.sh --check"
   }
 }
