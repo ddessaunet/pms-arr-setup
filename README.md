@@ -38,6 +38,7 @@ native Plex database and qBittorrent state move across unchanged.
 | `.env.example` | Copy to `.env` (gitignored): UID/GID, timezone, appdata path, Plex claim. |
 | `tools/preflight.sh` | Read-only checks before a phase: docker, `.env`, same-filesystem hardlinks, ports, native service state. |
 | `tools/start.sh` | Preflight, then `docker compose up -d` for whatever the current phase has enabled. Never passes `--profile`. |
+| `tools/qbt-configure.sh` | Applies the `:8081` qBittorrent's settings through its API (paths, categories, peer port, host-header domains) and reads them back. Idempotent; `--check` reports drift. |
 | `tools/deploy.sh` | Installs the `pms-update` units, and arms the timer only while native Plex is masked. `--check` reports drift. |
 | `tools/update-stack.sh` | Pulls new images, skips the run if anyone is streaming, recreates the container, verifies it, and rolls back if it's unhealthy. Run weekly by `pms-update.timer`. |
 | `systemd/pms-update.{service,timer}` | Sunday 05:00, the same slot as pms-local's native updater. Installed by `npm run deploy`. |
@@ -62,6 +63,8 @@ lives in `/opt/appdata`.
 | `npm run deploy` | Lint and test, then install the units and arm or disarm the timer. |
 | `npm run update:dry` | Updater rehearsal: pulls, but recreates nothing. |
 | `npm run update` | Update now, outside the Sunday schedule. |
+| `npm run qbt:configure` | Apply the `:8081` qBittorrent's settings; the first run also sets its login from `.env`. |
+| `npm run qbt:check` | Report qBittorrent settings drift. Changes nothing. |
 
 Before a phase:
 

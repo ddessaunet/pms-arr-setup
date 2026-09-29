@@ -140,37 +140,74 @@ saw it.
 
 ## Phase 2 — qBittorrent, parallel instance
 
-A **second** qBittorrent in a container, used only by Radarr and Sonarr. Native
-`qbittorrent-nox` keeps `:8080`, its 15 torrents and its completion hook until Phase 7, so
-there is never a window without a working import path.
+A **second** qBittorrent in a container (`:8081`, peer port `13762`), for Radarr and Sonarr
+only. Native `qbittorrent-nox` keeps `:8080`, peer port `13761`, its torrents and its
+`on-complete.sh` hook until Phase 7. The working import path never has a gap, and
+pms-local's `plex-reconcile` only ever sees the native instance.
 
-**Do** — add the service to `compose.yaml`:
+- **No VPN**, the same as native.
+- **No seeding limits yet.** Phase 4 decides how finished torrents are removed. Until then,
+  space held by this instance comes back only by hand.
 
-- `lscr.io/linuxserver/qbittorrent`, network `arr`, `WEBUI_PORT=8081`, ports `8081`,
-  `13762/tcp` and `13762/udp`. Native owns peer port `13761`.
-- Volumes: `${APPDATA}/qbittorrent:/config` and `/mnt/data:/mnt/data` (rule 2).
+**Do**
 
-Then in its WebUI:
+1. Choose a WebUI login for this instance and put it in `.env`:
 
-| setting | value |
-|---|---|
-| Downloads → Default Save Path | `/mnt/data/torrents` |
-| Downloads → Keep incomplete in | `/mnt/data/torrents/.incomplete-arr` |
-| Categories | `radarr` → `/mnt/data/torrents/radarr`, `sonarr` → `/mnt/data/torrents/sonarr` |
-| Downloads → Run external program | **empty** — the arrs import, not the hook |
-| Web UI → Server domains | add `qbittorrent`, or Radarr and Sonarr are refused with no useful error |
-| BitTorrent → Seeding limits | a ratio and/or time limit |
-| Connection → port | `13762` |
+   ```bash
+   $EDITOR .env                      # QBT_ARR_USER= and QBT_ARR_PASS=
+   ```
 
-The seeding limits matter because `plex-reconcile` only knows about the native instance. It
-iterates the native API's torrents, so it ignores this instance's folders under `torrents/`,
-and nothing else will ever remove these torrents.
+2. Start it. `npm start` runs the preflight first, which checks `:8081`, `:13762/tcp` and
+   `:13762/udp` are free.
 
-**Verify:** add a small legal torrent under category `radarr`. It lands in
-`/mnt/data/torrents/radarr/` owned by `dario:media`, and native qBittorrent is unaffected.
+   ```bash
+   npm start
+   ```
 
-**Rollback:** remove the service, then `sudo rm -rf /opt/appdata/qbittorrent` and the test
-download.
+   > This also recreates `plex` once (about 20 s), picking up the `PLEX_CLAIM` and `UMASK`
+   > config changes. The config is unchanged, so it's the same server. Do it when nobody is
+   > watching.
+
+3. Apply the settings. The first run logs in with the temporary password the container
+   prints and sets your `.env` login. It then applies the paths, categories, peer port and
+   host-header domains, and reads everything back:
+
+   ```bash
+   npm run qbt:configure
+   ```
+
+   The settings themselves are data at the top of
+   [`tools/qbt-configure.sh`](../tools/qbt-configure.sh). `npm run qbt:check` reports drift
+   and changes nothing.
+
+**Verify**
+
+- `npm run qbt:check` exits 0, and running `qbt:configure` again changes nothing.
+- A small legal test torrent added with category `radarr` downloads into
+  `/mnt/data/torrents/.incomplete-arr/`, then lands in `/mnt/data/torrents/radarr/`. It's
+  owned `dario:media` and group-writable.
+- **Hardlinks work from inside the container.** Test under `torrents/`, never `streaming/`,
+  so `plex-watch` doesn't see it:
+
+  ```bash
+  docker exec qbittorrent sh -c 'f=$(find /mnt/data/torrents/radarr -type f | head -1); ln "$f" /mnt/data/torrents/.hardlink-test && stat -c "%h links" "$f"; rm /mnt/data/torrents/.hardlink-test'
+  ```
+
+  It prints `2 links`. Then delete the test torrent with its files.
+- Native is untouched: `qbittorrent-nox` is active and `:8080` lists the same torrents.
+- `npm run update:dry` covers it (`UPDATE_SERVICES=plex qbittorrent`).
+
+**Rollback**
+
+```bash
+docker compose rm -sf qbittorrent
+```
+
+```bash
+rm -rf /opt/appdata/qbittorrent
+```
+
+Then take `qbittorrent` out of `UPDATE_SERVICES` in `.env`. Native was never touched.
 
 ---
 

@@ -42,7 +42,13 @@ before anything destructive:
    `npm run deploy` arms its timer only while masked, and pms-local's (from pms-local#14)
    only while not. Until #14 is deployed, pms-local's deploy re-arms its timer
    unconditionally.
-6. **`systemd/pms-update.service` hardcodes this clone's path** in `ExecStart`, because
+6. **Two qBittorrents until Phase 7.** Native `qbittorrent-nox` (`:8080`, peer 13761) runs
+   pms-local's import hook, and it's the only one `plex-reconcile` sees. The container
+   (`:8081`, peer 13762) is for Radarr/Sonarr only: no hook, and **no seeding limits** until
+   Phase 4, so its torrents are only removed by hand. Its settings come from
+   `tools/qbt-configure.sh`; change them there, not in the WebUI, or `qbt:check` reports
+   drift.
+7. **`systemd/pms-update.service` hardcodes this clone's path** in `ExecStart`, because
    compose needs `compose.yaml` and `.env` beside it. `npm run deploy` refuses to install it
    if the path doesn't match the clone. Moving the clone means editing that line.
 

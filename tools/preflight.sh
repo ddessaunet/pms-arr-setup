@@ -122,6 +122,26 @@ else
     warn "plex container not running — npm start brings it up"
 fi
 
+echo "── qbittorrent (:8081, for the arrs)"
+
+# Its ports must be free, or already held by the container itself. Native
+# qbittorrent-nox owns :8080 and peer port 13761; these must not collide.
+if container_running qbittorrent; then
+    ok "qbittorrent container running"
+else
+    for port in 8081/tcp 13762/tcp 13762/udp; do
+        if ss -Hln -A "${port#*/}" "sport = :${port%/*}" 2>/dev/null | grep -q .; then
+            fail ":$port is taken by something else — qbittorrent cannot start"
+        else
+            ok ":$port free"
+        fi
+    done
+fi
+
+if [[ -z "$(env_get QBT_ARR_USER)" || -z "$(env_get QBT_ARR_PASS)" ]]; then
+    warn "QBT_ARR_USER / QBT_ARR_PASS empty in .env — set them before npm run qbt:configure"
+fi
+
 echo
 if [[ "$fails" -gt 0 ]]; then
     echo "$fails check(s) failed."
