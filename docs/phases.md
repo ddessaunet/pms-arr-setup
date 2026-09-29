@@ -16,7 +16,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 2 — qBittorrent, parallel instance (2026-09-29: settings from qbt-configure, test download + hardlink verified)
 - [x] Phase 3 — Prowlarr + FlareSolverr (2026-09-29: 6 indexers pass, 1337x + EZTV via FlareSolverr)
 - [x] Phase 4 — Radarr + Sonarr (2026-09-29: grab → hardlink import → Plex delete → arr-reclaim freed 10 GB, unmonitored)
-- [ ] Phase 5 — Seerr (requests)
+- [x] Phase 5 — Seerr (requests) (2026-09-29: two requests auto-approved → HD-1080p grab → hardlink import → Available)
 - [ ] Phase 6 — Recyclarr: 4K HDR as the default (decided 2026-09-29)
 - [ ] Phase 7 — retire the native setup
 - [ ] Phase 8 — library cleanup (import and rename the existing library)
