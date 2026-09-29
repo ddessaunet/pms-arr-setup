@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# deploy.sh — install the updater's systemd units, then arm or disarm its timer.
+# deploy.sh — install the systemd units (the updater's and arr-reclaim's), arm
+# or disarm the updater's timer, and (re)start the arr-reclaim watcher.
 #
 #   tools/deploy.sh            install, reload, arm/disarm, verify
 #   tools/deploy.sh --check    report drift only; changes nothing
@@ -33,14 +34,23 @@ SYS_PREFIX="${SYS_PREFIX:-}"
 MANIFEST=(
     "systemd/pms-update.service:/etc/systemd/system/pms-update.service:644"
     "systemd/pms-update.timer:/etc/systemd/system/pms-update.timer:644"
+    "systemd/arr-reclaim.service:/etc/systemd/system/arr-reclaim.service:644"
 )
-SERVICE_SRC="systemd/pms-update.service"
 TIMER="pms-update.timer"
 NATIVE_PLEX_UNIT="plexmediaserver.service"
 
-# What ExecStart must say. The unit cannot use a relative path, so it names
-# this clone; a moved clone would leave the timer running a file that is gone.
-WANT_EXEC="$REPO/tools/update-stack.sh"
+# The long-running watcher: enabled and restarted on EVERY deploy, not only
+# when its unit changes — it is also stale when tools/arr-reclaim.sh changes,
+# which no unit file shows. (The same reasoning as pms-local's plex-watch.)
+WATCHER="arr-reclaim.service"
+
+# What each unit's ExecStart must say, as unit|command. A unit cannot use a
+# relative path, so it names this clone; a moved clone would leave it running
+# a file that is gone.
+EXECS=(
+    "systemd/pms-update.service|$REPO/tools/update-stack.sh"
+    "systemd/arr-reclaim.service|$REPO/tools/arr-reclaim.sh watch"
+)
 
 TIMER_CHANGED=0
 ANY_CHANGED=0
@@ -59,16 +69,26 @@ native_plex_masked() {
     [[ "$(systemctl is-enabled "$NATIVE_PLEX_UNIT" 2>/dev/null)" == masked* ]]
 }
 
-exec_path() { sed -n 's/^ExecStart=//p' "$SERVICE_SRC" | head -1; }
+exec_of() { sed -n 's/^ExecStart=//p' "$1" | head -1; }
+
+# Prints one line per unit whose ExecStart is not what it must be.
+exec_mismatches() {
+    local entry unit want
+    for entry in "${EXECS[@]}"; do
+        unit="${entry%%|*}"; want="${entry#*|}"
+        [[ "$(exec_of "$unit")" == "$want" ]] || printf '%s|%s|%s\n' "$unit" "$(exec_of "$unit")" "$want"
+    done
+}
 
 # Reports drift; changes nothing. 0 = everything matches.
 check() {
     local rc=0 entry got
 
-    if [[ "$(exec_path)" != "$WANT_EXEC" ]]; then
-        echo "WRONG ExecStart in $SERVICE_SRC: '$(exec_path)', want '$WANT_EXEC'"
-        rc=1
-    fi
+    local unit have want
+    while IFS='|' read -r unit have want; do
+        [[ -n "$unit" ]] || continue
+        echo "WRONG ExecStart in $unit: '$have', want '$want'"; rc=1
+    done < <(exec_mismatches)
 
     for entry in "${MANIFEST[@]}"; do
         manifest_parse "$entry"
@@ -101,6 +121,11 @@ check() {
                 echo "ok: $TIMER disarmed (Plex is native — pms-local's plex-update.timer owns updates)"
             fi
         fi
+        if systemctl is-enabled --quiet "$WATCHER" 2>/dev/null && systemctl is-active --quiet "$WATCHER"; then
+            echo "ok: $WATCHER enabled and running"
+        else
+            echo "WATCHER DOWN: $WATCHER is not enabled and running — npm run deploy"; rc=1
+        fi
     fi
     return "$rc"
 }
@@ -111,13 +136,19 @@ preflight() {
         exit 1
     fi
     # A unit pointing at a missing script gives you a timer that fails every
-    # Sunday and nothing else.
-    if [[ "$(exec_path)" != "$WANT_EXEC" ]]; then
-        echo "$SERVICE_SRC runs '$(exec_path)', but this clone is at $REPO." >&2
-        echo "Edit its ExecStart= to: $WANT_EXEC" >&2
-        exit 1
-    fi
-    [[ -x "$WANT_EXEC" ]] || { echo "$WANT_EXEC is missing or not executable." >&2; exit 1; }
+    # Sunday, or a watcher that restarts forever, and nothing else.
+    local unit have want bad=0 entry
+    while IFS='|' read -r unit have want; do
+        [[ -n "$unit" ]] || continue
+        echo "$unit runs '$have', but this clone is at $REPO." >&2
+        echo "Edit its ExecStart= to: $want" >&2
+        bad=1
+    done < <(exec_mismatches)
+    [[ "$bad" == 0 ]] || exit 1
+    for entry in "${EXECS[@]}"; do
+        want="${entry#*|}"; want="${want%% *}"
+        [[ -x "$want" ]] || { echo "$want is missing or not executable." >&2; exit 1; }
+    done
 }
 
 install_all() {
@@ -148,7 +179,7 @@ install_all() {
 
 arm() {
     if [[ -n "$SYS_PREFIX" ]]; then
-        echo "SYS_PREFIX set — skipping daemon-reload and the timer."
+        echo "SYS_PREFIX set — skipping daemon-reload, the timer and the watcher."
         return 0
     fi
 
@@ -171,6 +202,10 @@ arm() {
         sudo systemctl disable --now "$TIMER" 2>/dev/null || true
         echo "disabled $TIMER — Plex is native, and pms-local's plex-update.timer updates it"
     fi
+
+    sudo systemctl enable "$WATCHER"
+    sudo systemctl restart "$WATCHER"
+    echo "enabled and restarted $WATCHER"
 }
 
 verify() {
@@ -182,8 +217,8 @@ verify() {
     local rc=0
     # Catches a typo'd or removed directive before it costs you a Sunday.
     systemd-analyze verify "/etc/systemd/system/$TIMER" \
-        /etc/systemd/system/pms-update.service 2>&1 \
-        | grep -F 'pms-update' || true
+        /etc/systemd/system/pms-update.service "/etc/systemd/system/$WATCHER" 2>&1 \
+        | grep -E 'pms-update|arr-reclaim' || true
     check || rc=1
 
     echo
