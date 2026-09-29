@@ -66,12 +66,16 @@ before anything destructive:
 10. **Servarr reads `allowedHosts` at startup only.** `apply_host` restarts the app after
     changing it; without that, Prowlarr ↔ Radarr/Sonarr calls fail with "Invalid Hostname"
     after the next unrelated restart.
-11. **Seerr is configured by `tools/seerr-configure.sh`, after one browser sign-in with
+11. **Sizes are capped in `arr-configure.sh`** (40 MB/min on the 1080p qualities, no Remux
+    in `HD-1080p`): the defaults let Radarr take a 10 GB remaster and offered a 31.5 GB
+    pack. Radarr reports quality sizes a few seconds late after a write, so the read-back
+    re-reads for up to about 10 s before calling it drift.
+12. **Seerr is configured by `tools/seerr-configure.sh`, after one browser sign-in with
     Plex.** Its API key is refused (403) until that admin exists, and it lives in
     `/opt/appdata/seerr/settings.json`, not `.env`. Seerr rejects read-only fields in writes,
     so the script only ever sends the fields it owns. Its requests are ordinary Radarr/Sonarr
     adds; nothing in Seerr touches files.
-12. **`systemd/pms-update.service` and `systemd/arr-reclaim.service` hardcode this clone's
+13. **`systemd/pms-update.service` and `systemd/arr-reclaim.service` hardcode this clone's
     path** in `ExecStart`, because the scripts need `compose.yaml` and `.env` beside them.
     `npm run deploy` refuses to install a unit whose path doesn't match the clone. Moving
     the clone means editing those lines.
