@@ -14,7 +14,8 @@
 # plexmediaserver is masked Plex runs here, so pms-update.timer is armed and
 # pms-local's plex-update.timer is not; unmask it (the Phase 1b rollback) and
 # both deploys swap. Exactly one updater is ever armed, and either deploy is
-# safe to re-run on either side of the cutover.
+# safe to re-run on either side of the cutover. Once native Plex is removed
+# (Phase 7b) there is no rollback left, and a missing unit counts as masked.
 #
 # **Run it as yourself, not as root.** It asks for sudo at the installs and the
 # systemctl calls and nowhere else. `sudo npm run deploy` does not work: node
@@ -64,9 +65,13 @@ manifest_parse() {
     MF_MODE="${rest##*:}"
 }
 
-# Same test as pms-local's native_plex_masked(); masked-runtime counts.
-native_plex_masked() {
-    [[ "$(systemctl is-enabled "$NATIVE_PLEX_UNIT" 2>/dev/null)" == masked* ]]
+# pms-local's native_plex_masked() (masked-runtime counts), plus a unit that
+# is not installed at all: after Phase 7b removes the package, a mask cleared
+# by hand must not disarm the only updater left. Same reading as preflight.sh.
+plex_runs_here() {
+    local state
+    state="$(systemctl is-enabled "$NATIVE_PLEX_UNIT" 2>/dev/null || true)"
+    [[ "$state" == masked* || -z "$state" || "$state" == not-found ]]
 }
 
 exec_of() { sed -n 's/^ExecStart=//p' "$1" | head -1; }
@@ -108,15 +113,15 @@ check() {
     if [[ -z "$SYS_PREFIX" ]]; then
         local armed=0
         systemctl is-enabled "$TIMER" >/dev/null 2>&1 && armed=1
-        if native_plex_masked; then
+        if plex_runs_here; then
             if [[ "$armed" == 1 ]]; then
-                echo "ok: $TIMER armed ($NATIVE_PLEX_UNIT is masked — Plex runs here)"
+                echo "ok: $TIMER armed ($NATIVE_PLEX_UNIT is masked or gone — Plex runs here)"
             else
-                echo "TIMER DISARMED: $NATIVE_PLEX_UNIT is masked, so $TIMER should be armed"; rc=1
+                echo "TIMER DISARMED: $NATIVE_PLEX_UNIT is masked or gone, so $TIMER should be armed"; rc=1
             fi
         else
             if [[ "$armed" == 1 ]]; then
-                echo "TIMER ARMED: $NATIVE_PLEX_UNIT is not masked — native Plex updates itself; $TIMER should be off"; rc=1
+                echo "TIMER ARMED: $NATIVE_PLEX_UNIT is installed and not masked — native Plex updates itself; $TIMER should be off"; rc=1
             else
                 echo "ok: $TIMER disarmed (Plex is native — pms-local's plex-update.timer owns updates)"
             fi
@@ -189,9 +194,9 @@ arm() {
     fi
 
     # Idempotent either way.
-    if native_plex_masked; then
+    if plex_runs_here; then
         sudo systemctl enable --now "$TIMER"
-        echo "enabled $TIMER — $NATIVE_PLEX_UNIT is masked, so Plex runs here"
+        echo "enabled $TIMER — $NATIVE_PLEX_UNIT is masked or gone, so Plex runs here"
         # daemon-reload re-reads a changed timer but leaves the old elapse
         # armed; restarting is what makes a new OnCalendar take effect.
         if [[ "$TIMER_CHANGED" == 1 ]]; then
@@ -228,24 +233,30 @@ verify() {
     return "$rc"
 }
 
-case "${1:-}" in
-    "")
-        preflight
-        install_all
-        arm
-        verify
-        ;;
-    --check)
-        if check; then
-            echo "checked"
-        else
-            echo
-            echo "To apply: npm run deploy"
-            exit 1
-        fi
-        ;;
-    *)
-        echo "usage: ${0##*/} [--check]" >&2
-        exit 2
-        ;;
-esac
+main() {
+    case "${1:-}" in
+        "")
+            preflight
+            install_all
+            arm
+            verify
+            ;;
+        --check)
+            if check; then
+                echo "checked"
+            else
+                echo
+                echo "To apply: npm run deploy"
+                exit 1
+            fi
+            ;;
+        *)
+            echo "usage: ${0##*/} [--check]" >&2
+            exit 2
+            ;;
+    esac
+}
+
+# Sourcing with DEPLOY_LIB=1 gets the functions without running anything,
+# which is how tests/deploy.test.sh reaches them.
+[[ "${DEPLOY_LIB:-0}" == "1" ]] || main "$@"

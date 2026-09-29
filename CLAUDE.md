@@ -20,7 +20,7 @@ before anything destructive:
 - recursive `rm`, `chown` or `chmod` under `/mnt/data`
 - stopping, masking or uninstalling a native service outside the step that says to
 - anything under `/var/lib/plexmediaserver`, the native Plex database kept for rollback until
-  Phase 7, or unmasking `plexmediaserver` (it would fight the container for `:32400`)
+  Phase 7b, or unmasking `plexmediaserver` (it would fight the container for `:32400`)
 
 ## Traps that span files
 
