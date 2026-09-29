@@ -22,7 +22,7 @@ services:
   # ── Plex ───────────────────────────────────────────────────────────────────
   # Took over from native plexmediaserver in Phase 1b with a copy of its
   # database, so the server identity (f3860770…) and watch history carried over.
-  # The native copy stays in /var/lib/plexmediaserver, masked, until Phase 7.
+  # The native copy stays in /var/lib/plexmediaserver, masked, until Phase 7b.
   #
   # Host networking: same ports, GDM discovery and LAN detection as the native
   # server, and pms-local's scripts keep reaching it at localhost:32400.

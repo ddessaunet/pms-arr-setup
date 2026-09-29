@@ -46,7 +46,7 @@ native Plex database and qBittorrent state move across unchanged.
 | `recyclarr/recyclarr.yml` | The TRaSH profiles: 4K HDR movies (UHD Bluray + WEB), 1080p series (WEB-1080p), with their custom formats. |
 | `tools/recyclarr.sh` | Runs Recyclarr once, as a throwaway container (`recyclarr:preview` / `recyclarr:sync`). |
 | `tools/lib/servarr.sh` | The API plumbing shared by the Prowlarr, Radarr and Sonarr configure scripts. |
-| `tools/deploy.sh` | Installs the `pms-update` units, and arms the timer only while native Plex is masked. `--check` reports drift. |
+| `tools/deploy.sh` | Installs the `pms-update` units, and arms the timer only while native Plex is masked or removed. `--check` reports drift. |
 | `tools/update-stack.sh` | Pulls new images, skips the run if anyone is streaming, recreates the container, verifies it, and rolls back if it's unhealthy. Run weekly by `pms-update.timer`. |
 | `systemd/pms-update.{service,timer}` | Sunday 05:00, the same slot as pms-local's native updater. Installed by `npm run deploy`. |
 | `systemd/arr-reclaim.service` | The `arr-reclaim` watcher: pms-local's `plex-watch`, ported for the `:8081` instance. Installed, enabled and restarted by `npm run deploy`. |

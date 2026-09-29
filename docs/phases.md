@@ -18,7 +18,8 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 4 — Radarr + Sonarr (2026-09-29: grab → hardlink import → Plex delete → arr-reclaim freed 10 GB, unmonitored)
 - [x] Phase 5 — Seerr (requests) (2026-09-29: two requests auto-approved → HD-1080p grab → hardlink import → Available)
 - [ ] Phase 6 — Recyclarr: 4K HDR as the default for movies
-- [ ] Phase 7 — retire the native setup
+- [ ] Phase 7a — retire native qBittorrent and `plex-watch`
+- [ ] Phase 7b — remove native Plex and pms-local's leftovers (~2 stable weeks after 7a)
 - [ ] Phase 8 — library cleanup (import and rename the existing library)
 
 Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
@@ -110,7 +111,7 @@ The steps were:
 6. Check the identity and counts match, then restore the trash setting.
 
 Native `plexmediaserver` stays installed and masked, with its database untouched in
-`/var/lib/plexmediaserver`, until Phase 7. That's the rollback.
+`/var/lib/plexmediaserver`, until Phase 7b. That's the rollback.
 
 **Still to do once:**
 - Arm the container updater with `npm run update:dry`, then `npm run deploy`. It's armed
@@ -118,7 +119,7 @@ Native `plexmediaserver` stays installed and masked, with its database untouched
 - Remove "PMS shadow" from plex.tv → Authorized Devices, then run
   `rm -rf /opt/appdata/plex-shadow`.
 
-**Rollback** (until Phase 7)
+**Rollback** (until Phase 7b)
 
 ```bash
 docker compose stop plex
@@ -548,31 +549,136 @@ request options; that profile stays as it was, without upgrades.
 
 ---
 
-## Phase 7 — Retire the native setup
+## Phase 7a — Retire native qBittorrent and `plex-watch`
+
+Start only after Phase 6 is ticked: its upgrade check needs `plex-watch` still running.
+
+After this, `arr-reclaim` is the only watcher and the `:8081` container the only
+qBittorrent. Nothing reads a move in the library as a deletion any more, and that is what
+unlocks Phase 8.
+
+**The native torrents are dropped, not moved.** Decided 2026-09-29. Every one of them is
+already hardlinked into the library, so deleting a torrent *with its data* removes only the
+`torrents/` copy:
+- **No space is freed and nothing leaves Plex.** The library keeps each file through its
+  own link.
+- **A later delete in Plex frees the space by itself,** because nothing else links to the
+  file. No watcher has to reconcile these titles again.
+
+Moving them into the container was the alternative. Moved torrents aren't in Radarr's or
+Sonarr's import history, so `arr-reclaim` would never remove them, and a Plex delete would
+free nothing. Loosening `arr-reclaim` to cover them would have weakened its three-condition
+rule. They're public-tracker torrents, so the seeding they lose costs nothing.
+
+The container keeps `:8081` and peer port 13762. Ollama stays: it isn't only pms-local's.
 
 **Do**
 
-1. **Retire `plex-watch`** (`sudo systemctl disable --now plex-watch`). Once the native
-   torrents are gone (step 2), it has nothing left to reconcile, and `arr-reclaim` already
-   covers the `:8081` instance. pms-local itself isn't changed; its service is just
-   switched off. With `plex-watch` gone, moves under `streaming/` are safe, and that is
-   what unlocks Phase 8.
-2. **Move the native torrents into the container.** Stop both instances. Copy the
-   `.torrent` and `.fastresume` files from
-   `/home/qbittorrent-nox/.local/share/qBittorrent/BT_backup/` into
-   `/opt/appdata/qbittorrent/qBittorrent/BT_backup/` (the files are named by infohash, so
-   nothing collides) and chown the copies to `1000:1001`. The save paths already match
-   (rule 1). Alternatively, let them finish seeding natively.
+1. **Stop the watcher first**, so nothing reconciles while torrents go away:
 
-   Moved torrents aren't in Radarr's or Sonarr's import history, so **`arr-reclaim` never
-   removes them**. Deleting one of those titles in Plex would free nothing, which is the
-   case `plex-watch` handles today. Letting them finish seeding natively avoids that
-   entirely. Decide this when planning Phase 7.
-3. `sudo systemctl disable --now qbittorrent-nox`. Move the container to WebUI `:8080` and
-   peer port `13761`, then update the port in Radarr, Sonarr and your router.
-4. Retire what only the hook needed: `/opt/scripts`, the Ollama classifier, and the
-   `plex-update` units.
-5. After ~2 stable weeks, archive and remove native Plex:
+   ```bash
+   sudo systemctl disable --now plex-watch && sudo systemctl mask plex-watch
+   ```
+
+   The mask is also a guard. pms-local has no uninstall, and its `npm run deploy-system`
+   always runs `enable` + `restart` on `plex-watch`. That now fails instead. **Don't run
+   pms-local's `deploy`, `deploy-system` or `deploy-all` again.**
+
+2. **Check that every native torrent is in the library.** This is read-only. It logs in to
+   `:8080` with `/etc/plex-move.conf`, which is readable through the `qbittorrent-nox`
+   group. It then looks for each media file's twin under `/mnt/data/streaming`:
+
+   ```bash
+   bash -s check <<'EOF'
+   set -euo pipefail
+   mode="${1:?check or drop}"
+   conf=/etc/plex-move.conf
+   val() { sed -n "s/^$1=//p" "$conf" | tr -d "\"'"; }
+   qbt=http://127.0.0.1:8080/api/v2
+   jar="$(mktemp)"; trap 'rm -f "$jar"' EXIT
+   curl -sf -c "$jar" --data-urlencode "username=$(val QBT_USER)" \
+        --data-urlencode "password=$(val QBT_PASS)" "$qbt/auth/login" >/dev/null
+   hashes=(); bad=0
+   while IFS=$'\t' read -r hash dir; do
+       name="${dir##*/}"
+       n=0; out=0
+       while IFS= read -r -d '' f; do
+           n=$((n + 1))
+           if [[ -z "$(find /mnt/data/streaming -samefile "$f" -print -quit)" ]]; then
+               echo "  NOT IN LIBRARY: $f"; out=1
+           fi
+       done < <(find "$dir" -type f -regextype posix-extended \
+                     -iregex '.*\.(mkv|mp4|m4v|avi|mov|ts|wmv)$' -print0)
+       if (( n == 0 )); then echo "NO MEDIA        $name"; bad=1
+       elif (( out )); then  echo "NOT ALL LINKED  $name"; bad=1
+       else                  echo "linked          $name"; hashes+=("$hash")
+       fi
+   done < <(curl -sf -b "$jar" "$qbt/torrents/info" \
+            | jq -r '.[] | [.hash, .content_path] | @tsv')
+   echo "${#hashes[@]} linked, bad=$bad"
+   if [[ "$mode" == drop ]]; then
+       (( bad == 0 )) || { echo "Not dropping anything: fix the lines above first." >&2; exit 1; }
+       (IFS='|'; curl -sf -b "$jar" --data-urlencode "hashes=${hashes[*]}" \
+            --data "deleteFiles=true" "$qbt/torrents/delete")
+       echo "dropped ${#hashes[@]} torrents with their torrents/ copies"
+   fi
+   EOF
+   ```
+
+   Every line must say `linked`.
+   - `NOT ALL LINKED` means a file would be lost. Stop and look at it, unless it's only a
+     sample.
+   - `NO MEDIA` means the torrent has no video file to check.
+
+3. **Drop them.** Run the same block with `drop` in place of `check`. It checks again, and
+   it deletes nothing unless every torrent is `linked`. Then confirm:
+   - `df -h /mnt/data` is unchanged.
+   - The library files now show **1 link**.
+   - `/mnt/data/torrents/` holds only `radarr/`, `sonarr/` and `.incomplete*`.
+
+4. **Stop native qBittorrent.** Its config, and the torrent state in
+   `/home/qbittorrent-nox`, stay until 7b:
+
+   ```bash
+   sudo systemctl disable --now qbittorrent-nox && sudo systemctl mask qbittorrent-nox
+   ```
+
+5. **Router:** remove the `13761` forward, and check that `13762` is forwarded to this box.
+
+`plex-update.timer` has been disabled since Phase 1b; leave it.
+
+**Verify**
+
+- `plex-watch` and `qbittorrent-nox` are masked and inactive. Nothing listens on `:8080`
+  or `13761`:
+
+  ```bash
+  ss -Hltnu 'sport = :8080 or sport = :13761'
+  ```
+
+- `npm run check`, `npm run arr:check` and `npm run qbt:check` are clean, and
+  `npm run reclaim:audit` has nothing to do.
+- A Seerr request goes all the way through: Radarr → `:8081` → hardlink import → Plex.
+
+**Rollback**
+
+```bash
+sudo systemctl unmask qbittorrent-nox plex-watch && sudo systemctl enable --now qbittorrent-nox plex-watch
+```
+
+The client comes back empty, and the hook imports new downloads as before. The dropped
+torrents don't come back, but their files never left the library.
+
+---
+
+## Phase 7b — Remove native Plex and pms-local's leftovers
+
+After about 2 stable weeks on 7a. Everything here is sudo, and none of it is needed for
+Phase 8.
+
+1. **Archive native Plex, then remove it.** Keep the mask: it guards against a reinstall
+   fighting the container for `:32400`. `npm run deploy` counts a missing unit as masked
+   too, so the container updater stays armed either way.
 
    ```bash
    sudo tar -C /var/lib -czf /root/plexmediaserver-native.tgz plexmediaserver
@@ -582,18 +688,38 @@ request options; that profile stays as it was, without upgrades.
    sudo apt remove plexmediaserver
    ```
 
-**Verify:** every torrent from the native instance shows in the container, seeding, with no
-errors. A new request goes all the way through: Seerr → Radarr → qBittorrent → a
-hardlink import → Plex.
+2. **Remove what pms-local installed.** It has no uninstall, so this is the list:
+   - `/opt/scripts/`
+   - `/etc/plex-move.conf`
+   - `/etc/sudoers.d/qbittorrent-plex`
+   - `/etc/logrotate.d/plex-move`
+   - `/etc/tmpfiles.d/plex-move.conf`
+   - `/var/log/plex-move.log*`
+   - `/var/cache/plex-update`
+   - `/etc/systemd/system/plex-watch.service`
+   - `/etc/systemd/system/plex-update.{service,timer}`
 
-**Rollback:** until step 5, start `qbittorrent-nox` and `plex-watch` again. The native
-`BT_backup` was copied, not moved.
+   Unmask `plex-watch` before deleting its unit file, then run
+   `sudo systemctl daemon-reload`.
+
+3. **Remove native qBittorrent:** the `qbittorrent-nox` package, its hand-made unit (unmask
+   it first), and the user, group and `/home/qbittorrent-nox`. **Look in its `Downloads/`
+   first**; it predates pms-local. Once the group is gone, pms-local's `deploy.sh` stops
+   before installing anything, which is a second guard.
+
+4. **Keep Ollama.**
+
+**Verify:** `npm run check` still shows `pms-update.timer` armed, and Plex still answers
+as `f3860770…`.
+
+**Rollback:** `/root/plexmediaserver-native.tgz` holds the native database. Everything
+else is gone for good, which is why 7b waits for two quiet weeks.
 
 ---
 
 ## Phase 8 — Library cleanup
 
-After Phase 7 retires `plex-watch`, nothing reads a move as a deletion any more. Then Radarr
+After Phase 7a retires `plex-watch`, nothing reads a move as a deletion any more. Then Radarr
 and Sonarr can take over the existing library:
 - **Library Import** the 107 loose movie files and the 27 folders.
 - Sort out the misfiled series folders.

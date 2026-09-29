@@ -45,8 +45,9 @@ npm run deploy
 ```
 
 This installs `systemd/pms-update.{service,timer}` and arms the timer **only while
-`plexmediaserver` is masked**, which is to say only after the Phase 1b cutover. Otherwise it
-disarms it. That's the same signal pms-local's deploy uses to disarm its own
+`plexmediaserver` is masked**, which is to say only after the Phase 1b cutover. Once Phase 7b
+has removed the package, a missing unit counts as masked too. Otherwise it disarms the
+timer. That's the same signal pms-local's deploy uses to disarm its own
 `plex-update.timer`, so exactly one of the two updaters is armed at any time. The deploy
 refuses to run if the unit's `ExecStart` doesn't point at this clone.
 
