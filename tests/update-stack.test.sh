@@ -46,7 +46,7 @@ ok_rc() { # label want-rc cmd...
 # ─── hooks ────────────────────────────────────────────────────────────────────
 echo "hook"
 ok_eq "plex → gate_plex"             "gate_plex"             "$(hook gate plex)"
-ok_eq "dashes become underscores"    "gate_plex_shadow"      "$(hook gate plex-shadow)"
+ok_eq "dashes become underscores"    "gate_radarr_4k"        "$(hook gate radarr-4k)"
 ok_rc "plex has a gate"              0 has_hook gate plex
 ok_rc "plex has an identity check"   0 has_hook identity plex
 ok_rc "a new service has no gate"    1 has_hook gate qbittorrent

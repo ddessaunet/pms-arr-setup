@@ -67,8 +67,8 @@ hook() { printf '%s_%s' "$1" "${2//-/_}"; }
 has_hook() { declare -F "$(hook "$1" "$2")" >/dev/null; }
 
 # ─── docker ───────────────────────────────────────────────────────────────────
-# Naming a service on the command line enables its profile, so these work on
-# plex while it still carries profiles: [cutover].
+# Naming a service on the command line enables its profile, so these also work
+# on a service a phase still keeps behind one.
 container_of() { docker compose ps -q "$1" 2>/dev/null | head -1; }
 image_ref()    { docker inspect -f '{{.Config.Image}}' "$1"; }
 image_of()     { docker inspect -f '{{.Image}}' "$1"; }
@@ -206,8 +206,8 @@ update_one() {
     if recreate "$svc" && wait_healthy "$svc" "$want"; then
         has_hook version "$svc" && log "$svc: version after:  $("$(hook version "$svc")")"
         log "$svc: updated."
-        # Only this image, and only if nothing else still uses it (plex-shadow
-        # runs the same tag): never a blanket prune on a box with other work.
+        # Only this image, and only if nothing else still uses it: never a
+        # blanket prune on a box with other work.
         docker image rm "$old" >/dev/null 2>&1 || true
         return 0
     fi

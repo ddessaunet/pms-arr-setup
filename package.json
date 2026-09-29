@@ -8,7 +8,7 @@
     "automatically on `npm install`.",
     "deploy installs the pms-update units and arms the timer only while",
     "plexmediaserver is masked - the same signal pms-local's deploy uses.",
-    "start never passes --profile: shadow and cutover are runbook steps.",
+    "start never passes --profile: profiled services are runbook steps.",
     "stop keeps containers and config; nothing here runs `down -v`."
   ],
   "name": "pms-arr-setup",

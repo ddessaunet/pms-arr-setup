@@ -17,34 +17,10 @@ x-common-env: &common-env
 
 services:
 
-  # ── Phase 1a: shadow Plex ──────────────────────────────────────────────────
-  # A second, throwaway server beside the native one: its own identity, its own
-  # config, the library read-only. Exists to prove the image plays and scans
-  # before anything native is stopped. Deleted in Phase 1b.
-  plex-shadow:
-    profiles: [shadow]
-    image: lscr.io/linuxserver/plex:latest
-    container_name: plex-shadow
-    environment:
-      <<: *common-env
-      VERSION: docker
-      PLEX_CLAIM: ${PLEX_CLAIM:-}
-      ADVERTISE_IP: ${PLEX_SHADOW_ADVERTISE:-}
-    ports:
-      - "32420:32400"
-    volumes:
-      - ${APPDATA:?set APPDATA in .env}/plex-shadow:/config
-      - /mnt/data/streaming:/mnt/data/streaming:ro
-    restart: "no"
-
-  # ── Phase 1b: Plex ─────────────────────────────────────────────────────────
-  # Takes over from native plexmediaserver with a copy of its database, so the
-  # server identity and watch history carry over.
-  #
-  # The cutover profile keeps a bare `docker compose up -d` from starting this
-  # while native Plex still owns :32400 — and from seeding a fresh config in
-  # ${APPDATA}/plex that the migration would then have to fight. Phase 1b's last
-  # step deletes the profiles line.
+  # ── Plex ───────────────────────────────────────────────────────────────────
+  # Took over from native plexmediaserver in Phase 1b with a copy of its
+  # database, so the server identity (f3860770…) and watch history carried over.
+  # The native copy stays in /var/lib/plexmediaserver, masked, until Phase 7.
   #
   # Host networking: same ports, GDM discovery and LAN detection as the native
   # server, and pms-local's scripts keep reaching it at localhost:32400.
@@ -54,13 +30,15 @@ services:
   # No GPU: the GTX 560 is too old for Plex's NVENC and there is no /dev/dri
   # render node, so transcoding is CPU — the same as native.
   plex:
-    profiles: [cutover]
     image: lscr.io/linuxserver/plex:latest
     container_name: plex
     network_mode: host
     environment:
       <<: *common-env
       VERSION: docker
+      # Only read on a first start with an empty /config (a fresh install):
+      # claims the new server to the account. Ignored once a config exists.
+      PLEX_CLAIM: ${PLEX_CLAIM:-}
     volumes:
       - ${APPDATA:?set APPDATA in .env}/plex:/config
       - /mnt/data/streaming:/mnt/data/streaming
