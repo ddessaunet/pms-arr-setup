@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=https://schemas.recyclarr.dev/v8/config-schema.json
+#
+# recyclarr.yml — the TRaSH quality profiles and custom formats for Radarr and
+# Sonarr. Run on demand, never on a schedule, so scoring changes land when you
+# choose and a preview shows them first:
+#
+#   npm run recyclarr:preview      what a sync would change; changes nothing
+#   npm run recyclarr:sync         apply it
+#
+# Then `npm run arr:configure` and `npm run seerr:configure` (see docs/phases.md →
+# Phase 6). Ownership, so no two tools fight:
+#   - Recyclarr: the two profiles below and their custom formats/scores.
+#   - arr-configure.sh: quality SIZES (1080p 40, 2160p 150 MB/min) — hence no
+#     `quality_definition:` here, which would reset them to TRaSH's sizes.
+#   - seerr-configure.sh: which profile a request uses by default.
+#
+# Started from recyclarr/config-templates (v8): radarr/uhd-bluray-web.yml and
+# sonarr/web-1080p.yml, with the changes marked CHANGED.
+
+radarr:
+  movies-4k-hdr:
+    base_url: http://radarr:7878
+    api_key: !env_var RADARR_API_KEY
+    quality_profiles:
+      - trash_id: 64fb5f9858489bdac2af690e27c8f42f  # UHD Bluray + WEB
+        reset_unmatched_scores:
+          enabled: true
+        # Upgrades ON here, and only here: a better-scored 4K release (e.g. HDR10+)
+        # replaces the first grab. arr-reclaim removes the replaced torrent
+        # (`upgraded`); arr-configure.sh keeps every other profile at no-upgrade.
+        upgrade:
+          allowed: true
+    custom_format_groups:
+      add:
+        - trash_id: ff204bbcecdd487d1cefcefdbf0c278d  # [Optional] Golden Rule UHD
+        - trash_id: a3ac6af01d78e4f21fcb75f601ac96df  # [Unwanted] Unwanted Formats
+        # CHANGED: the three below are off in the template. Together with the
+        # [HDR Formats] HDR group (synced by default) they are what makes this
+        # profile 4K *HDR* rather than just 2160p:
+        - trash_id: 7fc2751eef7e6bdc70b74136e5e35c76  # [HDR Formats] DV (w/o HDR fallback)
+        - trash_id: b29413a7487478fe98228ce79e5689e4  # [HDR Formats] HDR10+ Boost
+        - trash_id: 47f0d69750de9e16855915fa73bb7b08  # [HDR Formats] SDR
+          select:
+            - 9c38ebb7384dada637be8899efa68e6f  # SDR
+
+sonarr:
+  series-1080p:
+    base_url: http://sonarr:8989
+    api_key: !env_var SONARR_API_KEY
+    quality_profiles:
+      - trash_id: 72dae194fc92bf828f32cde7744e51a1  # WEB-1080p
+        reset_unmatched_scores:
+          enabled: true
+        # CHANGED: TRaSH's profile upgrades; series here do not (decided for Phase 6).
+        upgrade:
+          allowed: false
+    custom_format_groups:
+      add:
+        - trash_id: 158188097a58d7687dee647e04af0da3  # [Optional] Golden Rule HD
+        - trash_id: 85fae4a2294965b75710ef2989c850eb  # [Streaming Services] HD/UHD boost
+        - trash_id: 59c3af66780d08332fdc64e68297098f  # [Unwanted] Unwanted Formats

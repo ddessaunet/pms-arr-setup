@@ -47,6 +47,10 @@ ok_eq "all gone, data unlinked → REMOVE"     deleted      "$(decide 1 0 1 1)"
 ok_eq "whole pack gone, all unlinked → REMOVE" deleted    "$(decide 8 0 8 8)"
 ok_eq "gone from its path but still linked (renamed) → keep" moved "$(decide 1 0 1 0)"
 ok_eq "imports gone and no media left at all → keep" moved "$(decide 1 0 0 0)"
+ok_eq "path re-imported by another download, data unlinked → REMOVE" upgraded "$(decide 1 1 1 1 1)"
+ok_eq "superseded, but its data is still linked → keep" in-library "$(decide 1 1 1 0 1)"
+ok_eq "not superseded: same numbers are a plain in-library" in-library "$(decide 1 1 1 1 0)"
+ok_eq "never imported beats superseded" not-imported "$(decide 0 0 1 1 1)"
 
 # ─── history parsing ──────────────────────────────────────────────────────────
 echo
@@ -175,6 +179,35 @@ HIST="$(jq -cn --arg l "$L" '{records: [range(1;6) | {downloadId: ("C" + (. | to
 OUT="$(RECLAIM_MAX_REMOVALS=3 reclaim run 2>&1)"
 ok_eq "five deleted, three removed" "3" "$(wc -l < "$DELETED" | tr -d ' ')"
 ok_eq "and the rest are named for the next run" "2" "$(grep -c 'left for the next run' <<<"$OUT")"
+
+# ─── an upgrade, on real files ────────────────────────────────────────────────
+# Radarr grabbed "old", imported it, then an upgrade "new" was imported to the
+# SAME library path. The library now links "new"; "old" is down to one link.
+# History is newest first: new, then old.
+echo
+echo "reclaim — upgrade"
+U="$TMP/lib/movies/Up (2024)"; mkdir -p "$U"
+printf 'old' > "$T/up-old.mkv"; printf 'new' > "$T/up-new.mkv"
+ln "$T/up-old.mkv" "$U/Up (2024).mkv"                    # first import
+rm "$U/Up (2024).mkv"; ln "$T/up-new.mkv" "$U/Up (2024).mkv"   # the upgrade replaces it
+printf 'kept' > "$T/re-still.mkv"; ln "$T/re-still.mkv" "$TMP/lib/elsewhere.mkv"   # superseded, still linked
+INFO="$(jq -cn --arg t "$T" '[
+    {hash: "u1", name: "up-old",   save_path: $t, progress: 1},
+    {hash: "u2", name: "up-new",   save_path: $t, progress: 1},
+    {hash: "u3", name: "re-still", save_path: $t, progress: 1}]')"
+HIST="$(jq -cn --arg p "$U/Up (2024).mkv" '{records: [
+    {downloadId: "U2", data: {importedPath: $p}},
+    {downloadId: "U3", data: {importedPath: $p}},
+    {downloadId: "U1", data: {importedPath: $p}}]}')"
+: > "$DELETED"
+OUT="$(reclaim run 2>&1)"
+ok_eq "only the replaced torrent is removed" "u1" "$(cat "$DELETED")"
+ok_eq "and it says why" "1" "$(grep -c "Removed 'up-old'.*an upgrade replaced it" <<<"$OUT")"
+ok_rc "the new file is still in the library" 0 test -e "$U/Up (2024).mkv"
+ok_rc "its folder is not pruned"             0 test -d "$U"
+ok_rc "the new torrent is kept"              0 test -e "$T/up-new.mkv"
+ok_rc "superseded but still linked is kept"  0 test -e "$T/re-still.mkv"
+ok_eq "summary" "upgraded=1 in-library=2; removed 1." "$(grep -o 'upgraded=.*' <<<"$OUT")"
 
 # ─── debounce ─────────────────────────────────────────────────────────────────
 echo

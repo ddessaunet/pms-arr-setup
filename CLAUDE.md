@@ -66,10 +66,16 @@ before anything destructive:
 10. **Servarr reads `allowedHosts` at startup only.** `apply_host` restarts the app after
     changing it; without that, Prowlarr ↔ Radarr/Sonarr calls fail with "Invalid Hostname"
     after the next unrelated restart.
-11. **Sizes are capped in `arr-configure.sh`** (40 MB/min on the 1080p qualities, no Remux
-    in `HD-1080p`): the defaults let Radarr take a 10 GB remaster and offered a 31.5 GB
-    pack. Radarr reports quality sizes a few seconds late after a write, so the read-back
-    re-reads for up to about 10 s before calling it drift.
+11. **Quality has three owners, in this order:**
+    - **Recyclarr** (`recyclarr/recyclarr.yml`, run on demand): the default profiles, 4K HDR
+      `UHD Bluray + WEB` for movies and `WEB-1080p` for series, and their custom formats.
+    - **`arr-configure.sh`:** sizes (1080p 40, 2160p 150 MB/min; Recyclarr's
+      `quality_definition` must stay out), and upgrades **only** on `UHD Bluray + WEB`.
+    - **`seerr-configure.sh`:** requests default to those profiles.
+
+    Run `recyclarr:sync` → `arr:configure` → `seerr:configure`. Radarr reports quality sizes
+    a few seconds late after a write, so the read-back re-reads for up to about 10 s before
+    calling it drift.
 12. **Seerr is configured by `tools/seerr-configure.sh`, after one browser sign-in with
     Plex.** Its API key is refused (403) until that admin exists, and it lives in
     `/opt/appdata/seerr/settings.json`, not `.env`. Seerr rejects read-only fields in writes,

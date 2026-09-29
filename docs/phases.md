@@ -17,7 +17,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 3 — Prowlarr + FlareSolverr (2026-09-29: 6 indexers pass, 1337x + EZTV via FlareSolverr)
 - [x] Phase 4 — Radarr + Sonarr (2026-09-29: grab → hardlink import → Plex delete → arr-reclaim freed 10 GB, unmonitored)
 - [x] Phase 5 — Seerr (requests) (2026-09-29: two requests auto-approved → HD-1080p grab → hardlink import → Available)
-- [ ] Phase 6 — Recyclarr: 4K HDR as the default (decided 2026-09-29)
+- [ ] Phase 6 — Recyclarr: 4K HDR as the default for movies
 - [ ] Phase 7 — retire the native setup
 - [ ] Phase 8 — library cleanup (import and rename the existing library)
 
@@ -44,8 +44,8 @@ Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
    Recyclarr's upgrades — fires it. Until Phase 7 the arrs only *add* files: **never "Library
    Import", "Rename Files" or "Organize" on existing media before Phase 8.** pms-local is not
    modified by this migration; what the stack needs from it is ported here (`arr-reclaim`).
-6. **Nothing upgrades until Phase 6, and only size-capped profiles.** ~20 GB free (98%) is
-   one Remux movie.
+6. **Upgrades only in the 4K movie profile (`UHD Bluray + WEB`), and every size is capped**
+   (1080p 40, 2160p 150 MB/min; `arr-configure.sh`). Everything else is single-grab.
 7. **Media is deleted in Plex, and that frees the space.** For native imports that's
    pms-local's `plex-watch`. For Radarr/Sonarr imports it's this repo's `arr-reclaim`
    service. Both watch the same library, and each only touches its own qBittorrent.
@@ -466,36 +466,85 @@ Then take `seerr` out of `UPDATE_SERVICES`. Radarr, Sonarr and the library are u
 
 ---
 
-## Phase 6 — Recyclarr: 4K HDR as the default
+## Phase 6 — Recyclarr: 4K HDR as the default for movies
 
-**Decided 2026-09-29:** new grabs default to **4K HDR**, the quality you choose most, done
-properly here rather than as a quick profile switch in Phase 4/5. Until then the default stays
-`HD-1080p`, capped at 40 MB/min with no Remux.
+New movie grabs default to **4K HDR**, the quality you choose most. **Series stay 1080p**,
+because many have no 4K release. Decided 2026-09-29, with these parameters:
 
-Plan this phase on its own. What it has to cover:
+| | movies (Radarr) | series (Sonarr) |
+|---|---|---|
+| default profile | TRaSH **UHD Bluray + WEB** | TRaSH **WEB-1080p** |
+| qualities | Bluray-2160p, WEB-DL/WEBRip-2160p; **no Remux, no 1080p** | WEB-DL/WEBRip-1080p |
+| HDR | **HDR +500, HDR10+ +100.** SDR, DV without an HDR10 fallback (purple/green on non-DV screens), x265 without HDR, and generated HDR are all **−10000**, so they're rejected | — |
+| size cap | **150 MB/min** (~18 GB for 2 hours: most 4K HDR WEB-DLs, not 30–60 GB Bluray encodes) | 40 MB/min (~1.8 GB for 45 minutes) |
+| upgrades | **on**, to a better-scored 4K release | off |
 
-- **HDR isn't a quality level.** Radarr's `Ultra-HD` only means 2160p, including SDR. HDR
-  preference, and avoiding **Dolby Vision without an HDR10 fallback** (purple/green on
-  non-DV devices), take **custom formats**. Recyclarr applies them from TRaSH's UHD profile
-  (UHD Bluray + WEB), with the HDR, DV and HDR10+ formats and DV-without-fallback scored
-  down.
-- **2160p size caps.** The 1080p cap is 40 MB/min; 2160p needs its own, roughly 150 MB/min
-  (about 18 GB for 2 hours). No Remux.
-- **Disk.** At ~31 GB free, that's one or two 4K films. The free-space check stops outright
-  overflows, but not concurrent grabs (see Phase 4). Decide the free-space floor here.
-- **Playback.** Transcoding is CPU-only, and 4K HDR can't be transcoded or tone-mapped in
-  real time on this box. It has to **direct-play** (4K HDR TV apps, Shield, Apple TV).
-  Phones and browsers will struggle.
-- **The defaults that must follow:** `arr-configure.sh`'s `PROFILE_NAME` and size caps, and
-  `seerr-configure.sh`'s `PROFILE_NAME` (Seerr's default server profile).
-- **Upgrades.** This phase is where upgrades could come on. An upgrade deletes the old
-  library file: pms-local's `plex-watch` ignores it (not a native torrent), and
-  `arr-reclaim` removes the old torrent (its import is gone and its data unlinked), which is
-  the right outcome. Confirm both with a test before enabling upgrades.
+**Who owns what,** so no two tools fight:
+- **Recyclarr** (`recyclarr/recyclarr.yml`): those two profiles and their custom formats.
+- **`arr-configure.sh`:** sizes (Recyclarr's `quality_definition` is deliberately left out),
+  and upgrades off on every other profile.
+- **`seerr-configure.sh`:** requests default to those two profiles.
 
-**Rehearse** with `docker compose run --rm recyclarr sync --preview`. **Rollback:** Recyclarr
-only writes profiles and custom formats; remove it, switch titles back to the previous
-profile, and re-run `arr:configure` and `seerr:configure`.
+**Upgrades are safe with both watchers.**
+- An upgrade replaces the library file at the same path. `plex-watch` ignores it, because
+  it isn't a native torrent.
+- `arr-reclaim` sees the path re-imported by a newer download, and removes the **old**
+  torrent once nothing links to its data (`upgraded`).
+
+**Playback:** transcoding is CPU-only, so 4K HDR has to **direct-play** (a 4K HDR TV app,
+Shield or Apple TV). **Films with no 4K release:** request them with `HD-1080p` from Seerr's
+request options; that profile stays as it was, without upgrades.
+
+**Do**
+
+1. **Preview.** This changes nothing:
+
+   ```bash
+   npm run recyclarr:preview
+   ```
+
+   It should list both profiles and their custom formats, and **no quality definitions**.
+   Recyclarr draws the report as a table, so run it in a real terminal; piped, it shows
+   only the log lines.
+
+2. **Apply,** in this order. Each step needs the one before it:
+
+   ```bash
+   npm run recyclarr:sync
+   ```
+
+   ```bash
+   npm run arr:configure
+   ```
+
+   ```bash
+   npm run seerr:configure
+   ```
+
+   `recyclarr:sync` creates the profiles. `arr:configure` then applies the 2160p caps and
+   the upgrade allow-list. `seerr:configure` points requests at the new defaults.
+
+**Verify**
+
+- `npm run arr:check`:
+  - Radarr: 2160p capped at 150/100, 1080p at 40/25; upgrades only on `UHD Bluray + WEB`;
+    the default profile exists with no Remux.
+  - Sonarr: `WEB-1080p`, no upgrades.
+- `npm run seerr:check`: default profiles `UHD Bluray + WEB` and `WEB-1080p`.
+- Existing movies keep their profile. Iron Man 2 and Dune stay on `HD-1080p`.
+- **End to end:** request a film with 4K HDR releases, after a size check as before.
+  - Radarr grabs a **2160p HDR** release within 150 MB/min × runtime.
+  - Its custom formats show **HDR**, and not SDR or DV (w/o HDR fallback).
+  - Hardlinked import, then Available in Seerr.
+- **When an upgrade happens:** `journalctl -u arr-reclaim` shows the old torrent
+  `Removed … an upgrade replaced it`, and `plex-watch` changes nothing.
+
+**Rollback**
+
+- Delete the `UHD Bluray + WEB` and `WEB-1080p` profiles in Radarr and Sonarr. Recyclarr
+  only ever wrote profiles and custom formats.
+- Set `default_profile` in `arr-configure.sh` and `profile_name` in `seerr-configure.sh`
+  back to `HD-1080p`, then re-run `npm run arr:configure` and `npm run seerr:configure`.
 
 ---
 

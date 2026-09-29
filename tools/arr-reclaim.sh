@@ -86,9 +86,14 @@ history_imports() { # history-page-json
 #   moved         keep: imports gone from where they were written, but the data
 #                 is still linked somewhere — a rename or a move, not a delete
 #   deleted       REMOVE: imports gone and nothing links to the data any more
-decide() { # n-imports n-imports-present n-media n-media-single-link
-    local imp="$1" present="$2" media="$3" single="$4"
+#   upgraded      REMOVE: every path it imported has since been imported again
+#                 by ANOTHER download (an upgrade lands on the same path) and
+#                 nothing links to its data any more. Checked before in-library,
+#                 which the unchanged path would otherwise report.
+decide() { # n-imports n-imports-present n-media n-media-single-link [superseded 0/1]
+    local imp="$1" present="$2" media="$3" single="$4" superseded="${5:-0}"
     if   [[ "$imp" -eq 0 ]];                         then echo not-imported
+    elif [[ "$superseded" -eq 1 && "$media" -gt 0 && "$single" -eq "$media" ]]; then echo upgraded
     elif [[ "$present" -eq "$imp" ]];                then echo in-library
     elif [[ "$present" -gt 0 ]];                     then echo partial
     elif [[ "$media" -gt 0 && "$single" -eq "$media" ]]; then echo deleted
@@ -142,8 +147,8 @@ app_imports() { # url key
 # ─── one reclaim run ──────────────────────────────────────────────────────────
 reclaim() { # run|audit
     local mode="$1" entry app cat urlv keyv imports torrents rc=0
-    local -A IMPORTS=()
-    local removed=0 hash name save progress files rel abs imp present media single decision
+    local -A IMPORTS=() LATEST=()
+    local removed=0 hash name save progress files rel abs imp present media single decision superseded
     local -A COUNT=()
 
     QBT_JAR="$(mktemp)"; trap 'rm -f "$QBT_JAR"' RETURN
@@ -157,8 +162,12 @@ reclaim() { # run|audit
             log "WARN: cannot read $app's import history at ${!urlv} — its torrents are left alone this run"
             rc=5; continue
         fi
+        # History is newest first, so the first hash seen for a path is the
+        # download that path holds now; any other hash for it was superseded.
         while IFS=$'\t' read -r hash abs; do
-            [[ -n "$hash" ]] && IMPORTS[$hash]+="$abs"$'\n'
+            [[ -n "$hash" ]] || continue
+            IMPORTS[$hash]+="$abs"$'\n'
+            [[ -n "${LATEST[$abs]:-}" ]] || LATEST[$abs]="$hash"
         done <<<"$imports"
 
         torrents="$(qbt_get "/api/v2/torrents/info?category=$cat")" || { log "ERROR: cannot list $cat torrents"; return 5; }
@@ -166,11 +175,13 @@ reclaim() { # run|audit
             [[ -n "$hash" ]] || continue
             if [[ "$progress" != 1 ]]; then COUNT[incomplete]=$(( ${COUNT[incomplete]:-0} + 1 )); continue; fi
 
-            imp=0; present=0
+            imp=0; present=0; superseded=1
             while IFS= read -r abs; do
                 [[ -n "$abs" ]] || continue
                 imp=$((imp + 1)); [[ -e "$abs" ]] && present=$((present + 1))
+                [[ "${LATEST[$abs]:-}" == "$hash" ]] && superseded=0
             done <<<"${IMPORTS[$hash]:-}"
+            [[ "$imp" -gt 0 ]] || superseded=0
 
             media=0; single=0
             files="$(qbt_get "/api/v2/torrents/files?hash=$hash")" || { log "WARN: cannot list the files of '$name' — left alone"; continue; }
@@ -182,18 +193,21 @@ reclaim() { # run|audit
                 [[ "$(stat -c %h -- "$abs")" -eq 1 ]] && single=$((single + 1))
             done < <(jq -r '.[] | select(.priority != 0) | .name' <<<"$files")
 
-            decision="$(decide "$imp" "$present" "$media" "$single")"
+            decision="$(decide "$imp" "$present" "$media" "$single" "$superseded")"
             COUNT[$decision]=$(( ${COUNT[$decision]:-0} + 1 ))
             case "$decision" in
-                deleted)
+                deleted|upgraded)
+                    local why="its library files are gone"
+                    [[ "$decision" == upgraded ]] && why="an upgrade replaced it in the library"
                     if [[ "$mode" == audit ]]; then
-                        log "would remove '$name' ($app) — its library files are gone"
+                        log "would remove '$name' ($app) — $why"
                     elif [[ "$removed" -ge "$RECLAIM_MAX_REMOVALS" ]]; then
                         log "WARN: RECLAIM_MAX_REMOVALS=$RECLAIM_MAX_REMOVALS reached — '$name' left for the next run"
                     elif qbt_delete "$hash"; then
                         removed=$((removed + 1))
-                        log "Removed '$name' ($app) with its data."
-                        prune_dirs "${IMPORTS[$hash]}"
+                        log "Removed '$name' ($app) with its data — $why."
+                        # An upgrade's folder still holds the new file; rmdir leaves it.
+                        [[ "$decision" == deleted ]] && prune_dirs "${IMPORTS[$hash]}"
                     else
                         log "ERROR: qBittorrent refused to remove '$name'"; rc=5
                     fi ;;
@@ -204,7 +218,7 @@ reclaim() { # run|audit
     done
 
     local k summary=""
-    for k in deleted partial moved in-library not-imported incomplete; do
+    for k in deleted upgraded partial moved in-library not-imported incomplete; do
         [[ -n "${COUNT[$k]:-}" ]] && summary+=" $k=${COUNT[$k]}"
     done
     log "Done ($mode):${summary:- nothing to look at}; removed $removed."
