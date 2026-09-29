@@ -35,6 +35,8 @@
     "prowlarr:check": "tools/prowlarr-configure.sh --check",
     "arr:configure": "tools/arr-configure.sh",
     "arr:check": "tools/arr-configure.sh --check",
-    "reclaim:audit": "tools/arr-reclaim.sh --audit"
+    "reclaim:audit": "tools/arr-reclaim.sh --audit",
+    "seerr:configure": "tools/seerr-configure.sh",
+    "seerr:check": "tools/seerr-configure.sh --check"
   }
 }

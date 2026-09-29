@@ -194,6 +194,15 @@ if [[ -z "$(env_get ARR_USER)" || -z "$(env_get ARR_PASS)" ]]; then
 fi
 [[ -n "$(env_get PLEX_TOKEN)" ]] || warn "PLEX_TOKEN empty in .env — Radarr/Sonarr cannot refresh Plex"
 
+echo "── seerr (:5055)"
+if container_running seerr; then
+    ok "seerr container running"
+elif ss -Hltn "sport = :5055" 2>/dev/null | grep -q .; then
+    fail ":5055/tcp is taken by something else — seerr cannot start"
+else
+    ok ":5055/tcp free"
+fi
+
 # arr-reclaim.service watches the library with inotify, as plex-watch does.
 if command -v inotifywait >/dev/null; then ok "inotifywait present (arr-reclaim)"
 else fail "inotifywait missing — sudo apt install inotify-tools"; fi
