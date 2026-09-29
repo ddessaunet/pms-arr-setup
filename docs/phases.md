@@ -17,7 +17,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 3 — Prowlarr + FlareSolverr (2026-09-29: 6 indexers pass, 1337x + EZTV via FlareSolverr)
 - [x] Phase 4 — Radarr + Sonarr (2026-09-29: grab → hardlink import → Plex delete → arr-reclaim freed 10 GB, unmonitored)
 - [ ] Phase 5 — Seerr (requests)
-- [ ] Phase 6 — Recyclarr
+- [ ] Phase 6 — Recyclarr: 4K HDR as the default (decided 2026-09-29)
 - [ ] Phase 7 — retire the native setup
 - [ ] Phase 8 — library cleanup (import and rename the existing library)
 
@@ -466,24 +466,36 @@ Then take `seerr` out of `UPDATE_SERVICES`. Radarr, Sonarr and the library are u
 
 ---
 
-## Phase 6 — Recyclarr
+## Phase 6 — Recyclarr: 4K HDR as the default
 
-This phase is what turns quality upgrades on. **Do the `plex-watch` decision in Phase 7
-first**, because every upgrade deletes a library file.
+**Decided 2026-09-29:** new grabs default to **4K HDR**, the quality you choose most, done
+properly here rather than as a quick profile switch in Phase 4/5. Until then the default stays
+`HD-1080p`, capped at 40 MB/min with no Remux.
 
-**Do:** add `ghcr.io/recyclarr/recyclarr` with its config in `${APPDATA}/recyclarr` and the
-Radarr and Sonarr API keys in `.env`. Choose TRaSH **1080p, size-capped** profiles (HD
-Bluray + WEB, WEB-1080p). No Remux, no 4K.
+Plan this phase on its own. What it has to cover:
 
-```bash
-docker compose run --rm recyclarr sync --preview
-```
+- **HDR isn't a quality level.** Radarr's `Ultra-HD` only means 2160p, including SDR. HDR
+  preference, and avoiding **Dolby Vision without an HDR10 fallback** (purple/green on
+  non-DV devices), take **custom formats**. Recyclarr applies them from TRaSH's UHD profile
+  (UHD Bluray + WEB), with the HDR, DV and HDR10+ formats and DV-without-fallback scored
+  down.
+- **2160p size caps.** The 1080p cap is 40 MB/min; 2160p needs its own, roughly 150 MB/min
+  (about 18 GB for 2 hours). No Remux.
+- **Disk.** At ~31 GB free, that's one or two 4K films. The free-space check stops outright
+  overflows, but not concurrent grabs (see Phase 4). Decide the free-space floor here.
+- **Playback.** Transcoding is CPU-only, and 4K HDR can't be transcoded or tone-mapped in
+  real time on this box. It has to **direct-play** (4K HDR TV apps, Shield, Apple TV).
+  Phones and browsers will struggle.
+- **The defaults that must follow:** `arr-configure.sh`'s `PROFILE_NAME` and size caps, and
+  `seerr-configure.sh`'s `PROFILE_NAME` (Seerr's default server profile).
+- **Upgrades.** This phase is where upgrades could come on. An upgrade deletes the old
+  library file: pms-local's `plex-watch` ignores it (not a native torrent), and
+  `arr-reclaim` removes the old torrent (its import is gone and its data unlinked), which is
+  the right outcome. Confirm both with a test before enabling upgrades.
 
-**Verify:** the preview output only touches what you expect. Then run a real sync, and
-check that profiles and custom formats appear in both apps.
-
-**Rollback:** Recyclarr only writes profiles and custom formats. Remove it and switch titles
-back to the profile you used before.
+**Rehearse** with `docker compose run --rm recyclarr sync --preview`. **Rollback:** Recyclarr
+only writes profiles and custom formats; remove it, switch titles back to the previous
+profile, and re-run `arr:configure` and `seerr:configure`.
 
 ---
 
