@@ -51,7 +51,9 @@ disappear. Confirm before anything destructive:
    `qbittorrent-nox` on `:8080`/13761 is disabled since Phase 7a, and its 9 torrents were
    dropped, their files kept by the library's own hardlinks). It has no import hook:
    Radarr/Sonarr import over its API. Its settings come from `tools/qbt-configure.sh`;
-   change them there, not in the WebUI, or `qbt:check` reports drift.
+   change them there, not in the WebUI, or `qbt:check` reports drift. Torrents added by
+   hand go in its `manual` category: no app looks there, so they are never imported,
+   replaced or removed, only stopped at the share limits.
 7. **Prowlarr's settings come from `tools/prowlarr-configure.sh`**, and its API key from
    `.env` (`PROWLARR__AUTH__APIKEY`), which Phase 4 wires into Radarr and Sonarr. Changing
    the key means changing it everywhere. Indexers that go through FlareSolverr are listed

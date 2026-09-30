@@ -155,6 +155,8 @@ C='{"radarr":{"savePath":"/mnt/data/torrents/radarr"},"sonarr":{"savePath":"/wro
 ok_eq "category ok"      "category radarr	ok"    "$(categories_report "$C" | grep radarr | cut -f1,2)"
 ok_eq "category moved"   "category sonarr	DRIFT" "$(categories_report "$C" | grep sonarr | cut -f1,2)"
 ok_eq "category missing" "category sonarr	DRIFT	(missing)" "$(categories_report '{}' | grep sonarr | cut -f1-3)"
+ok_eq "manual has its own path" "category manual	ok" \
+    "$(categories_report '{"manual":{"savePath":"/mnt/data/torrents/manual"}}' | grep manual | cut -f1,2)"
 
 # ─── summary ──────────────────────────────────────────────────────────────────
 echo

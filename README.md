@@ -9,6 +9,7 @@ time, without breaking that setup until the last phase.
 /mnt/data/                        ← one ext4 volume: hardlinks work across the whole tree
 ├── torrents/                     ← qBittorrent save paths
 │   ├── radarr/  sonarr/          ← container qBittorrent, one category per app
+│   ├── manual/                   ← torrents added by hand; no app touches them
 │   └── .incomplete*/
 └── streaming/                    ← the library; Radarr/Sonarr hardlink into it
     ├── movies/                   ← Title (Year)/Title (Year).mkv
