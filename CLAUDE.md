@@ -67,6 +67,10 @@ disappear. Confirm before anything destructive:
    (its hash is in their import history, `eventType=3`, since the name is refused), every
    imported file is gone, and no other link remains. Don't loosen this to category
    ownership: a finished-but-not-yet-imported download has no library link either.
+   Deleting a movie/series **in Radarr/Sonarr wipes its history**, so `arr-reclaim` keeps
+   what it has seen in `/opt/appdata/.arr-reclaim.imports` (recorded every minute) and
+   decides from both. Don't replace that with a post-import category: Radarr/Sonarr list
+   only their own category, so *Remove Completed* would stop seeing imported torrents.
 10. **Servarr reads `allowedHosts` at startup only.** `apply_host` restarts the app after
     changing it; without that, Prowlarr ↔ Radarr/Sonarr calls fail with "Invalid Hostname"
     after the next unrelated restart.
