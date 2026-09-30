@@ -42,9 +42,17 @@ TORRENTS="/mnt/data/torrents"
 # ─── the settings ─────────────────────────────────────────────────────────────
 # Categories: name → save path. With automatic torrent management on, a
 # torrent Radarr adds under "radarr" lands in its category's path.
+#
+# "manual" is for torrents added by hand in the WebUI. Radarr and Sonarr list
+# only their own category, Decluttarr sees only their queues, and arr-reclaim
+# only radarr/sonarr, so nothing imports, replaces or removes these. They seed
+# to the share limits below, stop, and stay until deleted by hand. Adding one
+# under radarr/sonarr instead puts it in that app's queue, where Decluttarr can
+# replace it if it crawls.
 CATEGORIES=(
     "radarr=$TORRENTS/radarr"
     "sonarr=$TORRENTS/sonarr"
+    "manual=$TORRENTS/manual"
 )
 
 # The host's own IPv4 addresses, minus loopback and Docker's bridges.
