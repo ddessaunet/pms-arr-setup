@@ -56,14 +56,17 @@ ok_eq "never imported beats superseded" not-imported "$(decide 0 0 1 1 1)"
 echo
 echo "history_imports"
 H='{"page":1,"pageSize":250,"totalRecords":3,"records":[
- {"eventType":"downloadFolderImported","downloadId":"ABCDEF0123","data":{"importedPath":"/lib/movies/A (2000)/A (2000).mkv","droppedPath":"/t/a.mkv"}},
- {"eventType":"downloadFolderImported","downloadId":null,"data":{"importedPath":"/lib/manual.mkv"}},
+ {"eventType":"downloadFolderImported","date":"2026-09-29T18:44:17Z","downloadId":"ABCDEF0123","data":{"importedPath":"/lib/movies/A (2000)/A (2000).mkv","droppedPath":"/t/a.mkv"}},
+ {"eventType":"downloadFolderImported","date":"2026-09-29T18:44:17Z","downloadId":null,"data":{"importedPath":"/lib/manual.mkv"}},
  {"eventType":"downloadFolderImported","downloadId":"ABCDEF0123","data":{"importedPath":"/lib/movies/A (2000)/A (2000).srt"}}]}'
-ok_eq "hash lowercased, one line per imported file" \
-    "$(printf 'abcdef0123\t/lib/movies/A (2000)/A (2000).mkv\nabcdef0123\t/lib/movies/A (2000)/A (2000).srt')" \
+ok_eq "date first, hash lowercased, one line per imported file; a missing date is never empty" \
+    "$(printf '2026-09-29T18:44:17Z\tabcdef0123\t/lib/movies/A (2000)/A (2000).mkv\n0\tabcdef0123\t/lib/movies/A (2000)/A (2000).srt')" \
     "$(history_imports "$H")"
 ok_eq "a manual import (no downloadId) is nobody's torrent" "0" "$(history_imports "$H" | grep -c manual)"
 ok_eq "an empty page is nothing"  "" "$(history_imports '{"records":[]}')"
+ok_eq "merge: deduplicated, newest first" \
+    "$(printf '2026-09-02\tb\t/p\n2026-09-01\ta\t/p')" \
+    "$(printf '2026-09-01\ta\t/p\n\n2026-09-02\tb\t/p\n2026-09-01\ta\t/p\n' | merge_imports)"
 
 # ─── login ────────────────────────────────────────────────────────────────────
 echo
@@ -116,6 +119,8 @@ HIST="$(jq -cn --arg l "$L" '{records: [
     {downloadId: "0000000000000000000000000000000000000003", data: {importedPath: ($l + "/Ren (2003)/Ren (2003).mkv")}},
     {downloadId: "0000000000000000000000000000000000000004", data: {importedPath: ($l + "/Copy (2004)/Copy (2004).mkv")}}]}')"
 FILES_OF() { jq -cn --arg n "$1" '[{name: ($n + ".mkv"), priority: 1}]'; }
+SHIST='{"records":[]}'
+LEDGER="$RECLAIM_LEDGER"
 
 # curl as qBittorrent and as the two history APIs. Deletions are recorded,
 # and the torrent data really is deleted, as qBittorrent would.
@@ -136,12 +141,13 @@ curl() {
             echo "$h" >> "$DELETED"
             rm -f "$T/$(jq -r --arg h "$h" '.[] | select(.hash == $h) | .name' <<<"$INFO").mkv" ;;
         *7878/api/v3/history*)          body="$HIST" ;;
-        *8989/api/v3/history*)          body='{"records":[]}' ;;
+        *8989/api/v3/history*)          if [[ -n "${SONARR_DOWN:-}" ]]; then code=503; else body="$SHIST"; fi ;;
         *)                              code=404 ;;
     esac
     if [[ -n "$out" && "$out" != next ]]; then printf '%s' "$body" > "$out"; printf '%s' "$code"
     else printf '%s' "$body"; fi
-    [[ "$code" == 2* ]] || [[ "$*" != *-f* ]]
+    # -f (alone or as in -sf) makes an HTTP error a failure, as with real curl.
+    [[ "$code" == 2* ]] || ! printf '%s\n' "$@" | grep -q -- '^-[a-zA-Z]*f'
 }
 
 OUT="$(reclaim audit 2>&1)"
@@ -149,8 +155,10 @@ ok_eq "audit: would remove only the deleted one" "1" "$(grep -c 'would remove' <
 ok_eq "audit: and it is 'del'"   "1" "$(grep -c "would remove 'del'" <<<"$OUT")"
 ok_eq "audit: changes nothing"   "" "$(cat "$DELETED")"
 ok_rc "audit: data still there" 0 test -e "$T/del.mkv"
+ok_rc "audit: writes no ledger" 1 test -e "$LEDGER"
 
 OUT="$(reclaim run 2>&1)"
+ok_eq "run: no shell errors (sonarr's history is empty)" "" "$(grep -E 'line [0-9]+:' <<<"$OUT")"
 ok_eq "run: exactly one removal"  "1" "$(wc -l < "$DELETED" | tr -d ' ')"
 ok_eq "run: the deleted import's torrent" "$(hash_of 1)" "$(cat "$DELETED")"
 ok_rc "run: its data is gone"     1 test -e "$T/del.mkv"
@@ -164,6 +172,8 @@ ok_rc "the library's other folders untouched" 0 test -d "$L/Keep (2002)"
 ok_eq "summary names every outcome" \
     "deleted=1 moved=1 in-library=2 not-imported=1 incomplete=1; removed 1." \
     "$(grep -o 'deleted=.*' <<<"$OUT")"
+ok_eq "run: the ledger holds the history, as radarr's" "4 4" \
+    "$(wc -l < "$LEDGER" | tr -d ' ') $(grep -c '^radarr'$'\t' "$LEDGER")"
 
 : > "$DELETED"
 reclaim run >/dev/null 2>&1
@@ -172,6 +182,7 @@ ok_eq "a second run finds nothing more to remove" "" "$(cat "$DELETED")"
 # The cap: with every torrent "deleted", only RECLAIM_MAX_REMOVALS go per run.
 echo
 echo "reclaim — the cap"
+rm -f "$LEDGER"
 for n in 1 2 3 4 5; do printf 'x' > "$T/cap$n.mkv"; done
 INFO="$(jq -cn --arg t "$T" '[range(1;6) | {hash: ("c" + (. | tostring) | .[0:40]), name: ("cap" + (. | tostring)), save_path: $t, progress: 1}]')"
 HIST="$(jq -cn --arg l "$L" '{records: [range(1;6) | {downloadId: ("C" + (. | tostring)), data: {importedPath: ($l + "/gone" + (. | tostring) + ".mkv")}}]}')"
@@ -196,10 +207,10 @@ INFO="$(jq -cn --arg t "$T" '[
     {hash: "u2", name: "up-new",   save_path: $t, progress: 1},
     {hash: "u3", name: "re-still", save_path: $t, progress: 1}]')"
 HIST="$(jq -cn --arg p "$U/Up (2024).mkv" '{records: [
-    {downloadId: "U2", data: {importedPath: $p}},
-    {downloadId: "U3", data: {importedPath: $p}},
-    {downloadId: "U1", data: {importedPath: $p}}]}')"
-: > "$DELETED"
+    {date: "2026-09-03T00:00:00Z", downloadId: "U2", data: {importedPath: $p}},
+    {date: "2026-09-02T00:00:00Z", downloadId: "U3", data: {importedPath: $p}},
+    {date: "2026-09-01T00:00:00Z", downloadId: "U1", data: {importedPath: $p}}]}')"
+rm -f "$LEDGER"; : > "$DELETED"
 OUT="$(reclaim run 2>&1)"
 ok_eq "only the replaced torrent is removed" "u1" "$(cat "$DELETED")"
 ok_eq "and it says why" "1" "$(grep -c "Removed 'up-old'.*an upgrade replaced it" <<<"$OUT")"
@@ -208,6 +219,47 @@ ok_rc "its folder is not pruned"             0 test -d "$U"
 ok_rc "the new torrent is kept"              0 test -e "$T/up-new.mkv"
 ok_rc "superseded but still linked is kept"  0 test -e "$T/re-still.mkv"
 ok_eq "summary" "upgraded=1 in-library=2; removed 1." "$(grep -o 'upgraded=.*' <<<"$OUT")"
+ok_eq "the replaced torrent's import stays in the ledger while the history has it" "1" "$(grep -c $'\tu1\t' "$LEDGER")"
+
+# ─── deleted in Radarr: the history goes with the movie ───────────────────────
+# "gone" was imported and recorded; then the movie was deleted in Radarr with
+# its files, which purged its history. "unknown" is the same on disk but was
+# never recorded. A sonarr row stays put while Sonarr cannot be read.
+echo
+echo "reclaim — deleted in Radarr"
+G="$TMP/lib/movies/Gone (2005)"; mkdir -p "$G"
+printf 'gone' > "$T/gone.mkv"; ln "$T/gone.mkv" "$G/Gone (2005).mkv"
+printf 'unknown' > "$T/unknown.mkv"
+INFO="$(jq -cn --arg t "$T" '[
+    {hash: "r1", name: "gone",    save_path: $t, progress: 1},
+    {hash: "r2", name: "unknown", save_path: $t, progress: 1}]')"
+HIST="$(jq -cn --arg p "$G/Gone (2005).mkv" '{records: [{date: "2026-09-30T00:10:00Z", downloadId: "R1", data: {importedPath: $p}}]}')"
+SHIST="$(jq -cn '{records: [{date: "2026-09-20T00:00:00Z", downloadId: "S1", data: {importedPath: "/lib/series/S/S01E01.mkv"}}]}')"
+rm -f "$LEDGER"; : > "$DELETED"
+OUT="$(record 2>&1)"
+ok_eq "record: one line per app that had news" "2" "$(grep -c 'Recorded 1 import(s)' <<<"$OUT")"
+ok_eq "record: into the ledger" "2" "$(wc -l < "$LEDGER" | tr -d ' ')"
+OUT="$(record 2>&1)"
+ok_eq "record again: nothing new, nothing said" "" "$OUT"
+ok_eq "record again: no duplicates" "2" "$(wc -l < "$LEDGER" | tr -d ' ')"
+ok_eq "record: nothing removed" "" "$(cat "$DELETED")"
+
+rm "$G/Gone (2005).mkv"; rmdir "$G"                      # "Delete movie", with files
+HIST='{"records":[]}'                                     # … and Radarr's history of it
+SONARR_DOWN=1
+cp "$LEDGER" "$TMP/ledger.before"
+OUT="$(reclaim audit 2>&1)"
+ok_eq "audit: would remove the recorded one" "1" "$(grep -c "would remove 'gone'" <<<"$OUT")"
+ok_rc "audit: ledger byte-identical" 0 cmp -s "$LEDGER" "$TMP/ledger.before"
+OUT="$(reclaim run 2>&1)"
+ok_eq "run: the recorded torrent is removed" "r1" "$(cat "$DELETED")"
+ok_rc "run: its data is gone" 1 test -e "$T/gone.mkv"
+ok_rc "never recorded: kept" 0 test -e "$T/unknown.mkv"
+ok_eq "summary" "deleted=1 not-imported=1; removed 1." "$(grep -o 'deleted=.*' <<<"$OUT")"
+ok_eq "its row is dropped: neither Radarr nor qBittorrent has it" "0" "$(grep -c $'\tr1\t' "$LEDGER")"
+ok_eq "Sonarr unreachable: its row is kept" "1" "$(grep -c $'^sonarr\t.*\ts1\t' "$LEDGER")"
+unset SONARR_DOWN
+SHIST='{"records":[]}'
 
 # ─── debounce ─────────────────────────────────────────────────────────────────
 echo
@@ -220,6 +272,11 @@ ok_eq "one burst → one run" "1" "$(wc -l < "$RUNS" | tr -d ' ')"
 : > "$RUNS"
 printf '%s\n' "/lib/poster.jpg" "/lib/movies/Dir (2000)" | watch_loop >/dev/null 2>&1
 ok_eq "no media in the burst → no run" "0" "$(wc -l < "$RUNS" | tr -d ' ')"
+: > "$RUNS"
+record_locked() { echo record >> "$RUNS"; return 0; }
+RECLAIM_RECORD_EVERY=1
+{ sleep 1.5; printf '%s\n' "/lib/c.mkv"; } | watch_loop >/dev/null 2>&1
+ok_eq "idle → a record, then the burst → a run" "record run" "$(tr '\n' ' ' < "$RUNS" | sed 's/ $//')"
 
 echo
 printf '%d passed, %d failed\n' "$PASS" "$FAIL"

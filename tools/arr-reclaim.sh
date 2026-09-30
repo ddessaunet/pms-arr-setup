@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# arr-reclaim.sh — when media Radarr or Sonarr imported is deleted in Plex,
-# remove its torrent (with its data) from the :8081 qBittorrent, so the space
+# arr-reclaim.sh — when media Radarr or Sonarr imported is deleted (in Plex,
+# or in Radarr/Sonarr with its files), remove its torrent (with its data) from the :8081 qBittorrent, so the space
 # comes back right away instead of after the seeding limit.
 #
 #   tools/arr-reclaim.sh watch      watch the library, reclaim after each burst
-#                                   of deletions (run by arr-reclaim.service)
+#                                   of deletions, record imports while idle
+#                                   (run by arr-reclaim.service)
 #   tools/arr-reclaim.sh run        reclaim once, now
 #   tools/arr-reclaim.sh --audit    report what `run` would do; changes nothing
 #
@@ -14,14 +15,21 @@
 # torrent is known to be ours and deleted, because here Radarr and Sonarr
 # record it:
 #
-#   imported   the torrent's hash is in Radarr's or Sonarr's import history
-#              (eventType 3, downloadFolderImported). Proof, not inference —
-#              so there is no untagged gap, and a download that finished but
-#              is not imported yet is never touched.
+#   imported   the torrent's hash is, or was, in Radarr's or Sonarr's import
+#              history (eventType 3, downloadFolderImported). Proof, not
+#              inference — so there is no untagged gap, and a download that
+#              finished but is not imported yet is never touched.
 #   deleted    every library path those imports wrote is gone, AND every media
 #              file of the torrent is down to one link. The second half is
 #              what keeps a file that was moved or renamed (still linked
 #              somewhere) from reading as deleted.
+#
+# "Or was": deleting a movie in Radarr (a series in Sonarr) deletes its
+# history too, before any run can read it. So the imports seen are kept in a
+# ledger ($APPDATA/.arr-reclaim.imports), recorded every RECLAIM_RECORD_EVERY
+# seconds and on every run. A row the app has forgotten is dropped once
+# qBittorrent no longer has its torrent either. A delete within that interval of the import is not in it, and is
+# kept like any not-imported torrent.
 #
 # Some but not all of a torrent's imports gone (one episode of a season pack)
 # is `partial`: reported, kept — the same call plex-reconcile makes.
@@ -54,6 +62,8 @@ RECLAIM_DEBOUNCE="${RECLAIM_DEBOUNCE:-60}"          # a deleted season is one ev
 RECLAIM_FAIL_COOLDOWN="${RECLAIM_FAIL_COOLDOWN:-300}"
 RECLAIM_MAX_REMOVALS="${RECLAIM_MAX_REMOVALS:-3}"   # a bug costs a puzzled look, not the seedbox
 RECLAIM_LOCK="${RECLAIM_LOCK:-$APPDATA/.arr-reclaim.lock}"
+RECLAIM_LEDGER="${RECLAIM_LEDGER:-$APPDATA/.arr-reclaim.imports}"
+RECLAIM_RECORD_EVERY="${RECLAIM_RECORD_EVERY:-60}"  # the window a delete in Radarr/Sonarr can slip through
 INOTIFYWAIT="${INOTIFYWAIT:-inotifywait}"           # test seam, env-only
 
 # Must agree with plex-watch's list: only a media file going away is worth a run.
@@ -72,12 +82,17 @@ is_media() { [[ "${1,,}" =~ \.(${MEDIA_EXTS})$ ]]; }
 
 # ─── pure helpers (tests/arr-reclaim.test.sh) ─────────────────────────────────
 
-# Import history → "hash<TAB>importedPath" lines, hash lowercased (the apps
-# store qBittorrent's hash uppercase in downloadId).
+# Import history → "date<TAB>hash<TAB>importedPath" lines, hash lowercased
+# (the apps store qBittorrent's hash uppercase in downloadId). The ISO date
+# leads so that a reverse sort is newest first. Never empty: read's tab
+# splitting would drop an empty first field.
 history_imports() { # history-page-json
     jq -r '.records[]? | select(.downloadId != null and .data.importedPath != null)
-        | [(.downloadId | ascii_downcase), .data.importedPath] | @tsv' <<<"$1"
+        | [(.date // "0"), (.downloadId | ascii_downcase), .data.importedPath] | @tsv' <<<"$1"
 }
+
+# Import lines, deduplicated, newest first.
+merge_imports() { grep -v '^$' | LC_ALL=C sort -ru; }
 
 # What to do with one torrent.
 #   not-imported  keep: not in any import history — not ours to judge
@@ -144,35 +159,89 @@ app_imports() { # url key
     done
 }
 
+# ─── the ledger ───────────────────────────────────────────────────────────────
+# "app<TAB>date<TAB>hash<TAB>path" lines: the import history as last seen,
+# which outlives a movie or series deleted in its app.
+
+ledger_rows() { # app → its "date<TAB>hash<TAB>path" lines
+    [[ -f "$RECLAIM_LEDGER" ]] || return 0
+    awk -F'\t' -v a="$1" '$1 == a { print $2 "\t" $3 "\t" $4 }' "$RECLAIM_LEDGER"
+}
+
+with_app() { awk -v a="$1" 'NF { print a "\t" $0 }'; } # app; prefixes stdin lines
+
+# Replace the ledger with stdin, atomically; untouched when nothing changed.
+ledger_write() {
+    local tmp
+    tmp="$(mktemp "$RECLAIM_LEDGER.XXXXXX")" || { log "WARN: cannot write $RECLAIM_LEDGER"; return 1; }
+    grep -v '^$' > "$tmp"
+    if cmp -s -- "$tmp" "$RECLAIM_LEDGER"; then rm -f -- "$tmp"
+    else mv -f -- "$tmp" "$RECLAIM_LEDGER" || { rm -f -- "$tmp"; log "WARN: cannot write $RECLAIM_LEDGER"; return 1; }
+    fi
+}
+
+# Add each app's live import history to the ledger. No qBittorrent, no
+# decisions: this is what runs every RECLAIM_RECORD_EVERY seconds. Quiet when
+# an app is away; the next reclaim run says so.
+record() {
+    local entry app cat urlv keyv imports old new added out="" rc=0
+    for entry in "${APPS[@]}"; do
+        IFS='|' read -r app cat urlv keyv <<<"$entry"
+        old="$(ledger_rows "$app")"
+        new="$old"
+        if [[ -n "${!keyv}" ]]; then
+            if imports="$(app_imports "${!urlv}" "${!keyv}")"; then
+                new="$(printf '%s\n%s\n' "$imports" "$old" | merge_imports)"
+                added=$(( $(grep -c . <<<"$new") - $(grep -c . <<<"$old") ))
+                [[ "$added" -gt 0 ]] && log "Recorded $added import(s) of $app."
+            else
+                rc=5
+            fi
+        fi
+        out+="$(with_app "$app" <<<"$new")"$'\n'
+    done
+    ledger_write <<<"$out" || rc=3
+    return "$rc"
+}
+
 # ─── one reclaim run ──────────────────────────────────────────────────────────
 reclaim() { # run|audit
     local mode="$1" entry app cat urlv keyv imports torrents rc=0
     local -A IMPORTS=() LATEST=()
     local removed=0 hash name save progress files rel abs imp present media single decision superseded
-    local -A COUNT=()
+    local -A COUNT=() HELD=() LIVE=()
+    local date ledger=""
 
     QBT_JAR="$(mktemp)"; trap 'rm -f "$QBT_JAR"' RETURN
     qbt_login || return $?
 
     for entry in "${APPS[@]}"; do
         IFS='|' read -r app cat urlv keyv <<<"$entry"
-        [[ -n "${!keyv}" ]] || { log "$app: no $keyv — its torrents are left alone"; continue; }
+        # An app skipped this run keeps its ledger rows as they are.
+        [[ -n "${!keyv}" ]] || { log "$app: no $keyv — its torrents are left alone"; ledger+="$(ledger_rows "$app" | with_app "$app")"$'\n'; continue; }
         if ! imports="$(app_imports "${!urlv}" "${!keyv}")"; then
             # Never guess ownership: without the history, keep everything of this app.
             log "WARN: cannot read $app's import history at ${!urlv} — its torrents are left alone this run"
+            ledger+="$(ledger_rows "$app" | with_app "$app")"$'\n'
             rc=5; continue
         fi
-        # History is newest first, so the first hash seen for a path is the
-        # download that path holds now; any other hash for it was superseded.
-        while IFS=$'\t' read -r hash abs; do
+        LIVE=()
+        while IFS=$'\t' read -r date hash abs; do [[ -n "$hash" ]] && LIVE[$hash]=1; done <<<"$imports"
+        # The live history plus what the ledger remembers of history since deleted.
+        imports="$(printf '%s\n%s\n' "$imports" "$(ledger_rows "$app")" | merge_imports)"
+        # Newest first, so the first hash seen for a path is the download that
+        # path holds now; any other hash for it was superseded.
+        while IFS=$'\t' read -r date hash abs; do
             [[ -n "$hash" ]] || continue
             IMPORTS[$hash]+="$abs"$'\n'
             [[ -n "${LATEST[$abs]:-}" ]] || LATEST[$abs]="$hash"
         done <<<"$imports"
 
         torrents="$(qbt_get "/api/v2/torrents/info?category=$cat")" || { log "ERROR: cannot list $cat torrents"; return 5; }
+        HELD=()
         while IFS=$'\t' read -r hash name save progress; do
             [[ -n "$hash" ]] || continue
+            HELD[$hash]=1
             if [[ "$progress" != 1 ]]; then COUNT[incomplete]=$(( ${COUNT[incomplete]:-0} + 1 )); continue; fi
 
             imp=0; present=0; superseded=1
@@ -204,7 +273,7 @@ reclaim() { # run|audit
                     elif [[ "$removed" -ge "$RECLAIM_MAX_REMOVALS" ]]; then
                         log "WARN: RECLAIM_MAX_REMOVALS=$RECLAIM_MAX_REMOVALS reached — '$name' left for the next run"
                     elif qbt_delete "$hash"; then
-                        removed=$((removed + 1))
+                        removed=$((removed + 1)); unset "HELD[$hash]"
                         log "Removed '$name' ($app) with its data — $why."
                         # An upgrade's folder still holds the new file; rmdir leaves it.
                         [[ "$decision" == deleted ]] && prune_dirs "${IMPORTS[$hash]}"
@@ -215,7 +284,14 @@ reclaim() { # run|audit
                 moved)   log "moved: '$name' ($app) — imports gone but its data is still linked elsewhere; kept" ;;
             esac
         done < <(jq -r '.[] | [.hash, .name, .save_path, (if .progress >= 1 then 1 else 0 end)] | @tsv' <<<"$torrents")
+
+        # Keep what the app still has, and what it forgot of a torrent
+        # qBittorrent still holds; the rest can never be decided again.
+        while IFS=$'\t' read -r date hash abs; do
+            [[ -n "$hash" && -n "${LIVE[$hash]:-}${HELD[$hash]:-}" ]] && ledger+="$app"$'\t'"$date"$'\t'"$hash"$'\t'"$abs"$'\n'
+        done <<<"$imports"
     done
+    [[ "$mode" == run ]] && { ledger_write <<<"$ledger" || rc=3; }
 
     local k summary=""
     for k in deleted upgraded partial moved in-library not-imported incomplete; do
@@ -250,11 +326,25 @@ reclaim_locked() {
     return "$rc"
 }
 
+# Never waits: a reclaim holding the lock records as it runs.
+record_locked() {
+    local rc=0
+    exec 9>"$RECLAIM_LOCK" || { log "ERROR: cannot open $RECLAIM_LOCK"; return 3; }
+    flock -n 9 || return 0
+    record || rc=$?
+    exec 9>&-
+    return "$rc"
+}
+
 # As plex-watch: one run per burst, after RECLAIM_DEBOUNCE seconds of quiet;
-# after a failure, ignore deletions for RECLAIM_FAIL_COOLDOWN.
+# after a failure, ignore deletions for RECLAIM_FAIL_COOLDOWN. Every
+# RECLAIM_RECORD_EVERY seconds without an event, record the imports.
 watch_loop() {
     local path more n rc
-    while IFS= read -r path; do
+    while :; do
+        IFS= read -r -t "$RECLAIM_RECORD_EVERY" path; rc=$?
+        if [[ "$rc" -gt 128 ]]; then record_locked || true; continue; fi
+        [[ "$rc" -eq 0 ]] || break    # EOF: inotifywait is gone
         is_media "$path" || continue
         n=1
         log "Gone from the library: $path"
@@ -285,12 +375,13 @@ main() {
             command -v "$INOTIFYWAIT" >/dev/null || { echo "missing command: $INOTIFYWAIT — sudo apt install inotify-tools" >&2; exit 3; }
             log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             log "Watching $LIBRARY for deletions (debounce ${RECLAIM_DEBOUNCE}s) for $QBT_ARR_URL."
+            record_locked || log "WARN: could not record the import history now — retrying every ${RECLAIM_RECORD_EVERY}s."
             watch_loop < <("$INOTIFYWAIT" -m -r -q -e delete -e moved_from --format '%w%f' -- "$LIBRARY")
             log "ERROR: inotifywait exited — the unit will be restarted."
             exit 5 ;;
         run)      preflight || exit 3; reclaim_locked; exit $? ;;
         --audit)  preflight || exit 3; reclaim audit; exit $? ;;
-        -h|--help) sed -n '2,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,38p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *)        echo "usage: ${0##*/} watch|run|--audit" >&2; exit 2 ;;
     esac
 }

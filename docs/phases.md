@@ -49,7 +49,8 @@ Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
 6. **Upgrades only in the 4K movie profile (`UHD Bluray + WEB`), and every size is capped**
    (1080p 40, 2160p 150 MB/min; `arr-configure.sh`). Everything else is single-grab.
 7. **Media is deleted in Plex, and that frees the space.** For Radarr/Sonarr imports,
-   this repo's `arr-reclaim` removes the torrent. For the rest of the library, including
+   this repo's `arr-reclaim` removes the torrent, and it does the same when one is deleted
+   in Radarr/Sonarr with its files. For the rest of the library, including
    the ex-native titles whose torrents Phase 7a dropped, the library file is the only link,
    so deleting it frees the space by itself.
 
@@ -313,6 +314,7 @@ retires `plex-watch`.
 | downloads | the `:8081` qBittorrent, categories `radarr` / `sonarr`, **hardlinked** into the library |
 | seeding | ratio 2.0 or 14 days, then the torrent **stops**, and *Remove Completed* removes it (the library keeps its hardlink) |
 | deleted in Plex | **unmonitored**, never re-downloaded, and **`arr-reclaim`** removes its torrent **with its data** within about a minute |
+| deleted in Radarr/Sonarr, with its files | gone from the app, and `arr-reclaim` removes its torrent the same way (from its ledger, below) |
 | indexers | pushed by Prowlarr (full sync); not configured here |
 | Plex | refreshed on import and delete, through `host.docker.internal:32400` |
 
@@ -326,6 +328,15 @@ when all three are true**:
 
 So a finished download that isn't imported yet, one episode deleted out of a season pack, or
 a file that was only moved are all kept. There are at most 3 removals per run.
+
+**Its ledger** (added 2026-09-30). Deleting a movie in Radarr (or a series in Sonarr) also
+deletes its history, before any run can read it: Night of the Living Dead, deleted in Radarr
+with its files, was logged `not-imported` and kept its 1.6 GB torrent. So `arr-reclaim`
+records the import history it sees in `/opt/appdata/.arr-reclaim.imports`, every minute
+while idle and on every run, and decides from the history plus that ledger. Only a delete
+within that minute of the import slips through, and is kept. A row is dropped once both the
+app and qBittorrent have forgotten it. Deleting in Radarr **without** its files keeps the
+torrent, rightly: the library still links it.
 
 **Do**
 
