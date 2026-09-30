@@ -583,7 +583,7 @@ Why that release was picked (a `/release` search, 2026-09-29):
 | seeder floor | **minimum 5 seeders** on every Radarr/Sonarr indexer, pushed from Prowlarr's sync profile | `prowlarr-configure.sh` (`MIN_SEEDERS`) |
 | 4K ranking | Bluray-2160p, WEB-DL-2160p and WEBRip-2160p in **one group**, so score (TRaSH's release-group tiers) decides; tiered groups are the well-seeded ones | `recyclarr/recyclarr.yml` |
 | replacement | **Decluttarr**: a queued download stalled (no connections), under **500 KB/s**, or stuck on metadata for 3 checks in a row, 10 min apart, is removed, blocklisted, and searched again (~30–40 min) | `decluttarr/config.yaml` |
-| qBittorrent | global download limit **5 MiB/s** (~42 Mbit/s), so Decluttarr's slow check pauses while the line is busy rather than blaming a swarm; a stalled download no longer holds one of the 3 active slots | `qbt-configure.sh` |
+| qBittorrent | **no download limit** (a 5 MiB/s cap, meant to let Decluttarr's slow check pause on a busy line, was dropped on 2026-09-30 for full speed); a stalled download no longer holds one of the 3 active slots | `qbt-configure.sh` |
 
 **What Decluttarr never does.** It works on the Radarr/Sonarr **queue** only, i.e. downloads
 not yet imported, so an imported torrent that is seeding is never touched. A removed
@@ -616,7 +616,7 @@ pins that list.
    npm run seerr:configure
    ```
 
-2. **qBittorrent** (download limit, slow-torrent slots):
+2. **qBittorrent** (slow-torrent slots):
 
    ```bash
    npm run qbt:configure
@@ -668,8 +668,8 @@ pins that list.
 - Seeder floor: set `MIN_SEEDERS=1` and re-run `npm run prowlarr:configure`.
 - 4K ranking: remove `qualities:` and `until_quality` from `recyclarr.yml`, then
   `npm run recyclarr:sync`.
-- qBittorrent: drop `dl_limit` and `dont_count_slow_torrents` from `want_prefs`, set them
-  back in the WebUI (0 and off), and `npm run qbt:check` is clean again.
+- qBittorrent: drop `dont_count_slow_torrents` from `want_prefs`, turn it off in the WebUI,
+  and `npm run qbt:check` is clean again.
 
 ---
 

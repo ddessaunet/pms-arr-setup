@@ -33,9 +33,10 @@ jobs:
   # qBittorrent reports no connections at all.
   remove_stalled:
   # Under 500 KB/s (~4 Mbit/s, a tenth of the ~50 Mbit/s line) averaged between
-  # checks. It pauses itself while qBittorrent uses over 80% of its global
-  # download limit (dl_limit in qbt-configure.sh), so a download that is only
-  # sharing a busy line is not counted as slow.
+  # checks. It would pause itself while qBittorrent uses over 80% of its global
+  # download limit, but that limit is 0 (unlimited, qbt-configure.sh), so it never
+  # pauses. The arrs' 3 active slots leave each download well above the floor; one
+  # starved by a big hand-added torrent can still be replaced.
   remove_slow:
     min_speed: 500
   # A magnet that never finds anyone to send its metadata.
