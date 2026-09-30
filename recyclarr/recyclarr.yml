@@ -30,6 +30,18 @@ radarr:
         # (`upgraded`); arr-configure.sh keeps every other profile at no-upgrade.
         upgrade:
           allowed: true
+          until_quality: UHD 2160p
+        # CHANGED: the template ranks Bluray-2160p above a "WEB 2160p" group, and
+        # Radarr compares quality BEFORE custom-format score, so any Bluray encode,
+        # even from an unknown group with 11 seeders, beat every WEB release,
+        # tiered or not (Dune: Part Two, 2026-09-29, over a WEB Tier 01 release with
+        # 508). One group makes the score, and so the TRaSH release-group tiers,
+        # decide within 4K. Tiered UHD Bluray encodes (1700-1800) still edge out
+        # WEB Tier 01 (1700); untiered encoders fall below tiered WEB. Remux stays
+        # out (arr-configure.sh), and qualities not listed stay disallowed.
+        qualities:
+          - name: UHD 2160p
+            qualities: [Bluray-2160p, WEBDL-2160p, WEBRip-2160p]
     custom_format_groups:
       add:
         - trash_id: ff204bbcecdd487d1cefcefdbf0c278d  # [Optional] Golden Rule UHD

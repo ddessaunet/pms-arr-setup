@@ -1,7 +1,7 @@
 # pms-arr-setup
 
 The containerized media stack for this box: Plex, qBittorrent, Prowlarr + FlareSolverr,
-Radarr + Sonarr, Seerr and Recyclarr, all in Docker Compose. It replaces the native
+Radarr + Sonarr, Seerr, Recyclarr and Decluttarr, all in Docker Compose. It replaces the native
 setup in [pms-local](https://github.com/ddessaunet/pms-local), one reversible phase at a
 time, without breaking that setup until the last phase.
 
@@ -37,12 +37,13 @@ native Plex database and qBittorrent state move across unchanged.
 | `.env.example` | Copy to `.env` (gitignored): UID/GID, timezone, appdata path, Plex claim. |
 | `tools/preflight.sh` | Read-only checks before a phase: docker, `.env`, same-filesystem hardlinks, ports, native service state. |
 | `tools/start.sh` | Preflight, then `docker compose up -d` for whatever the current phase has enabled. Never passes `--profile`. |
-| `tools/qbt-configure.sh` | Applies the `:8081` qBittorrent's settings through its API (paths, categories, peer port, host-header domains) and reads them back. Idempotent; `--check` reports drift. |
-| `tools/prowlarr-configure.sh` | Applies Prowlarr's login, FlareSolverr proxy and indexer list through its API, then tests every indexer. Idempotent; `--check` reports drift. |
+| `tools/qbt-configure.sh` | Applies the `:8081` qBittorrent's settings through its API (paths, categories, peer port, download limit, host-header domains) and reads them back. Idempotent; `--check` reports drift. |
+| `tools/prowlarr-configure.sh` | Applies Prowlarr's login, FlareSolverr proxy, indexer list and minimum seeders through its API, pushes the indexers to Radarr/Sonarr, then tests every indexer. Idempotent; `--check` reports drift. |
 | `tools/arr-configure.sh` | Applies Radarr's and Sonarr's login, naming, media management, root folder, no-upgrade profiles, qBittorrent client and Plex connection, then tests them. Never imports or renames existing media. `--check` reports drift. |
 | `tools/arr-reclaim.sh` | When media Radarr/Sonarr imported is deleted in Plex, removes its torrent with its data from the `:8081` qBittorrent. Run by `arr-reclaim.service`; `--audit` changes nothing. |
 | `tools/seerr-configure.sh` | After your one-time Plex sign-in, finishes Seerr's setup: Plex server and libraries, Radarr/Sonarr at HD-1080p, admin-only sign-in, then a full Plex scan. `--check` reports drift. |
-| `recyclarr/recyclarr.yml` | The TRaSH profiles: 4K HDR movies (UHD Bluray + WEB), 1080p series (WEB-1080p), with their custom formats. |
+| `recyclarr/recyclarr.yml` | The TRaSH profiles: 4K HDR movies (UHD Bluray + WEB), 1080p series (WEB-1080p), with their custom formats; 4K qualities in one group so release-group tiers decide. |
+| `decluttarr/config.yaml` | Which queued downloads Decluttarr replaces: stalled, under 500 KB/s, or stuck on metadata. Nothing already imported. |
 | `tools/recyclarr.sh` | Runs Recyclarr once, as a throwaway container (`recyclarr:preview` / `recyclarr:sync`). |
 | `tools/lib/servarr.sh` | The API plumbing shared by the Prowlarr, Radarr and Sonarr configure scripts. |
 | `tools/deploy.sh` | Installs the `pms-update` units, and arms the timer only while native Plex is masked or removed. `--check` reports drift. |

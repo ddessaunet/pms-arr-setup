@@ -2,7 +2,7 @@
 # prowlarr-configure.sh — apply Prowlarr's settings through its API, then read
 # them back and test every indexer. Idempotent: re-running changes nothing.
 #
-#   tools/prowlarr-configure.sh            apply login, FlareSolverr, indexers; verify
+#   tools/prowlarr-configure.sh            apply login, FlareSolverr, indexers, apps; sync; verify
 #   tools/prowlarr-configure.sh --check    read back and test only; changes nothing
 #
 # Normally reached through npm: `npm run prowlarr:configure` / `prowlarr:check`.
@@ -60,6 +60,14 @@ INDEXERS=(
 
 FLARE_TAG="flare"
 
+# Releases with fewer seeders are never grabbed. Set on the sync profile every
+# indexer uses, and pushed from there to each Radarr/Sonarr indexer as its
+# "Minimum Seeders" — so it is owned here, not in arr-configure.sh. 5 drops the
+# dead 1-4-seed releases a public tracker lists; above it, the apps already
+# prefer more seeders when quality and score tie, and a higher floor would
+# starve older TV episodes.
+MIN_SEEDERS=5
+
 # Applications Prowlarr pushes its indexers to (full sync), as
 # implementation|compose service|port|.env key. Each is applied only when its
 # key is set, so Prowlarr on its own (Phase 3) still configures cleanly.
@@ -96,6 +104,14 @@ indexer_fix() { # indexer tags-json
 
 indexer_differs() { # indexer tags-json
     [[ "$(jq -c --argjson t "$2" '[.enable == true, ((.tags | sort) == ($t | sort))] | all' <<<"$1")" != true ]]
+}
+
+# The sync profile brought to MIN_SEEDERS; same object otherwise.
+syncprofile_fix() { # profile min-seeders
+    jq -c --argjson m "$2" '.minimumSeeders = $m' <<<"$1"
+}
+syncprofile_differs() { # profile min-seeders
+    [[ "$(jq -c --argjson m "$2" '.minimumSeeders == $m' <<<"$1")" != true ]]
 }
 
 proxy_differs() { # proxy host tag-id
@@ -173,6 +189,43 @@ apply_indexers() {
     done
 }
 
+# The one sync profile (Prowlarr's "Standard"); apply_indexers gives every
+# indexer the first one, so that is the one to hold MIN_SEEDERS.
+apply_syncprofile() {
+    local cur
+    get /appprofile || { log "  FAIL  read sync profiles (HTTP $HTTP)"; return 1; }
+    cur="$(body | jq -c '.[0] // empty')"
+    [[ -n "$cur" ]] || { log "  FAIL  no sync profile in Prowlarr"; return 1; }
+    if ! syncprofile_differs "$cur" "$MIN_SEEDERS"; then
+        log "  sync profile $(jq -r .name <<<"$cur") already at minimum seeders $MIN_SEEDERS"; return 0
+    fi
+    api PUT "/appprofile/$(jq -r .id <<<"$cur")" < <(syncprofile_fix "$cur" "$MIN_SEEDERS") \
+        || { log "  FAIL  sync profile (HTTP $HTTP): $(api_error)"; return 1; }
+    log "  sync profile $(jq -r .name <<<"$cur"): minimum seeders $(jq -r .minimumSeeders <<<"$cur") → $MIN_SEEDERS"
+}
+
+# A full push to every application. Editing the sync profile does NOT push by
+# itself (checked on Prowlarr 2.x: Radarr kept 1 until this ran), and a push that
+# times out while an indexer is added is not retried — Sonarr once lost 1337x
+# that way. Unchanged indexers are left alone, so running it every time is safe.
+apply_sync() {
+    local id status deadline=$((SECONDS + PROWLARR_WAIT))
+    api POST /command < <(jq -cn '{name: "ApplicationIndexerSync"}') \
+        || { log "  FAIL  start the indexer sync (HTTP $HTTP)"; return 1; }
+    id="$(body | jq -r .id)"
+    while :; do
+        get "/command/$id" || { log "  FAIL  read the indexer sync (HTTP $HTTP)"; return 1; }
+        status="$(body | jq -r .status)"
+        case "$status" in
+            completed) log "  indexers synced to the applications"; return 0 ;;
+            failed|aborted|cancelled|orphaned)
+                log "  FAIL  indexer sync $status: $(body | jq -r '.message // empty' | head -c 160)"; return 1 ;;
+        esac
+        (( SECONDS < deadline )) || { log "  FAIL  indexer sync still $status after ${PROWLARR_WAIT}s"; return 1; }
+        sleep 2
+    done
+}
+
 # ─── verify ───────────────────────────────────────────────────────────────────
 # Drift fails; an indexer failing its own test only warns — trackers go down.
 verify() {
@@ -185,6 +238,14 @@ verify() {
         verify_resource "application ${entry%%|*}" applications "${entry%%|*}" \
             "$(want_app_top "$entry")" "$(want_app_fields "$entry")" || rc=1
     done
+
+    local sp
+    get /appprofile || { log "  FAIL  read sync profiles"; return 1; }
+    sp="$(body | jq -c '.[0] // empty')"
+    if [[ -z "$sp" ]]; then log "  DRIFT    no sync profile"; rc=1
+    elif syncprofile_differs "$sp" "$MIN_SEEDERS"; then
+        log "  DRIFT    sync profile $(jq -r .name <<<"$sp"): minimum seeders $(jq -r .minimumSeeders <<<"$sp"), want $MIN_SEEDERS"; rc=1
+    else log "  ok       sync profile $(jq -r .name <<<"$sp"): minimum seeders $MIN_SEEDERS"; fi
 
     get /tag || { log "  FAIL  read tags"; return 1; }
     FLARE_ID="$(body | jq -r --arg l "$FLARE_TAG" '[.[] | select(.label == $l)][0].id // empty')"
@@ -244,7 +305,7 @@ main() {
     log "  API up: $(body | jq -r .version)"
 
     if [[ "$mode" == apply ]]; then
-        apply_host && apply_flare && apply_indexers && apply_applications || exit 1
+        apply_host && apply_flare && apply_syncprofile && apply_indexers && apply_applications && apply_sync || exit 1
     fi
 
     log "Read-back:"

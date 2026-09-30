@@ -112,6 +112,26 @@ NR="$(profile_without_remux "$P")"
 if profile_allows_remux "$NR"; then FAIL=$((FAIL+1)); echo "  FAIL  Remux still allowed"; else PASS=$((PASS+1)); echo "  ok    Remux disallowed"; fi
 ok_eq "and nothing else changed" "true true" "$(jq -r '"\(.items[0].allowed) \(.items[2].items[0].allowed)"' <<<"$NR")"
 
+# Recyclarr merges the 4K qualities into one group (recyclarr.yml), so the
+# profile's allowed items sit one level down: the Remux walk must still see them.
+UHD='{"id":7,"name":"UHD Bluray + WEB","items":[
+    {"quality":{"id":31,"name":"Remux-2160p"},"allowed":true},
+    {"id":1003,"name":"UHD 2160p","allowed":true,"items":[
+        {"quality":{"id":19,"name":"Bluray-2160p"},"allowed":true},
+        {"quality":{"id":18,"name":"WEBDL-2160p"},"allowed":true}]}]}'
+UNR="$(profile_without_remux "$UHD")"
+ok_eq "merged 4K group: Remux off, group and members kept" "false true true true" \
+    "$(jq -r '"\(.items[0].allowed) \(.items[1].allowed) \(.items[1].items[0].allowed) \(.items[1].items[1].allowed)"' <<<"$UNR")"
+
+# ─── minimum seeders, as pushed by Prowlarr ──────────────────────────────────
+echo
+echo "indexer_min_seeders"
+IXS='[{"name":"YTS (Prowlarr)","fields":[{"name":"minimumSeeders","value":5},{"name":"seedCriteria.seedRatio","value":null}]},
+      {"name":"1337x (Prowlarr)","fields":[{"name":"minimumSeeders","value":5}]}]'
+ok_eq "all at the floor"             "5"     "$(indexer_min_seeders "$IXS")"
+ok_eq "a sync still on its way"      "1,5"   "$(indexer_min_seeders "$(jq -c '.[0].fields[0].value=1' <<<"$IXS")")"
+ok_eq "field missing → unset"        "unset" "$(indexer_min_seeders '[{"name":"x","fields":[]}]')"
+
 # ─── defaults and the upgrade allow-list ─────────────────────────────────────
 echo
 echo "default_profile / upgrade_profiles / upgrades_to_fix"

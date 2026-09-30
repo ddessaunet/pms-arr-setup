@@ -18,6 +18,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 4 — Radarr + Sonarr (2026-09-29: grab → hardlink import → Plex delete → arr-reclaim freed 10 GB, unmonitored)
 - [x] Phase 5 — Seerr (requests) (2026-09-29: two requests auto-approved → HD-1080p grab → hardlink import → Available)
 - [ ] Phase 6 — Recyclarr: 4K HDR as the default for movies
+- [ ] Download health — seeder floor, 4K ranked by release tier, Decluttarr replaces stalled/slow grabs
 - [x] Phase 7a — retire native qBittorrent and `plex-watch` (2026-09-29: 9 native torrents dropped, all 10 library files kept at 1 link; both services disabled)
 - [x] Phase 7b — remove native Plex and pms-local's leftovers (2026-09-29, same day as 7a by choice: DB archived to /root, packages, units, files and user removed)
 - [ ] Phase 8 — library cleanup (import and rename the existing library)
@@ -477,7 +478,7 @@ because many have no 4K release. Decided 2026-09-29, with these parameters:
 | | movies (Radarr) | series (Sonarr) |
 |---|---|---|
 | default profile | TRaSH **UHD Bluray + WEB** | TRaSH **WEB-1080p** |
-| qualities | Bluray-2160p, WEB-DL/WEBRip-2160p; **no Remux, no 1080p** | WEB-DL/WEBRip-1080p |
+| qualities | Bluray-2160p, WEB-DL/WEBRip-2160p **as one group**, so score decides (see Download health); **no Remux, no 1080p** | WEB-DL/WEBRip-1080p |
 | HDR | **HDR +500, HDR10+ +100.** SDR, DV without an HDR10 fallback (purple/green on non-DV screens), x265 without HDR, and generated HDR are all **−10000**, so they're rejected | — |
 | size cap | **150 MB/min** (~18 GB for 2 hours: most 4K HDR WEB-DLs, not 30–60 GB Bluray encodes) | 40 MB/min (~1.8 GB for 45 minutes) |
 | upgrades | **on**, to a better-scored 4K release | off |
@@ -548,6 +549,116 @@ request options; that profile stays as it was, without upgrades.
   only ever wrote profiles and custom formats.
 - Set `default_profile` in `arr-configure.sh` and `profile_name` in `seerr-configure.sh`
   back to `HD-1080p`, then re-run `npm run arr:configure` and `npm run seerr:configure`.
+
+---
+
+## Download health — well-seeded grabs, and a replacement for one that crawls
+
+Public trackers can't **guarantee** a speed; the swarm decides. What the stack can do is
+**pick well-seeded releases** and **replace a download that stalls**. Decided 2026-09-29,
+after the Phase 6 upgrade grab of *Dune: Part Two* crawled at ~200 kB/s (11 seeders, ~12 h
+for 15 GB). The line was not the cause: the three grabs before it imported at 41–45 Mbit/s
+on a ~50 Mbit/s plan.
+
+Why that release was picked (a `/release` search, 2026-09-29):
+- A **WEB Tier 01** 2160p WEB-DL (DV/HDR, score 5200, **508 seeders**) was refused by the
+  150 MB/min cap: 29.3 GB for a 166-minute film. The cap stays; the disk is at 91%.
+- Radarr compares **quality before score**, and the TRaSH template ranked Bluray-2160p
+  above WEB 2160p. So an untiered Bluray encode (score 3500, 11 seeders) outranked every WEB
+  release, whatever its tier or seeders.
+
+| | what | owned by |
+|---|---|---|
+| seeder floor | **minimum 5 seeders** on every Radarr/Sonarr indexer, pushed from Prowlarr's sync profile | `prowlarr-configure.sh` (`MIN_SEEDERS`) |
+| 4K ranking | Bluray-2160p, WEB-DL-2160p and WEBRip-2160p in **one group**, so score (TRaSH's release-group tiers) decides; tiered groups are the well-seeded ones | `recyclarr/recyclarr.yml` |
+| replacement | **Decluttarr**: a queued download stalled (no connections), under **500 KB/s**, or stuck on metadata for 3 checks in a row, 10 min apart, is removed, blocklisted, and searched again (~30–40 min) | `decluttarr/config.yaml` |
+| qBittorrent | global download limit **5 MiB/s** (~42 Mbit/s), so Decluttarr's slow check pauses while the line is busy rather than blaming a swarm; a stalled download no longer holds one of the 3 active slots | `qbt-configure.sh` |
+
+**What Decluttarr never does.** It works on the Radarr/Sonarr **queue** only, i.e. downloads
+not yet imported, so an imported torrent that is seeding is never touched. A removed
+download was never imported, so it never reaches `arr-reclaim`'s import history
+(CLAUDE.md trap 9). A replaced *upgrade* leaves the old library file where it is. Only
+three jobs are listed, because listing a job turns it on; `remove_orphans` and
+`remove_unmonitored` would delete seeding torrents or upgrades. `tests/decluttarr-config.test.sh`
+pins that list.
+
+**Do**
+
+1. **Quality ranking.** Preview first; it should show only `UHD Bluray + WEB` changing, with
+   its qualities becoming one `UHD 2160p` group and "Upgrade Until Quality" following it:
+
+   ```bash
+   npm run recyclarr:preview
+   ```
+
+   Then apply, in the Phase 6 order:
+
+   ```bash
+   npm run recyclarr:sync
+   ```
+
+   ```bash
+   npm run arr:configure
+   ```
+
+   ```bash
+   npm run seerr:configure
+   ```
+
+2. **qBittorrent** (download limit, slow-torrent slots):
+
+   ```bash
+   npm run qbt:configure
+   ```
+
+3. **Seeder floor.** This also pushes every indexer to Radarr and Sonarr once:
+
+   ```bash
+   npm run prowlarr:configure
+   ```
+
+4. **Decluttarr, in test mode first.** It logs what it would remove, and removes nothing:
+
+   ```bash
+   DECLUTTARR_TEST_RUN=true docker compose up -d decluttarr
+   ```
+
+   ```bash
+   docker logs -f decluttarr
+   ```
+
+   Expect `TEST MODE IS ACTIVE`, `OK` for qBittorrent, Radarr and Sonarr, and a
+   `detect_deletions … does not have access` warning per root folder (expected: it has no
+   media mounts, on purpose). After a few checks a crawling download shows
+   `flagged download (n/3 strikes)`. Then run it for real:
+
+   ```bash
+   docker compose up -d decluttarr
+   ```
+
+   The in-flight *Dune* upgrade (`BE9DBF15…`, ~200 kB/s) will likely be replaced. The next
+   acceptable release is a 12.4 GB UHD BRRip with 48 seeders. Phase 6's end-to-end check then
+   follows the new hash.
+
+**Verify**
+
+- `npm run qbt:check`, `npm run prowlarr:check` and `npm run arr:check` are clean. The
+  arr check reports `minimum seeders 5` on both apps; `1,5` means a push is still on its way.
+- A Dune search (Radarr → Interactive Search) ranks WEB Tier 01 releases above untiered
+  Bluray encodes, and releases with under 5 seeders are refused.
+- On a replacement: Decluttarr's log has the strikes and the removal; Radarr's history
+  shows `downloadFailed`, the release is on its blocklist, and a new grab follows.
+  `journalctl -u arr-reclaim` shows nothing for it.
+
+**Rollback**
+
+- `docker compose stop decluttarr` stops replacements at once; `docker compose rm decluttarr`
+  removes it. Nothing else depends on it.
+- Seeder floor: set `MIN_SEEDERS=1` and re-run `npm run prowlarr:configure`.
+- 4K ranking: remove `qualities:` and `until_quality` from `recyclarr.yml`, then
+  `npm run recyclarr:sync`.
+- qBittorrent: drop `dl_limit` and `dont_count_slow_torrents` from `want_prefs`, set them
+  back in the WebUI (0 and off), and `npm run qbt:check` is clean again.
 
 ---
 

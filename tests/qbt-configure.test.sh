@@ -67,7 +67,7 @@ echo "want_prefs"
 W="$(want_prefs)"
 for k in save_path temp_path_enabled temp_path auto_tmm_enabled autorun_enabled listen_port \
          upnp max_ratio_enabled max_ratio max_seeding_time_enabled max_seeding_time max_ratio_act \
-         web_ui_host_header_validation_enabled web_ui_domain_list; do
+         dl_limit dont_count_slow_torrents web_ui_host_header_validation_enabled web_ui_domain_list; do
     ok_eq "sets $k" "true" "$(jq --arg k "$k" 'has($k)' <<<"$W")"
 done
 ok_eq "never the hook"           "false" "$(jq '.autorun_enabled' <<<"$W")"
@@ -79,6 +79,10 @@ ok_eq "both limits on"                     "true true" "$(jq -r '"\(.max_ratio_e
 # 0 is Stop. 1 (Remove) or 3 (RemoveWithContent) would pull the torrent out from
 # under Radarr/Sonarr before their "Remove Completed" tidies the queue.
 ok_eq "then STOP, never remove"            "0"     "$(jq '.max_ratio_act' <<<"$W")"
+# Decluttarr's remove_slow only pauses on a busy line when a limit is set; 0 is
+# unlimited and would make it count a shared line as a slow swarm.
+ok_eq "download limit 5 MiB/s, never 0"    "5242880" "$(jq '.dl_limit' <<<"$W")"
+ok_eq "stalled downloads free their slot"  "true"  "$(jq '.dont_count_slow_torrents' <<<"$W")"
 
 # ─── temporary password ───────────────────────────────────────────────────────
 echo
@@ -143,9 +147,9 @@ echo
 echo "prefs_report / categories_report"
 GOT="$(jq -c '.listen_port = 6881 | .extra = 1' <<<"$W")"
 R="$(prefs_report "$GOT" "$W")"
-ok_eq "one line per wanted key"     "14" "$(wc -l <<<"$R" | tr -d ' ')"
+ok_eq "one line per wanted key"     "16" "$(wc -l <<<"$R" | tr -d ' ')"
 ok_eq "changed key is DRIFT"        "listen_port	DRIFT	6881	13762" "$(grep '^listen_port' <<<"$R")"
-ok_eq "unchanged keys are ok"       "13" "$(grep -c '	ok	' <<<"$R")"
+ok_eq "unchanged keys are ok"       "15" "$(grep -c '	ok	' <<<"$R")"
 ok_eq "all ok when equal"           "0"  "$(prefs_report "$W" "$W" | grep -c DRIFT)"
 C='{"radarr":{"savePath":"/mnt/data/torrents/radarr"},"sonarr":{"savePath":"/wrong"}}'
 ok_eq "category ok"      "category radarr	ok"    "$(categories_report "$C" | grep radarr | cut -f1,2)"

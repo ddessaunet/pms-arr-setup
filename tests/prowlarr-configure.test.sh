@@ -96,6 +96,18 @@ F="$(indexer_fix "$(jq -c '.enable=false | .tags=[]' <<<"$IX")" '[3]')"
 ok_eq "fix: enabled and tagged, id and priority kept" '{"id":7,"enable":true,"tags":[3],"priority":25}' \
     "$(jq -c '{id,enable,tags,priority}' <<<"$F")"
 
+# ─── sync profile ─────────────────────────────────────────────────────────────
+echo
+echo "syncprofile_fix / syncprofile_differs"
+SP='{"name":"Standard","enableRss":true,"enableAutomaticSearch":true,"enableInteractiveSearch":true,"minimumSeeders":1,"id":1}'
+ok_eq "floor is 5"                     "5"     "$MIN_SEEDERS"
+ok_rc "Prowlarr's default 1 → differs" 0 syncprofile_differs "$SP" 5
+ok_rc "at the floor → no change"       1 syncprofile_differs "$(jq -c '.minimumSeeders=5' <<<"$SP")" 5
+ok_rc "raised by hand → differs"       0 syncprofile_differs "$(jq -c '.minimumSeeders=20' <<<"$SP")" 5
+ok_eq "fix: only minimumSeeders changes" \
+    '{"name":"Standard","enableRss":true,"enableAutomaticSearch":true,"enableInteractiveSearch":true,"minimumSeeders":5,"id":1}' \
+    "$(syncprofile_fix "$SP" 5)"
+
 # ─── proxy ────────────────────────────────────────────────────────────────────
 echo
 echo "proxy_differs"

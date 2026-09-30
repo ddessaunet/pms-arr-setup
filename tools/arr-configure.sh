@@ -156,6 +156,13 @@ profile_allows_remux() {
     [[ "$(jq '[.. | objects | select(.allowed == true and ((.quality.name? // "") | test("Remux")))] | length' <<<"$1")" -gt 0 ]]
 }
 
+# The distinct "Minimum Seeders" of an /indexer list, e.g. "5" or "1,5" while a
+# Prowlarr sync is still on its way (MIN_SEEDERS, prowlarr-configure.sh).
+indexer_min_seeders() { # indexers-json
+    jq -r '[.[] | .fields[]? | select(.name == "minimumSeeders") | .value // "unset"
+            | tostring] | unique | join(",") | if . == "" then "unset" else . end' <<<"$1"
+}
+
 # fields_set, fields_drift, resource_want, resource_drift: tools/lib/servarr.sh
 
 # ─── apply ────────────────────────────────────────────────────────────────────
@@ -313,7 +320,7 @@ verify_app() { # app
     # Pushed by Prowlarr, not by this script: only reported.
     get /indexer || { log "  FAIL  read indexers"; return 1; }
     n="$(body | jq length)"
-    if [[ "$n" -gt 0 ]]; then log "  ok       $n indexer(s), synced from Prowlarr"
+    if [[ "$n" -gt 0 ]]; then log "  ok       $n indexer(s), synced from Prowlarr, minimum seeders $(indexer_min_seeders "$(body)")"
     else log "  WARN     no indexers yet — npm run prowlarr:configure pushes them"; fi
     return "$rc"
 }
