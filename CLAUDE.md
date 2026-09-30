@@ -101,9 +101,9 @@ disappear. Confirm before anything destructive:
     `remove_metadata_missing`; listing any job turns it on, and `remove_orphans` /
     `remove_unmonitored` would delete seeding torrents or upgrades, so
     `tests/decluttarr-config.test.sh` pins the list. What it removes was never imported, so
-    it never meets `arr-reclaim` (trap 9). `remove_slow` would pause while qBittorrent runs
-    above 80% of its `dl_limit`, but the limit is 0 (unlimited, by choice), so it never
-    pauses: a big hand-added torrent can starve an arr download into being replaced. Its `detect_deletions`
+    it never meets `arr-reclaim` (trap 9). `remove_slow` pauses while qBittorrent runs above
+    80% of its `dl_limit` (64 MiB/s, just under the 600 Mbit/s line); a limit of 0 means
+    it never pauses. Its `detect_deletions`
     watcher starts even when unlisted, so give it no media mounts. The image is pinned.
 
 ## Conventions

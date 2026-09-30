@@ -83,7 +83,7 @@ want_prefs() {
         max_seeding_time_enabled:              true,
         max_seeding_time:                      20160,
         max_ratio_act:                         0,
-        dl_limit:                              0,
+        dl_limit:                              67108864,
         dont_count_slow_torrents:              true,
         web_ui_host_header_validation_enabled: true,
         web_ui_domain_list:                    $domains
@@ -98,12 +98,13 @@ want_prefs() {
 # Deleting in Plex does not wait for this: arr-reclaim removes the torrent of
 # an imported file once its last library link is gone.
 #
-# No download limit (0): the line's full speed goes to downloads. The cost is
-# that Decluttarr's remove_slow never pauses for a busy line (it pauses above 80%
-# of this limit, and 0 reads as infinite capacity). That is fine while the arrs
-# share the line: 3 active slots on ~50 Mbit/s leave each well above its 500
-# KB/s floor. A big torrent added by hand can starve an arr download below it,
-# though, and get it replaced (decluttarr/config.yaml).
+# Download limit 64 MiB/s (bytes/s here, ~537 Mbit/s): just under what the 600
+# Mbit/s line can carry as payload (75 MB/s raw, ~66-68 MiB/s after TCP/IP and
+# BitTorrent overhead), so it costs about 5%. It is what lets Decluttarr's
+# remove_slow tell a thin swarm from a busy line: it pauses itself while
+# qBittorrent runs above 80% of this limit (~51 MiB/s), and with no limit it
+# assumes infinite capacity and never pauses (decluttarr/config.yaml). Set it
+# above what the line delivers and that pause never comes.
 # dont_count_slow_torrents: a download stuck under 2 KiB/s stops holding one of
 # the 3 active slots, so the queue behind it keeps moving until it is replaced.
 
