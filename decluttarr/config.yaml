@@ -32,10 +32,10 @@ job_defaults:
 jobs:
   # qBittorrent reports no connections at all.
   remove_stalled:
-  # Under 500 KB/s (~4 Mbit/s, a tenth of the ~50 Mbit/s line) averaged between
-  # checks. It pauses itself while qBittorrent uses over 80% of its global
-  # download limit (dl_limit in qbt-configure.sh), so a download that is only
-  # sharing a busy line is not counted as slow.
+  # Under 500 KB/s (~4 Mbit/s) averaged between checks: a 15 GB 4K release would
+  # take over 8 hours. It pauses itself while qBittorrent uses over 80% of its
+  # global download limit (dl_limit in qbt-configure.sh, 64 MiB/s), so a download
+  # that is only sharing a busy line is not counted as slow.
   remove_slow:
     min_speed: 500
   # A magnet that never finds anyone to send its metadata.

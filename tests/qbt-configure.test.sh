@@ -81,7 +81,7 @@ ok_eq "both limits on"                     "true true" "$(jq -r '"\(.max_ratio_e
 ok_eq "then STOP, never remove"            "0"     "$(jq '.max_ratio_act' <<<"$W")"
 # Decluttarr's remove_slow only pauses on a busy line when a limit is set; 0 is
 # unlimited and would make it count a shared line as a slow swarm.
-ok_eq "download limit 5 MiB/s, never 0"    "5242880" "$(jq '.dl_limit' <<<"$W")"
+ok_eq "download limit 64 MiB/s, never 0"   "67108864" "$(jq '.dl_limit' <<<"$W")"
 ok_eq "stalled downloads free their slot"  "true"  "$(jq '.dont_count_slow_torrents' <<<"$W")"
 
 # ─── temporary password ───────────────────────────────────────────────────────

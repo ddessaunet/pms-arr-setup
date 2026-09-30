@@ -569,7 +569,7 @@ Public trackers can't **guarantee** a speed; the swarm decides. What the stack c
 **pick well-seeded releases** and **replace a download that stalls**. Decided 2026-09-29,
 after the Phase 6 upgrade grab of *Dune: Part Two* crawled at ~200 kB/s (11 seeders, ~12 h
 for 15 GB). The line was not the cause: the three grabs before it imported at 41–45 Mbit/s
-on a ~50 Mbit/s plan.
+(the line is 600 Mbit/s, not the ~50 first assumed, so those were swarm-bound too).
 
 Why that release was picked (a `/release` search, 2026-09-29):
 - A **WEB Tier 01** 2160p WEB-DL (DV/HDR, score 5200, **508 seeders**) was refused by the
@@ -583,7 +583,7 @@ Why that release was picked (a `/release` search, 2026-09-29):
 | seeder floor | **minimum 5 seeders** on every Radarr/Sonarr indexer, pushed from Prowlarr's sync profile | `prowlarr-configure.sh` (`MIN_SEEDERS`) |
 | 4K ranking | Bluray-2160p, WEB-DL-2160p and WEBRip-2160p in **one group**, so score (TRaSH's release-group tiers) decides; tiered groups are the well-seeded ones | `recyclarr/recyclarr.yml` |
 | replacement | **Decluttarr**: a queued download stalled (no connections), under **500 KB/s**, or stuck on metadata for 3 checks in a row, 10 min apart, is removed, blocklisted, and searched again (~30–40 min) | `decluttarr/config.yaml` |
-| qBittorrent | global download limit **5 MiB/s** (~42 Mbit/s), so Decluttarr's slow check pauses while the line is busy rather than blaming a swarm; a stalled download no longer holds one of the 3 active slots | `qbt-configure.sh` |
+| qBittorrent | global download limit **64 MiB/s** (~537 Mbit/s, just under the 600 Mbit/s line; first set at 5 MiB/s from a wrong ~50 Mbit/s estimate, corrected 2026-09-30), so Decluttarr's slow check pauses while the line is busy rather than blaming a swarm; a stalled download no longer holds one of the 3 active slots | `qbt-configure.sh` |
 
 **What Decluttarr never does.** It works on the Radarr/Sonarr **queue** only, i.e. downloads
 not yet imported, so an imported torrent that is seeding is never touched. A removed

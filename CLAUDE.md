@@ -102,7 +102,8 @@ disappear. Confirm before anything destructive:
     `remove_unmonitored` would delete seeding torrents or upgrades, so
     `tests/decluttarr-config.test.sh` pins the list. What it removes was never imported, so
     it never meets `arr-reclaim` (trap 9). `remove_slow` pauses while qBittorrent runs above
-    80% of its `dl_limit`; a limit of 0 means it never pauses. Its `detect_deletions`
+    80% of its `dl_limit` (64 MiB/s, just under the 600 Mbit/s line); a limit of 0 means
+    it never pauses. Its `detect_deletions`
     watcher starts even when unlisted, so give it no media mounts. The image is pinned.
 
 ## Conventions
