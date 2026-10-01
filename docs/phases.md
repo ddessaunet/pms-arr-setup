@@ -21,7 +21,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [ ] Download health — seeder floor, 4K ranked by release tier, Decluttarr replaces stalled/slow grabs
 - [x] Phase 7a — retire native qBittorrent and `plex-watch` (2026-09-29: 9 native torrents dropped, all 10 library files kept at 1 link; both services disabled)
 - [x] Phase 7b — remove native Plex and pms-local's leftovers (2026-09-29, same day as 7a by choice: DB archived to /root, packages, units, files and user removed)
-- [ ] Phase 8 — library cleanup (import and rename the existing library)
+- [x] Phase 8 — library cleanup (2026-09-30; one-off for this box, so not kept in the repo)
 
 Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
 
@@ -43,9 +43,7 @@ Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
 5. **`plex-watch` was live until Phase 7a.** It treated *any* `delete` or `moved_from` under
    `/mnt/data/streaming` as "deleted in Plex" and removed the matching native torrent **and
    its data**, so until then the arrs only *added* files. It's retired now, and moves are
-   safe. Still, **"Library Import", "Rename Files" or "Organize" on existing media happen
-   only as Phase 8 plans them.** pms-local is not modified by this migration; what the stack
-   needs from it is ported here (`arr-reclaim`).
+   safe. pms-local is not modified by this migration; what the stack needs from it is ported here (`arr-reclaim`).
 6. **Upgrades only in the 4K movie profile (`UHD Bluray + WEB`), and every size is capped**
    (1080p 40, 2160p 150 MB/min; `arr-configure.sh`). Everything else is single-grab.
 7. **Media is deleted in Plex, and that frees the space.** For Radarr/Sonarr imports,
@@ -300,11 +298,8 @@ Then take both out of `UPDATE_SERVICES` in `.env`.
 The first services besides pms-local that write into the library. They handle **new content
 only**.
 
-**The existing library stays exactly as it is.** 107 of its 134 movies are loose files at
-the `movies/` root, the 27 folders hold release-named files, and several series folders are
-misfiled. Organising any of that means moves, which `plex-watch` would read as deletions
-(rule 5). So nothing existing is imported or renamed now; that's **Phase 8**, after Phase 7
-retires `plex-watch`.
+**Media already in the library isn't imported here.** Organising it would mean moves,
+which `plex-watch` read as deletions (rule 5) until Phase 7a.
 
 | | |
 |---|---|
@@ -428,7 +423,7 @@ upgrades, unmonitor on delete, and `arr-reclaim` freeing the space of a Plex del
 
 - **Only you sign in**, and your requests are approved automatically.
 - **The existing library shows as Available.** Seerr scans Plex, so titles already there
-  can't be requested again, even though Radarr/Sonarr don't know about them until Phase 8.
+  can't be requested again, whether or not Radarr/Sonarr know them.
 
 **Do**
 
@@ -678,8 +673,7 @@ pins that list.
 Start only after Phase 6 is ticked: its upgrade check needs `plex-watch` still running.
 
 After this, `arr-reclaim` is the only watcher and the `:8081` container the only
-qBittorrent. Nothing reads a move in the library as a deletion any more, and that is what
-unlocks Phase 8.
+qBittorrent. Nothing reads a move in the library as a deletion any more.
 
 **The native torrents are dropped, not moved.** Decided 2026-09-29. Every one of them is
 already hardlinked into the library, so deleting a torrent *with its data* removes only the
@@ -802,8 +796,8 @@ torrents don't come back, but their files never left the library.
 
 ## Phase 7b — Remove native Plex and pms-local's leftovers (done 2026-09-29)
 
-The runbook planned about 2 stable weeks on 7a first. It ran the same day, by choice. None
-of it is needed for Phase 8. Ollama stays, and so does the `plexmediaserver` mask, which
+The runbook planned about 2 stable weeks on 7a first. It ran the same day, by choice.
+Ollama stays, and so does the `plexmediaserver` mask, which
 guards against a reinstall fighting the container for `:32400`. `npm run deploy` counts a
 missing unit as masked too, so the container updater stays armed either way.
 
@@ -867,102 +861,3 @@ Native qBittorrent and pms-local are gone for good.
 Native Plex can be reinstalled from Plex's apt repository and restored from
 `/root/plexmediaserver-native.tgz`. That database stops at the Phase 1b cutover, so
 everything watched or added since then is only in the container's database.
-
-## Phase 8 — Library cleanup
-
-Radarr and Sonarr take over the existing library, **unmonitored**. They move and rename
-it into their layout, and never download anything for it. Decided 2026-09-30:
-
-| | |
-|---|---|
-| movies | about 118 Plex items, imported by **the TMDb id Plex matched**; 2160p → `UHD Bluray + WEB`, anything else → `HD-1080p` |
-| series | 7 shows, imported by Plex's **TVDB id**; `CAPE FAIR S01E02…` merges into Cape Fear, and `Heavy Is The Head` (S04E08) into FROM |
-| monitored | **no**, and nothing is searched. A title only gets an upgrade if you monitor it yourself |
-| deleted | samples, **all loose `.srt`**, the two sample-only folders (Hot Fuzz, The Time Machine), the loose 1080p Hacksaw Ridge beside its 4K copy, and the 0-byte Cape Fear E02 |
-| kept as an extra | The Substance's featurette → `The Substance (2024)/Featurettes/` |
-| not touched | `photos/`, `videos/` and `music/`, and anything Radarr already manages (Dune, Iron Man 2, Air) |
-
-**Nothing breaks, for three reasons:**
-- **Moves on one filesystem are renames,** so they take no space.
-- **Imports from the library carry no download hash,** so `arr-reclaim` never treats them as
-  its own (trap 9).
-- **Plex keeps watch state by guid, and every item keeps its match.** While files move,
-  *Empty trash automatically* is held off, so an item isn't dropped between its old path
-  going and its new one being scanned.
-
-**The tool is one-off, so it isn't on `main`.** `tools/library-import.sh` lives on branch
-`feat/library-import`, the same way the Phase 1b cutover script did. Its state (plan,
-snapshots, what's done) is in `~/library-import`, so a run that stops carries on where it
-left off. It was rehearsed end to end on throwaway Radarr and Sonarr containers.
-
-**Do**
-
-1. **Use the branch.** It adds only the tool and its test, so `arr-reclaim.service`, which
-   runs from this clone, is unaffected:
-
-   ```bash
-   git switch feat/library-import
-   ```
-
-2. **Plan.** This is read-only: it snapshots Plex and writes the plan. Then review what it
-   prints:
-   - the movie and show counts
-   - the rows whose file name disagrees with Plex's year
-   - the delete list, with sizes
-
-   ```bash
-   tools/library-import.sh plan
-   ```
-
-3. **Delete the reviewed list.** Without `--yes` it only prints the list:
-
-   ```bash
-   tools/library-import.sh delete --yes
-   ```
-
-4. **Import the movies, 10 at a time.** Between batches, check Plex, and check that
-   `npm run reclaim:audit` has nothing to do:
-
-   ```bash
-   tools/library-import.sh apply 10
-   ```
-
-   Repeat until it says `0 left`. A failed title is reported and retried on the next run.
-
-5. **Import the shows:**
-
-   ```bash
-   tools/library-import.sh series
-   ```
-
-6. **Finish.** This removes the folders the moves emptied, rescans Plex, restores its trash
-   setting, and compares Plex with the snapshot from step 2:
-
-   ```bash
-   tools/library-import.sh finish
-   ```
-
-7. Go back to `main`:
-
-   ```bash
-   git switch main
-   ```
-
-**Verify**
-
-- `finish` reports the **same Plex movies, and the same shows, episodes and watch state**,
-  as before.
-- `tools/library-import.sh check` reports:
-  - no loose files at the `movies/` root
-  - every Radarr movie has a file, and none is monitored
-  - the Radarr queue has nothing new
-  - Sonarr has 7 series, none monitored
-- `npm run check`, `npm run arr:check` and `npm run reclaim:audit` are clean.
-
-**Rollback**
-
-- `~/library-import/movies.tsv` and `series.tsv` record every source path, and Radarr's and
-  Sonarr's history has each move. Moving a file back and rescanning Plex restores the old
-  path, and Plex keeps the match by guid.
-- To hand a title back, delete it in Radarr or Sonarr **without** deleting its files.
-- **Deletions are final.** That's why they're a separate, reviewed step.
