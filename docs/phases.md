@@ -870,11 +870,99 @@ everything watched or added since then is only in the container's database.
 
 ## Phase 8 — Library cleanup
 
-After Phase 7a retires `plex-watch`, nothing reads a move as a deletion any more. Then Radarr
-and Sonarr can take over the existing library:
-- **Library Import** the 107 loose movie files and the 27 folders.
-- Sort out the misfiled series folders.
-- Run **Rename** so everything follows the Phase 4 naming.
+Radarr and Sonarr take over the existing library, **unmonitored**. They move and rename
+it into their layout, and never download anything for it. Decided 2026-09-30:
 
-Plan this phase on its own when you get there. It's the one step that moves most of the
-library.
+| | |
+|---|---|
+| movies | about 118 Plex items, imported by **the TMDb id Plex matched**; 2160p → `UHD Bluray + WEB`, anything else → `HD-1080p` |
+| series | 7 shows, imported by Plex's **TVDB id**; `CAPE FAIR S01E02…` merges into Cape Fear, and `Heavy Is The Head` (S04E08) into FROM |
+| monitored | **no**, and nothing is searched. A title only gets an upgrade if you monitor it yourself |
+| deleted | samples, **all loose `.srt`**, the two sample-only folders (Hot Fuzz, The Time Machine), the loose 1080p Hacksaw Ridge beside its 4K copy, and the 0-byte Cape Fear E02 |
+| kept as an extra | The Substance's featurette → `The Substance (2024)/Featurettes/` |
+| not touched | `photos/`, `videos/` and `music/`, and anything Radarr already manages (Dune, Iron Man 2, Air) |
+
+**Nothing breaks, for three reasons:**
+- **Moves on one filesystem are renames,** so they take no space.
+- **Imports from the library carry no download hash,** so `arr-reclaim` never treats them as
+  its own (trap 9).
+- **Plex keeps watch state by guid, and every item keeps its match.** While files move,
+  *Empty trash automatically* is held off, so an item isn't dropped between its old path
+  going and its new one being scanned.
+
+**The tool is one-off, so it isn't on `main`.** `tools/library-import.sh` lives on branch
+`feat/library-import`, the same way the Phase 1b cutover script did. Its state (plan,
+snapshots, what's done) is in `~/library-import`, so a run that stops carries on where it
+left off. It was rehearsed end to end on throwaway Radarr and Sonarr containers.
+
+**Do**
+
+1. **Use the branch.** It adds only the tool and its test, so `arr-reclaim.service`, which
+   runs from this clone, is unaffected:
+
+   ```bash
+   git switch feat/library-import
+   ```
+
+2. **Plan.** This is read-only: it snapshots Plex and writes the plan. Then review what it
+   prints:
+   - the movie and show counts
+   - the rows whose file name disagrees with Plex's year
+   - the delete list, with sizes
+
+   ```bash
+   tools/library-import.sh plan
+   ```
+
+3. **Delete the reviewed list.** Without `--yes` it only prints the list:
+
+   ```bash
+   tools/library-import.sh delete --yes
+   ```
+
+4. **Import the movies, 10 at a time.** Between batches, check Plex, and check that
+   `npm run reclaim:audit` has nothing to do:
+
+   ```bash
+   tools/library-import.sh apply 10
+   ```
+
+   Repeat until it says `0 left`. A failed title is reported and retried on the next run.
+
+5. **Import the shows:**
+
+   ```bash
+   tools/library-import.sh series
+   ```
+
+6. **Finish.** This removes the folders the moves emptied, rescans Plex, restores its trash
+   setting, and compares Plex with the snapshot from step 2:
+
+   ```bash
+   tools/library-import.sh finish
+   ```
+
+7. Go back to `main`:
+
+   ```bash
+   git switch main
+   ```
+
+**Verify**
+
+- `finish` reports the **same Plex movies, and the same shows, episodes and watch state**,
+  as before.
+- `tools/library-import.sh check` reports:
+  - no loose files at the `movies/` root
+  - every Radarr movie has a file, and none is monitored
+  - the Radarr queue has nothing new
+  - Sonarr has 7 series, none monitored
+- `npm run check`, `npm run arr:check` and `npm run reclaim:audit` are clean.
+
+**Rollback**
+
+- `~/library-import/movies.tsv` and `series.tsv` record every source path, and Radarr's and
+  Sonarr's history has each move. Moving a file back and rescanning Plex restores the old
+  path, and Plex keeps the match by guid.
+- To hand a title back, delete it in Radarr or Sonarr **without** deleting its files.
+- **Deletions are final.** That's why they're a separate, reviewed step.
