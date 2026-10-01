@@ -288,12 +288,17 @@ main() {
     local k missing=()
     for k in RADARR_API_KEY SONARR_API_KEY ARR_USER ARR_PASS PLEX_TOKEN; do [[ -n "${!k}" ]] || missing+=("$k"); done
     [[ ${#missing[@]} -eq 0 ]] || { echo "Set ${missing[*]} in $REPO/.env." >&2; exit 3; }
-    BZ_KEY="$(bazarr_key "$BAZARR_CONFIG")"
-    [[ -n "$BZ_KEY" ]] || { echo "No API key in $BAZARR_CONFIG — has Bazarr started once?" >&2; exit 3; }
+    # On a first start Bazarr writes config.yaml, key included, some 20 s after
+    # the container is up — `npm start && npm run bazarr:configure` lands in that
+    # gap. Wait for the key as for the API, within the same BAZARR_WAIT.
+    local deadline=$((SECONDS + BAZARR_WAIT))
+    until BZ_KEY="$(bazarr_key "$BAZARR_CONFIG")"; [[ -n "$BZ_KEY" ]]; do
+        (( SECONDS < deadline )) || { echo "No API key in $BAZARR_CONFIG after ${BAZARR_WAIT}s — is bazarr running? (docker compose ps bazarr)" >&2; exit 3; }
+        sleep 3
+    done
 
     BODY="$(mktemp)"; trap 'rm -f "$BODY"' EXIT
     log "Bazarr at $BAZARR_URL ($mode)"
-    local deadline=$((SECONDS + BAZARR_WAIT))
     until bz_get /system/status; do
         [[ "$HTTP" == 401 ]] && { log "  FAIL  the key from $BAZARR_CONFIG is refused"; exit 3; }
         (( SECONDS < deadline )) || { log "  FAIL  not answering at $BAZARR_URL — is it running?"; exit 3; }
