@@ -44,10 +44,11 @@ section_value() { # section key
     ' "$CONF"
 }
 
-# The decluttarr service block of compose.yaml.
+# The decluttarr service block of compose.yaml: up to the next service, or the
+# next service's "# ──" header comment, whichever comes first.
 compose_block() {
     awk '/^  decluttarr:/ { on = 1; print; next }
-         on && /^  [a-z]/ { exit }
+         on && /^  ([a-z]|# ──)/ { exit }
          on && /^[^ #]/   { exit }
          on               { print }' compose.yaml
 }

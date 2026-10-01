@@ -1,7 +1,7 @@
 # pms-arr-setup
 
 The containerized media stack for this box: Plex, qBittorrent, Prowlarr + FlareSolverr,
-Radarr + Sonarr, Seerr, Recyclarr and Decluttarr, all in Docker Compose. It replaces the native
+Radarr + Sonarr, Seerr, Recyclarr, Decluttarr and Bazarr, all in Docker Compose. It replaces the native
 setup in [pms-local](https://github.com/ddessaunet/pms-local), one reversible phase at a
 time, without breaking that setup until the last phase.
 
@@ -43,6 +43,7 @@ native Plex database and qBittorrent state move across unchanged.
 | `tools/arr-configure.sh` | Applies Radarr's and Sonarr's login, naming, media management, root folder, no-upgrade profiles, qBittorrent client and Plex connection, then tests them. Never imports or renames existing media. `--check` reports drift. |
 | `tools/arr-reclaim.sh` | When media Radarr/Sonarr imported is deleted (in Plex, or in Radarr/Sonarr with its files), removes its torrent with its data from the `:8081` qBittorrent. Keeps a ledger of imports in `/opt/appdata/.arr-reclaim.imports`, since Radarr/Sonarr drop the history of what they delete. Run by `arr-reclaim.service`; `--audit` changes nothing. |
 | `tools/seerr-configure.sh` | After your one-time Plex sign-in, finishes Seerr's setup: Plex server and libraries, Radarr/Sonarr at HD-1080p, admin-only sign-in, then a full Plex scan. `--check` reports drift. |
+| `tools/bazarr-configure.sh` | Applies Bazarr's settings: Radarr/Sonarr, Spanish + English as every title's profile, the subtitle providers (OpenSubtitles.com when `.env` has an account), a Plex refresh after each download, and its login. Owns all language profiles. `--check` reports drift. |
 | `recyclarr/recyclarr.yml` | The TRaSH profiles: 4K HDR movies (UHD Bluray + WEB), 1080p series (WEB-1080p), with their custom formats; 4K qualities in one group so release-group tiers decide. |
 | `decluttarr/config.yaml` | Which queued downloads Decluttarr replaces: stalled, under 500 KB/s, or stuck on metadata. Nothing already imported. |
 | `tools/recyclarr.sh` | Runs Recyclarr once, as a throwaway container (`recyclarr:preview` / `recyclarr:sync`). |
@@ -81,6 +82,8 @@ lives in `/opt/appdata`.
 | `npm run reclaim:audit` | What `arr-reclaim` would remove right now. Changes nothing. |
 | `npm run seerr:configure` | Finish Seerr's setup after the Plex sign-in, then test its connections. |
 | `npm run seerr:check` | Report Seerr drift. Changes nothing. |
+| `npm run bazarr:configure` | Apply Bazarr's settings, then check its Radarr, Sonarr and Plex connections. |
+| `npm run bazarr:check` | Report Bazarr drift. Changes nothing. |
 | `npm run recyclarr:preview` | What a Recyclarr sync would change. Changes nothing (run in a terminal; the report is a table). |
 | `npm run recyclarr:sync` | Apply the TRaSH profiles. Then `arr:configure` and `seerr:configure`. |
 

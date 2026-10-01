@@ -108,6 +108,14 @@ disappear. Confirm before anything destructive:
     it never pauses. Its `detect_deletions`
     watcher starts even when unlisted, so give it no media mounts. The image is pinned.
 
+15. **Plex's own subtitle download is not a permissions problem.** Plex stores downloaded
+    subtitles in its database, not the library; `Got a subtitle of 99 bytes` in its log is
+    its subtitle server's 500, upstream. **Bazarr** (Phase 9) writes `.es.srt`/`.en.srt`
+    beside the video for every Radarr/Sonarr title, monitored or not (`only_monitored`
+    stays off: most of the library is unmonitored). It mounts `streaming/` only, and
+    `tools/bazarr-configure.sh` owns **all** its language profiles (Bazarr replaces the
+    whole list on a write). A sidecar never counts as media for `arr-reclaim`.
+
 ## Conventions
 
 - Commit subjects are lowercase and imperative; bodies explain *why*.

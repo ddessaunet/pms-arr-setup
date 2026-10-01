@@ -22,6 +22,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 7a — retire native qBittorrent and `plex-watch` (2026-09-29: 9 native torrents dropped, all 10 library files kept at 1 link; both services disabled)
 - [x] Phase 7b — remove native Plex and pms-local's leftovers (2026-09-29, same day as 7a by choice: DB archived to /root, packages, units, files and user removed)
 - [x] Phase 8 — library cleanup (2026-09-30; one-off for this box, so not kept in the repo)
+- [ ] Phase 9 — Bazarr: Spanish + English subtitles beside the media
 
 Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
 
@@ -861,3 +862,90 @@ Native qBittorrent and pms-local are gone for good.
 Native Plex can be reinstalled from Plex's apt repository and restored from
 `/root/plexmediaserver-native.tgz`. That database stops at the Phase 1b cutover, so
 everything watched or added since then is only in the container's database.
+---
+
+## Phase 9 — Bazarr (subtitles)
+
+**Why.** Plex's own *Search subtitles* is unreliable, and it isn't a permissions problem.
+Plex saves a subtitle it downloads into **its own database** (`Saved sub of N bytes to blob db`
+in its log), never into the library, so `/mnt/data` permissions don't come into it. When
+a download "does nothing", the log says `Got a subtitle of 99 bytes`: those 99 bytes are
+Plex's subtitle server answering `<Error … statusCode="500"/>`, which Plex drops without a
+word (7 of 12 attempts up to 2026-09-30, on Draft Day and Days of Thunder). It is upstream
+and intermittent; the same request worked a minute later.
+
+**Bazarr** fetches subtitles itself and writes them **beside the video**
+(`Title (Year).es.srt`, `.en.srt`), where Plex reads them as local subtitles. The two live
+together: Plex's own download keeps working, into its database.
+
+- **Spanish and English for every title.** One language profile, the default for movies and
+  series. The script owns *all* profiles: one added in the WebUI is removed by the next apply.
+- **The whole library, monitored or not.** Bazarr covers what Radarr and Sonarr manage,
+  which since Phase 8 is all of `movies/` and `series/`, most of it **unmonitored**. The
+  script keeps *only monitored* off so those titles get subtitles too. `photos/`, `videos/`
+  and `music/` are not theirs, so Bazarr never sees them.
+- **Providers:** OpenSubtitles.com when `.env` has an account (free, ~20 downloads a day;
+  the largest catalogue), plus four that need none: subtis (Spanish movies), yifysubtitles
+  (movies), subtitulamostv (Spanish/English TV) and gestdown (TV). An embedded Spanish or
+  English track counts, so nothing is downloaded for it.
+- **Plex is refreshed** for the title after each download, with the `.env` Plex token
+  (stored encrypted in Bazarr).
+- **Only `streaming/` is mounted**, at its host path. Bazarr never touches `torrents/`, and
+  an `.srt` never counts as media for `arr-reclaim`: a sidecar never keeps a torrent alive. A
+  Plex delete can leave a stray `.srt` in the folder; it is harmless.
+- **Login:** `ARR_USER`/`ARR_PASS`, asked from the LAN too (Bazarr has no local-address
+  exemption). Its API key is its own, in `/opt/appdata/bazarr/config/config.yaml`.
+
+**Do**
+
+1. Optional: create a free account at opensubtitles.com and put it in `.env`:
+
+   ```
+   OPENSUBTITLES_USER=…
+   OPENSUBTITLES_PASS=…
+   ```
+
+   Add `bazarr` to `UPDATE_SERVICES` in `.env`.
+
+2. Start it. Only `bazarr` is created:
+
+   ```bash
+   npm start
+   ```
+
+3. Apply the settings:
+
+   ```bash
+   npm run bazarr:configure
+   ```
+
+   On the first apply Radarr and Sonarr take a few seconds to connect; the read-back waits
+   for them. Bazarr then searches what's missing by itself (new titles at once, the rest
+   every 6 hours). *Wanted → Search All* in the WebUI starts it now.
+
+**Verify**
+
+- `npm run bazarr:check` exits 0:
+  - settings, languages `es en` and the one profile as wanted
+  - Radarr and Sonarr connected, the Plex token accepted
+  - no title without a profile
+- A Radarr title (e.g. *Days of Thunder*) gets `Days of Thunder (1990).es.srt` and `.en.srt`
+  beside the video, `dario:media`, `-rw-rw-r--`. The video still has its hardlink
+  (`stat -c %h` unchanged). Plex lists both as subtitle tracks.
+- `npm run reclaim:audit` is unchanged.
+- Plex's own *Search subtitles* still works (retry if Plex's server answers 500).
+
+**Rollback**
+
+```bash
+docker compose rm -sf bazarr
+```
+
+```bash
+rm -rf /opt/appdata/bazarr
+```
+
+Then take `bazarr` out of `UPDATE_SERVICES`. The `.srt` files it wrote can stay; Plex keeps
+using them. To remove them too, take the list from Bazarr's *History* before removing its
+appdata (Radarr's imports may have brought `.srt` files of their own), and confirm before
+deleting anything under `/mnt/data`.
