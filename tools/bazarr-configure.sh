@@ -39,8 +39,10 @@ SONARR_API_KEY="${SONARR_API_KEY:-$(env_get SONARR_API_KEY)}"
 ARR_USER="${ARR_USER:-$(env_get ARR_USER)}"
 ARR_PASS="${ARR_PASS:-$(env_get ARR_PASS)}"
 PLEX_TOKEN="${PLEX_TOKEN:-$(env_get PLEX_TOKEN)}"
-OPENSUBTITLES_USER="${OPENSUBTITLES_USER:-$(env_get OPENSUBTITLES_USER)}"
-OPENSUBTITLES_PASS="${OPENSUBTITLES_PASS:-$(env_get OPENSUBTITLES_PASS)}"
+# Optional, so set-but-empty in the environment means "no account" and wins
+# over .env (the tests rely on it).
+OPENSUBTITLES_USER="${OPENSUBTITLES_USER-$(env_get OPENSUBTITLES_USER)}"
+OPENSUBTITLES_PASS="${OPENSUBTITLES_PASS-$(env_get OPENSUBTITLES_PASS)}"
 BZ_KEY=""
 
 # ─── the settings ─────────────────────────────────────────────────────────────
@@ -66,6 +68,9 @@ providers() {
 # auth.password is the md5 Bazarr stores; form_body sends the plain one.
 # only_monitored stays off: most of the library is unmonitored (Phase 8 imported
 # it that way), and those titles need subtitles as much as new ones.
+# chmod 0664: without it a subtitle's mode depends on the code path that wrote
+# it (seen: 0666, world-writable, despite UMASK 002); with it every .srt is
+# rw-rw-r--, like the rest of the library.
 # Not radarr/sonarr.base_url: a written "/" is stored as "", which would read
 # back as drift forever, and the default already works.
 want_settings() {
@@ -86,6 +91,7 @@ want_settings() {
             "general.enabled_providers": $prov,
             "general.use_embedded_subs": true,
             "general.subfolder": "current",
+            "general.chmod_enabled": true, "general.chmod": "0664",
             "general.use_plex": true, "plex.ip": "host.docker.internal", "plex.port": 32400,
             "plex.ssl": false, "plex.movie_library": ["Movies"], "plex.series_library": ["TV Shows"],
             "plex.update_movie_library": true, "plex.update_series_library": true,

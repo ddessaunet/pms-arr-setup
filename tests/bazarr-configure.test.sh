@@ -69,6 +69,8 @@ ok_eq "base_url not owned (a written / reads back as \"\")" "false" "$(jq 'has("
 ok_eq "the one profile is the default for both" "true 1 true 1" \
     "$(jq -r '"\(.["general.movie_default_enabled"]) \(.["general.movie_default_profile"]) \(.["general.serie_default_enabled"]) \(.["general.serie_default_profile"])"' <<<"$W")"
 ok_eq "subtitles beside the video"          "current" "$(jq -r '.["general.subfolder"]' <<<"$W")"
+ok_eq "subtitles rw-rw-r--, mode as text (Bazarr reads it as octal)" "true 0664" \
+    "$(jq -r '"\(.["general.chmod_enabled"]) \(.["general.chmod"])"' <<<"$W")"
 ok_eq "embedded es/en tracks count"         "true"    "$(jq -r '.["general.use_embedded_subs"]' <<<"$W")"
 ok_eq "Plex through the host gateway"       "host.docker.internal:32400" "$(jq -r '"\(.["plex.ip"]):\(.["plex.port"])"' <<<"$W")"
 ok_eq "Plex libraries by name"              '["Movies"] ["TV Shows"]' "$(jq -c '.["plex.movie_library"], .["plex.series_library"]' <<<"$W" | paste -sd' ' -)"
