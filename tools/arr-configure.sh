@@ -12,10 +12,9 @@
 # Prowlarr can push indexers to both (prowlarr-configure.sh, APPLICATIONS).
 # Indexers are therefore NOT managed here.
 #
-# What this deliberately never does: import the existing library, or run a
-# rename. That is Phase 8's job, planned on its own (moves have been safe since
-# Phase 7a retired pms-local's plex-watch). Renaming below applies to NEW
-# imports only.
+# What this deliberately never does: import or rename media. Phase 8 did that
+# once for the existing library (branch feat/library-import); renaming below
+# applies to each new import.
 #
 # Exit: 0 applied and verified (or no drift; a FAILING connection test only
 # warns) · 1 drift, or a step failed · 2 usage · 3 unreachable/not configured.

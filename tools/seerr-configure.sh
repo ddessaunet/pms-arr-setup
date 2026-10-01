@@ -198,7 +198,7 @@ apply_main() {
 
 # The wizard's last step. Then one full Plex scan, so every title already in
 # the library shows as Available and cannot be requested again as a duplicate —
-# Radarr/Sonarr do not know the existing library until Phase 8, Seerr does.
+# Seerr reads that from Plex, whatever Radarr/Sonarr know.
 apply_finish() {
     local init
     init="$(curl -s --max-time "$SVC_TIMEOUT" "$SEERR_URL/api/v1/settings/public" | jq -r '.initialized')"

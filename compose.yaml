@@ -111,9 +111,8 @@ services:
     restart: unless-stopped
 
   # ── Phase 4: Radarr + Sonarr ──────────────────────────────────────────────
-  # The first services besides pms-local that write into the library. NEW
-  # content only: nothing existing is imported or renamed before Phase 8 — any
-  # move under streaming/ reads to pms-local's plex-watch as a Plex deletion.
+  # They manage the whole library: new content, and since Phase 8 the existing
+  # titles too, imported unmonitored so nothing is ever re-downloaded.
   #
   # /mnt/data is ONE bind mount: they hardlink from torrents/ into streaming/,
   # and link() fails with EXDEV across two bind mounts on the same filesystem.

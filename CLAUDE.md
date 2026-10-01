@@ -32,8 +32,7 @@ disappear. Confirm before anything destructive:
    copies on a nearly full volume.
 3. **`plex-watch` is retired (Phase 7a).** It treated any delete or move in the library as
    a Plex deletion; now only `arr-reclaim` watches, and a move or rename leaves its data
-   linked, so it keeps the torrent. Moves are safe, but the existing library is still
-   imported and renamed only as Phase 8 plans it, not ad hoc.
+   linked, so it keeps the torrent. Moves and renames are safe.
    **pms-local is not modified by this migration,** and its `deploy`/`deploy-system` must
    not be run again: `deploy-system` re-enables `plex-watch` on every run. `plex-watch` and
    `qbittorrent-nox` are disabled, not masked: their unit files are in
@@ -62,9 +61,11 @@ disappear. Confirm before anything destructive:
    profile): Prowlarr's full sync overwrites it on the Radarr/Sonarr indexers, so never set
    it there. A sync-profile edit does not push by itself; the script runs
    `ApplicationIndexerSync` after applying.
-8. **The library is not tidy.** 107 of 134 movies are loose files at the `movies/` root, and
-   several series folders are misfiled. Radarr/Sonarr manage new content only; the rest
-   waits for Phase 8.
+8. **Radarr and Sonarr manage the whole library, mostly unmonitored.** Phase 8 imported
+   every existing title by Plex's own TMDb/TVDB match, unmonitored and with no search, so
+   they never download or upgrade those titles. Monitor one by hand to get it improved.
+   Everything is `Title (Year)/Title (Year).ext` or `Show/Season NN/Show - SNNEMM.ext`.
+   `photos/`, `videos/` and `music/` are Plex-only and not theirs.
 9. **`arr-reclaim` removes a torrent only when all three hold:** Radarr/Sonarr imported it
    (its hash is in their import history, `eventType=3`, since the name is refused), every
    imported file is gone, and no other link remains. Don't loosen this to category

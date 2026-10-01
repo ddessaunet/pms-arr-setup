@@ -21,7 +21,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [ ] Download health — seeder floor, 4K ranked by release tier, Decluttarr replaces stalled/slow grabs
 - [x] Phase 7a — retire native qBittorrent and `plex-watch` (2026-09-29: 9 native torrents dropped, all 10 library files kept at 1 link; both services disabled)
 - [x] Phase 7b — remove native Plex and pms-local's leftovers (2026-09-29, same day as 7a by choice: DB archived to /root, packages, units, files and user removed)
-- [ ] Phase 8 — library cleanup (import and rename the existing library)
+- [x] Phase 8 — library cleanup (2026-09-30: 118 movies + 7 shows imported unmonitored and renamed, 73 files deleted; Plex: same 120 movies, same episodes and watch state)
 
 Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
 
@@ -43,9 +43,8 @@ Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
 5. **`plex-watch` was live until Phase 7a.** It treated *any* `delete` or `moved_from` under
    `/mnt/data/streaming` as "deleted in Plex" and removed the matching native torrent **and
    its data**, so until then the arrs only *added* files. It's retired now, and moves are
-   safe. Still, **"Library Import", "Rename Files" or "Organize" on existing media happen
-   only as Phase 8 plans them.** pms-local is not modified by this migration; what the stack
-   needs from it is ported here (`arr-reclaim`).
+   safe, and Phase 8 used that to organise the whole library. pms-local is not modified by
+   this migration; what the stack needs from it is ported here (`arr-reclaim`).
 6. **Upgrades only in the 4K movie profile (`UHD Bluray + WEB`), and every size is capped**
    (1080p 40, 2160p 150 MB/min; `arr-configure.sh`). Everything else is single-grab.
 7. **Media is deleted in Plex, and that frees the space.** For Radarr/Sonarr imports,
@@ -868,7 +867,18 @@ Native Plex can be reinstalled from Plex's apt repository and restored from
 `/root/plexmediaserver-native.tgz`. That database stops at the Phase 1b cutover, so
 everything watched or added since then is only in the container's database.
 
-## Phase 8 — Library cleanup
+## Phase 8 — Library cleanup (done 2026-09-30)
+
+**As run:** 118 movies in 12 batches and 7 shows, with no failed title. `arr-reclaim` removed
+nothing, and nothing was grabbed. Three things came up, and the tool on the branch handles
+each one now:
+- **A subtitle Radarr had imported** with a new download (Days of Thunder) was on the
+  delete list. Folders Radarr already manages are now left alone.
+- **WeCrashed's folder already had Sonarr's name**, so its episodes were claimed in place
+  under their release names. `series` now ends with Sonarr's rename.
+- **Plex kept the featurette's old path as a missing second version.** Emptying the Movies
+  trash once (`PUT /library/sections/2/emptyTrash`) removed it. It now shows under Extras.
+
 
 Radarr and Sonarr take over the existing library, **unmonitored**. They move and rename
 it into their layout, and never download anything for it. Decided 2026-09-30:
