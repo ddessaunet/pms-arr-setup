@@ -111,8 +111,8 @@ services:
     restart: unless-stopped
 
   # ── Phase 4: Radarr + Sonarr ──────────────────────────────────────────────
-  # They manage the whole library: new content, and since Phase 8 the existing
-  # titles too, imported unmonitored so nothing is ever re-downloaded.
+  # They manage the whole library. Most titles are unmonitored, so they are
+  # never searched or upgraded.
   #
   # /mnt/data is ONE bind mount: they hardlink from torrents/ into streaming/,
   # and link() fails with EXDEV across two bind mounts on the same filesystem.

@@ -61,11 +61,10 @@ disappear. Confirm before anything destructive:
    profile): Prowlarr's full sync overwrites it on the Radarr/Sonarr indexers, so never set
    it there. A sync-profile edit does not push by itself; the script runs
    `ApplicationIndexerSync` after applying.
-8. **Radarr and Sonarr manage the whole library, mostly unmonitored.** Phase 8 imported
-   every existing title by Plex's own TMDb/TVDB match, unmonitored and with no search, so
-   they never download or upgrade those titles. Monitor one by hand to get it improved.
-   Everything is `Title (Year)/Title (Year).ext` or `Show/Season NN/Show - SNNEMM.ext`.
-   `photos/`, `videos/` and `music/` are Plex-only and not theirs.
+8. **Radarr and Sonarr manage the whole library; most of it is unmonitored.** Unmonitored
+   titles are never searched or upgraded; monitor one by hand to get it improved. Media is
+   `Title (Year)/Title (Year).ext` and `Show/Season NN/Show - SNNEMM.ext`. `photos/`,
+   `videos/` and `music/` are Plex-only and not theirs.
 9. **`arr-reclaim` removes a torrent only when all three hold:** Radarr/Sonarr imported it
    (its hash is in their import history, `eventType=3`, since the name is refused), every
    imported file is gone, and no other link remains. Don't loosen this to category
