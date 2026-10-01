@@ -214,6 +214,15 @@ else
     ok ":5055/tcp free"
 fi
 
+echo "── bazarr (:6767)"
+if container_running bazarr; then
+    ok "bazarr container running"
+elif ss -Hltn "sport = :6767" 2>/dev/null | grep -q .; then
+    fail ":6767/tcp is taken by something else — bazarr cannot start"
+else
+    ok ":6767/tcp free"
+fi
+
 # arr-reclaim.service watches the library with inotify, as plex-watch does.
 if command -v inotifywait >/dev/null; then ok "inotifywait present (arr-reclaim)"
 else fail "inotifywait missing — sudo apt install inotify-tools"; fi

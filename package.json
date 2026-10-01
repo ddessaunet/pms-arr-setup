@@ -38,6 +38,8 @@
     "reclaim:audit": "tools/arr-reclaim.sh --audit",
     "seerr:configure": "tools/seerr-configure.sh",
     "seerr:check": "tools/seerr-configure.sh --check",
+    "bazarr:configure": "tools/bazarr-configure.sh",
+    "bazarr:check": "tools/bazarr-configure.sh --check",
     "recyclarr:preview": "tools/recyclarr.sh sync --preview",
     "recyclarr:sync": "tools/recyclarr.sh sync"
   }

@@ -233,6 +233,35 @@ services:
     networks: [arr]
     restart: unless-stopped
 
+  # ── Phase 9: Bazarr (subtitles) ───────────────────────────────────────────
+  # Fetches Spanish and English subtitles for what Radarr and Sonarr manage and
+  # writes them beside the video (Title (Year).es.srt), where Plex reads them as
+  # local subtitles. Plex's own "Search subtitles" keeps working beside it: Plex
+  # saves those into its database under /config, never into the library.
+  #
+  # Only streaming/ is mounted, at its host path, so Radarr's and Sonarr's paths
+  # match with no path mapping. It never hardlinks, so it does not need the one
+  # /mnt/data mount the importers do, and it cannot touch seeding data.
+  # Plex (host network) is reached through the host gateway, to refresh a title
+  # after its subtitle lands.
+  #
+  # Its API key is its own, generated on first start into config/config.yaml;
+  # every setting is applied by tools/bazarr-configure.sh.
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    environment:
+      <<: *common-env
+    ports:
+      - "6767:6767"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/bazarr:/config
+      - /mnt/data/streaming:/mnt/data/streaming
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [arr]
+    restart: unless-stopped
+
 # Shared by the arr services from Phase 2 on, so they reach each other by
 # service name. Host-networked Plex is not on it.
 networks:
