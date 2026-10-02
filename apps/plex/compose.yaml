@@ -1,0 +1,36 @@
+# plex — the media server. Included by the root compose.yaml (project `pms`).
+#
+# Took over from native plexmediaserver in Phase 1b with a copy of its
+# database, so the server identity (f3860770…) and watch history carried over.
+# Phase 7b removed native Plex; its database is archived in /root, and the
+# unit stays masked.
+#
+# Host networking: same ports, GDM discovery and LAN detection as the native
+# server had.
+# The library is read-write because "Allow media deletion" needs it, and
+# arr-reclaim frees a torrent's space when its media is deleted in Plex.
+#
+# No GPU: the GTX 560 is too old for Plex's NVENC and there is no /dev/dri
+# render node, so transcoding is CPU — the same as native.
+#
+# Data is mounted at its HOST path (/mnt/data/..., not /data). That keeps the
+# Plex database's library paths valid across the move.
+
+services:
+  plex:
+    image: lscr.io/linuxserver/plex:latest
+    container_name: plex
+    network_mode: host
+    environment:
+      PUID: ${PUID:?set PUID in .env}
+      PGID: ${PGID:?set PGID in .env}
+      TZ: ${TZ:?set TZ in .env}
+      UMASK: "002"
+      VERSION: docker
+      # Only read on a first start with an empty /config (a fresh install):
+      # claims the new server to the account. Ignored once a config exists.
+      PLEX_CLAIM: ${PLEX_CLAIM:-}
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/plex:/config
+      - /mnt/data/streaming:/mnt/data/streaming
+    restart: unless-stopped

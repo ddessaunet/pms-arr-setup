@@ -1,0 +1,34 @@
+# bazarr — subtitles (Phase 9). Included by the root compose.yaml (project `pms`).
+#
+# Fetches Spanish and English subtitles for what Radarr and Sonarr manage and
+# writes them beside the video (Title (Year).es.srt), where Plex reads them as
+# local subtitles. Plex's own "Search subtitles" keeps working beside it: Plex
+# saves those into its database under /config, never into the library.
+#
+# Only streaming/ is mounted, at its host path, so Radarr's and Sonarr's paths
+# match with no path mapping. It never hardlinks, so it does not need the one
+# /mnt/data mount the importers do, and it cannot touch seeding data.
+# Plex (host network) is reached through the host gateway, to refresh a title
+# after its subtitle lands.
+#
+# Its API key is its own, generated on first start into config/config.yaml;
+# every setting is applied by apps/bazarr/configure.sh.
+
+services:
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    environment:
+      PUID: ${PUID:?set PUID in .env}
+      PGID: ${PGID:?set PGID in .env}
+      TZ: ${TZ:?set TZ in .env}
+      UMASK: "002"
+    ports:
+      - "6767:6767"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/bazarr:/config
+      - /mnt/data/streaming:/mnt/data/streaming
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [arr]
+    restart: unless-stopped

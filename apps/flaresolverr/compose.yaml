@@ -1,0 +1,16 @@
+# flaresolverr — Cloudflare challenge solver for Prowlarr (Phase 3). Included
+# by the root compose.yaml (project `pms`).
+#
+# Solves Cloudflare challenges for the indexers tagged `flare` (a headless
+# Chromium, the heavy part of that phase). Not published: only Prowlarr
+# talks to it, as flaresolverr:8191 on the arr network.
+
+services:
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      TZ: ${TZ:?set TZ in .env}
+      LOG_LEVEL: info
+    networks: [arr]
+    restart: unless-stopped

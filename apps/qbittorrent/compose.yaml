@@ -1,0 +1,38 @@
+# qbittorrent — the download client for Radarr/Sonarr (Phase 2). Included by
+# the root compose.yaml (project `pms`).
+#
+# The only qBittorrent since Phase 7a retired native qbittorrent-nox (:8080,
+# peer port 13761); it stays on :8081 / 13762. It has no hook — the arrs
+# import from it over its API.
+#
+# /mnt/data is ONE bind mount on purpose: Radarr and Sonarr hardlink from
+# torrents/ into streaming/, and link() fails with EXDEV across two bind
+# mounts even on the same filesystem. It is mounted at its host path, so
+# .fastresume paths stay valid.
+#
+# UMASK 002: group-writable files, as native qbittorrent-nox's UMask=002: the
+# library and the torrent tree are shared through the media group (setgid dirs).
+#
+# Settings (paths, categories, port, host header domains) are applied by
+# apps/qbittorrent/configure.sh, not clicked in the WebUI.
+
+services:
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    environment:
+      PUID: ${PUID:?set PUID in .env}
+      PGID: ${PGID:?set PGID in .env}
+      TZ: ${TZ:?set TZ in .env}
+      UMASK: "002"
+      WEBUI_PORT: 8081
+      TORRENTING_PORT: 13762
+    ports:
+      - "8081:8081"
+      - "13762:13762"
+      - "13762:13762/udp"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/qbittorrent:/config
+      - /mnt/data:/mnt/data
+    networks: [arr]
+    restart: unless-stopped

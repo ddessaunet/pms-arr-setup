@@ -1,0 +1,20 @@
+version: '3'
+
+# arr-reclaim — see README.md. The watcher runs as arr-reclaim.service, from
+# the main clone; `task deploy` installs and restarts it.
+
+tasks:
+  audit:
+    desc: What arr-reclaim would remove right now (changes nothing)
+    cmds:
+      - ./arr-reclaim.sh --audit
+
+  status:
+    desc: The watcher's unit state
+    cmds:
+      - systemctl status arr-reclaim.service --no-pager
+
+  logs:
+    desc: Follow the watcher's journal
+    cmds:
+      - journalctl -u arr-reclaim.service -f -n 100

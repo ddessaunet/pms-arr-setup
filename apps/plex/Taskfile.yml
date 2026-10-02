@@ -1,0 +1,8 @@
+version: '3'
+
+# plex — see README.md. Its tasks come from the templates in
+# stack/taskfiles/; SERVICE is the compose service they act on.
+
+includes:
+  service:  { taskfile: ../../stack/taskfiles/service.yml, flatten: true, vars: { SERVICE: plex } }
+  update:   { taskfile: ../../stack/taskfiles/update.yml, flatten: true, vars: { SERVICE: plex } }

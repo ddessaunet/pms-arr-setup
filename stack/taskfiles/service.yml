@@ -1,0 +1,33 @@
+version: '3'
+
+# The verbs every long-running app gets. Each apps/<app>/Taskfile.yml includes
+# this with `flatten: true` and SERVICE set on the include — never as a
+# top-level var, which go-task shares between includes.
+#
+# Compose always runs at the repo root, where compose.yaml and .env are: run
+# inside apps/<app>/ it would find only that app's file and no .env.
+
+tasks:
+  logs:
+    desc: Follow {{.SERVICE}}'s logs
+    dir: '{{.ROOT_DIR}}'
+    requires: { vars: [SERVICE] }
+    cmds:
+      - docker compose logs -f --tail 100 {{.SERVICE}}
+
+  ps:
+    desc: Show {{.SERVICE}}'s container
+    dir: '{{.ROOT_DIR}}'
+    requires: { vars: [SERVICE] }
+    cmds:
+      - docker compose ps {{.SERVICE}}
+
+  up:
+    desc: Create or recreate {{.SERVICE}} from its compose.yaml (applies compose edits; main clone only)
+    dir: '{{.ROOT_DIR}}'
+    requires: { vars: [SERVICE] }
+    preconditions:
+      - sh: stack/main-clone.sh
+        msg: Run it from the main clone.
+    cmds:
+      - docker compose up -d {{.SERVICE}}

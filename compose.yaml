@@ -1,269 +1,39 @@
 # pms-arr-setup — the containerized media stack.
 #
-# Services are added phase by phase; docs/phases.md is the runbook. State lives in ${APPDATA} (on /), never in
-# this repo and never on /mnt/data.
+# One folder per app: each apps/<app>/compose.yaml holds that service and its
+# comments, and this file only pulls them together. docs/phases.md is the
+# runbook. State lives in ${APPDATA} (on /), never in this repo and never on
+# /mnt/data.
+#
+# Variables come from the .env beside THIS file: compose loads it for the
+# project and passes it to every include. Never put a .env in apps/<app>/.
+# A relative bind in an app's compose.yaml (./config.yaml) resolves against
+# that app's folder.
 #
 # Data is mounted at its HOST path (/mnt/data/..., not /data). That keeps the
 # Plex database's library paths and qBittorrent's .fastresume paths valid
 # across the move. See docs/phases.md → "Rules that span phases".
+#
+# The project name is fixed: compose run from ANY checkout of this repo,
+# worktrees included, acts on the live containers. Change the stack from the
+# main clone only (the Taskfile refuses elsewhere).
 
 name: pms
 
-x-common-env: &common-env
-  PUID: ${PUID:?set PUID in .env}
-  PGID: ${PGID:?set PGID in .env}
-  TZ: ${TZ:?set TZ in .env}
-  # Group-writable files, as native qbittorrent-nox's UMask=002: the library
-  # and the torrent tree are shared through the media group (setgid dirs).
-  UMASK: "002"
+include:
+  - apps/plex/compose.yaml
+  - apps/qbittorrent/compose.yaml
+  - apps/prowlarr/compose.yaml
+  - apps/flaresolverr/compose.yaml
+  - apps/radarr/compose.yaml
+  - apps/sonarr/compose.yaml
+  - apps/seerr/compose.yaml
+  - apps/recyclarr/compose.yaml
+  - apps/decluttarr/compose.yaml
+  - apps/bazarr/compose.yaml
 
-services:
-
-  # ── Plex ───────────────────────────────────────────────────────────────────
-  # Took over from native plexmediaserver in Phase 1b with a copy of its
-  # database, so the server identity (f3860770…) and watch history carried over.
-  # Phase 7b removed native Plex; its database is archived in /root, and the
-  # unit stays masked.
-  #
-  # Host networking: same ports, GDM discovery and LAN detection as the native
-  # server had.
-  # The library is read-write because "Allow media deletion" needs it, and
-  # arr-reclaim frees a torrent's space when its media is deleted in Plex.
-  #
-  # No GPU: the GTX 560 is too old for Plex's NVENC and there is no /dev/dri
-  # render node, so transcoding is CPU — the same as native.
-  plex:
-    image: lscr.io/linuxserver/plex:latest
-    container_name: plex
-    network_mode: host
-    environment:
-      <<: *common-env
-      VERSION: docker
-      # Only read on a first start with an empty /config (a fresh install):
-      # claims the new server to the account. Ignored once a config exists.
-      PLEX_CLAIM: ${PLEX_CLAIM:-}
-    volumes:
-      - ${APPDATA:?set APPDATA in .env}/plex:/config
-      - /mnt/data/streaming:/mnt/data/streaming
-    restart: unless-stopped
-
-  # ── Phase 2: qBittorrent (for Radarr/Sonarr) ───────────────────────────────
-  # The only qBittorrent since Phase 7a retired native qbittorrent-nox (:8080,
-  # peer port 13761); it stays on :8081 / 13762. It has no hook — the arrs
-  # import from it over its API.
-  #
-  # /mnt/data is ONE bind mount on purpose: Radarr and Sonarr hardlink from
-  # torrents/ into streaming/, and link() fails with EXDEV across two bind
-  # mounts even on the same filesystem.
-  #
-  # Settings (paths, categories, port, host header domains) are applied by
-  # tools/qbt-configure.sh, not clicked in the WebUI.
-  qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:latest
-    container_name: qbittorrent
-    environment:
-      <<: *common-env
-      WEBUI_PORT: 8081
-      TORRENTING_PORT: 13762
-    ports:
-      - "8081:8081"
-      - "13762:13762"
-      - "13762:13762/udp"
-    volumes:
-      - ${APPDATA:?set APPDATA in .env}/qbittorrent:/config
-      - /mnt/data:/mnt/data
-    networks: [arr]
-    restart: unless-stopped
-
-  # ── Phase 3: Prowlarr + FlareSolverr ───────────────────────────────────────
-  # Prowlarr manages the indexers and, from Phase 4, pushes them to Radarr and
-  # Sonarr. It only searches: no media mounts at all.
-  #
-  # The API key and auth mode come from .env, so the key is known before the
-  # first start and Phase 4 can use it without copying it out of the UI. The
-  # login, FlareSolverr proxy and indexers are applied by
-  # tools/prowlarr-configure.sh, not clicked in the WebUI.
-  prowlarr:
-    image: lscr.io/linuxserver/prowlarr:latest
-    container_name: prowlarr
-    environment:
-      <<: *common-env
-      PROWLARR__AUTH__APIKEY: ${PROWLARR_API_KEY:?set PROWLARR_API_KEY in .env}
-      PROWLARR__AUTH__METHOD: Forms
-      PROWLARR__AUTH__REQUIRED: DisabledForLocalAddresses
-    ports:
-      - "9696:9696"
-    volumes:
-      - ${APPDATA:?set APPDATA in .env}/prowlarr:/config
-    networks: [arr]
-    restart: unless-stopped
-
-  # Solves Cloudflare challenges for the indexers tagged `flare` (a headless
-  # Chromium, the heavy part of this phase). Not published: only Prowlarr
-  # talks to it, as flaresolverr:8191 on the arr network.
-  flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:latest
-    container_name: flaresolverr
-    environment:
-      TZ: ${TZ:?set TZ in .env}
-      LOG_LEVEL: info
-    networks: [arr]
-    restart: unless-stopped
-
-  # ── Phase 4: Radarr + Sonarr ──────────────────────────────────────────────
-  # They manage the whole library. Most titles are unmonitored, so they are
-  # never searched or upgraded.
-  #
-  # /mnt/data is ONE bind mount: they hardlink from torrents/ into streaming/,
-  # and link() fails with EXDEV across two bind mounts on the same filesystem.
-  # Plex is host-networked, so they reach it through the host gateway.
-  #
-  # API keys from .env (fixed before first start, pushed to by Prowlarr); every
-  # other setting is applied by tools/arr-configure.sh. Space of a download
-  # deleted in Plex is reclaimed by tools/arr-reclaim.sh (arr-reclaim.service).
-  radarr:
-    image: lscr.io/linuxserver/radarr:latest
-    container_name: radarr
-    environment:
-      <<: *common-env
-      RADARR__AUTH__APIKEY: ${RADARR_API_KEY:?set RADARR_API_KEY in .env}
-      RADARR__AUTH__METHOD: Forms
-      RADARR__AUTH__REQUIRED: DisabledForLocalAddresses
-    ports:
-      - "7878:7878"
-    volumes:
-      - ${APPDATA:?set APPDATA in .env}/radarr:/config
-      - /mnt/data:/mnt/data
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks: [arr]
-    restart: unless-stopped
-
-  sonarr:
-    image: lscr.io/linuxserver/sonarr:latest
-    container_name: sonarr
-    environment:
-      <<: *common-env
-      SONARR__AUTH__APIKEY: ${SONARR_API_KEY:?set SONARR_API_KEY in .env}
-      SONARR__AUTH__METHOD: Forms
-      SONARR__AUTH__REQUIRED: DisabledForLocalAddresses
-    ports:
-      - "8989:8989"
-    volumes:
-      - ${APPDATA:?set APPDATA in .env}/sonarr:/config
-      - /mnt/data:/mnt/data
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks: [arr]
-    restart: unless-stopped
-
-  # ── Phase 5: Seerr (requests) ─────────────────────────────────────────────
-  # The request UI in front of Radarr and Sonarr (the merged successor of
-  # Jellyseerr/Overseerr). It only files requests — no media mounts. A request
-  # becomes an ordinary Radarr/Sonarr add, so Phase 4's rules apply to it.
-  #
-  # Its API key is its own, generated on first start into its settings.json.
-  # First run: sign in with Plex in the browser once; tools/seerr-configure.sh
-  # does the rest of the setup wizard.
-  seerr:
-    image: ghcr.io/seerr-team/seerr:latest
-    container_name: seerr
-    init: true
-    environment:
-      TZ: ${TZ:?set TZ in .env}
-      LOG_LEVEL: info
-      PORT: 5055
-    ports:
-      - "5055:5055"
-    volumes:
-      - ${APPDATA:?set APPDATA in .env}/seerr:/app/config
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks: [arr]
-    restart: unless-stopped
-
-  # ── Phase 6: Recyclarr (on demand) ────────────────────────────────────────
-  # Syncs TRaSH's quality profiles and custom formats from recyclarr/recyclarr.yml
-  # into Radarr and Sonarr. Profile `tools`: never started by `npm start`; run it
-  # with `npm run recyclarr:preview` / `recyclarr:sync` (a one-shot container).
-  recyclarr:
-    profiles: [tools]
-    image: ghcr.io/recyclarr/recyclarr:8
-    container_name: recyclarr
-    user: "${PUID:?set PUID in .env}:${PGID:?set PGID in .env}"
-    environment:
-      TZ: ${TZ:?set TZ in .env}
-      RADARR_API_KEY: ${RADARR_API_KEY:?set RADARR_API_KEY in .env}
-      SONARR_API_KEY: ${SONARR_API_KEY:?set SONARR_API_KEY in .env}
-    volumes:
-      - ${APPDATA:?set APPDATA in .env}/recyclarr:/config
-      - ./recyclarr/recyclarr.yml:/config/recyclarr.yml:ro
-    networks: [arr]
-
-  # ── Download health: Decluttarr ───────────────────────────────────────────
-  # Replaces a download that stalls or crawls: removes it from qBittorrent,
-  # blocklists that release in Radarr/Sonarr, and has them search for another.
-  # Only the queue (not-yet-imported downloads) is touched; which jobs run is
-  # decluttarr/config.yaml, mounted read-only. Secrets reach it through !ENV.
-  #
-  # No media or torrent mounts, on purpose: its detect_deletions watcher starts
-  # even when that job is not listed (v2.1.0), and it can only watch paths it
-  # sees. It removes torrents through the qBittorrent API, so it needs none.
-  #
-  # Pinned: v1 → v2 changed the config format, and a silent major bump would
-  # change what gets removed. Not in UPDATE_SERVICES for the same reason;
-  # bump the tag by hand after reading its release notes.
-  #
-  # First start in test mode, then for real (docs/phases.md → Download health):
-  #   DECLUTTARR_TEST_RUN=true docker compose up -d decluttarr
-  decluttarr:
-    image: ghcr.io/manimatter/decluttarr:v2.1.0
-    container_name: decluttarr
-    environment:
-      TZ: ${TZ:?set TZ in .env}
-      PUID: ${PUID:?set PUID in .env}
-      PGID: ${PGID:?set PGID in .env}
-      DECLUTTARR_TEST_RUN: ${DECLUTTARR_TEST_RUN:-false}
-      RADARR_API_KEY: ${RADARR_API_KEY:?set RADARR_API_KEY in .env}
-      SONARR_API_KEY: ${SONARR_API_KEY:?set SONARR_API_KEY in .env}
-      QBT_ARR_USER: ${QBT_ARR_USER:?set QBT_ARR_USER in .env}
-      QBT_ARR_PASS: ${QBT_ARR_PASS:?set QBT_ARR_PASS in .env}
-    volumes:
-      - ./decluttarr/config.yaml:/app/config/config.yaml:ro
-    networks: [arr]
-    restart: unless-stopped
-
-  # ── Phase 9: Bazarr (subtitles) ───────────────────────────────────────────
-  # Fetches Spanish and English subtitles for what Radarr and Sonarr manage and
-  # writes them beside the video (Title (Year).es.srt), where Plex reads them as
-  # local subtitles. Plex's own "Search subtitles" keeps working beside it: Plex
-  # saves those into its database under /config, never into the library.
-  #
-  # Only streaming/ is mounted, at its host path, so Radarr's and Sonarr's paths
-  # match with no path mapping. It never hardlinks, so it does not need the one
-  # /mnt/data mount the importers do, and it cannot touch seeding data.
-  # Plex (host network) is reached through the host gateway, to refresh a title
-  # after its subtitle lands.
-  #
-  # Its API key is its own, generated on first start into config/config.yaml;
-  # every setting is applied by tools/bazarr-configure.sh.
-  bazarr:
-    image: lscr.io/linuxserver/bazarr:latest
-    container_name: bazarr
-    environment:
-      <<: *common-env
-    ports:
-      - "6767:6767"
-    volumes:
-      - ${APPDATA:?set APPDATA in .env}/bazarr:/config
-      - /mnt/data/streaming:/mnt/data/streaming
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks: [arr]
-    restart: unless-stopped
-
-# Shared by the arr services from Phase 2 on, so they reach each other by
-# service name. Host-networked Plex is not on it.
+# Shared by every service but Plex, so they reach each other by service name.
+# Declared here only; the apps reference it. Host-networked Plex is not on it.
 networks:
   arr:
     name: arr

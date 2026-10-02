@@ -25,7 +25,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 8 — library cleanup (2026-09-30; one-off for this box, so not kept in the repo)
 - [x] Phase 9 — Bazarr: Spanish + English subtitles beside the media (2026-10-01: Days of Thunder `.es.srt` beside the video, Plex lists it, hardlink kept, reclaim audit removes nothing)
 
-Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
+Run `stack/preflight.sh` before each of Phases 0–1b. It is read-only.
 
 ---
 
@@ -72,7 +72,7 @@ sudo install -d -o 1000 -g 1001 /opt/appdata
 ```
 
 ```bash
-tools/preflight.sh 0
+stack/preflight.sh 0
 ```
 
 **Verify:** preflight passes. The hardlink check (same filesystem) is the one that matters.
@@ -118,7 +118,7 @@ Native `plexmediaserver` stayed installed and masked, with its database untouche
 `/root/plexmediaserver-native.tgz`, and the mask stays.
 
 **Still to do once:**
-- Arm the container updater with `npm run update:dry`, then `npm run deploy`. It's armed
+- Arm the container updater with `task update:dry`, then `task deploy`. It's armed
   only while native Plex is masked. See [Updating](updating.md).
 - Remove "PMS shadow" from plex.tv → Authorized Devices, then run
   `rm -rf /opt/appdata/plex-shadow`.
@@ -137,7 +137,7 @@ Then swap the updaters. Both deploys read the mask, so re-running each one puts 
 right:
 
 ```bash
-npm run deploy
+task deploy
 ```
 
 ```bash
@@ -169,11 +169,11 @@ pms-local's `plex-reconcile` only ever sees the native instance.
    $EDITOR .env                      # QBT_ARR_USER= and QBT_ARR_PASS=
    ```
 
-2. Start it. `npm start` runs the preflight first, which checks `:8081`, `:13762/tcp` and
+2. Start it. `task start` runs the preflight first, which checks `:8081`, `:13762/tcp` and
    `:13762/udp` are free.
 
    ```bash
-   npm start
+   task start
    ```
 
    > This also recreates `plex` once (about 20 s), picking up the `PLEX_CLAIM` and `UMASK`
@@ -185,16 +185,16 @@ pms-local's `plex-reconcile` only ever sees the native instance.
    host-header domains, and reads everything back:
 
    ```bash
-   npm run qbt:configure
+   task qbittorrent:configure
    ```
 
    The settings themselves are data at the top of
-   [`tools/qbt-configure.sh`](../tools/qbt-configure.sh). `npm run qbt:check` reports drift
+   [`apps/qbittorrent/configure.sh`](../apps/qbittorrent/configure.sh). `task qbittorrent:check` reports drift
    and changes nothing.
 
 **Verify**
 
-- `npm run qbt:check` exits 0, and running `qbt:configure` again changes nothing.
+- `task qbittorrent:check` exits 0, and running `task qbittorrent:configure` again changes nothing.
 - A small legal test torrent added with category `radarr` downloads into
   `/mnt/data/torrents/.incomplete-arr/`, then lands in `/mnt/data/torrents/radarr/`. It's
   owned `dario:media` and group-writable.
@@ -207,7 +207,7 @@ pms-local's `plex-reconcile` only ever sees the native instance.
 
   It prints `2 links`. Then delete the test torrent with its files.
 - Native is untouched: `qbittorrent-nox` is active and `:8080` lists the same torrents.
-- `npm run update:dry` covers it (`UPDATE_SERVICES=plex qbittorrent`).
+- `task update:dry` covers it (`UPDATE_SERVICES=plex qbittorrent`).
 
 **Rollback**
 
@@ -238,7 +238,7 @@ and nothing native changes, so this is the lowest-risk phase.
 - **Indexers:** 1337x, The Pirate Bay, LimeTorrents, Knaben, YTS and EZTV. **1337x and EZTV
   go through FlareSolverr.** Both passed a test once, then hit a Cloudflare challenge, and
   pass through it. The list, and which ones use FlareSolverr, is data at the top of
-  [`tools/prowlarr-configure.sh`](../tools/prowlarr-configure.sh).
+  [`apps/prowlarr/configure.sh`](../apps/prowlarr/configure.sh).
 
 **Do**
 
@@ -253,7 +253,7 @@ and nothing native changes, so this is the lowest-risk phase.
    running as they are.
 
    ```bash
-   npm start
+   task start
    ```
 
 3. Apply the login, the FlareSolverr proxy and the indexers. It reads everything back and
@@ -261,7 +261,7 @@ and nothing native changes, so this is the lowest-risk phase.
    15–20 s.
 
    ```bash
-   npm run prowlarr:configure
+   task prowlarr:configure
    ```
 
    An indexer that fails its test is reported as `FAILING` but doesn't fail the run, because
@@ -270,7 +270,7 @@ and nothing native changes, so this is the lowest-risk phase.
 
 **Verify**
 
-- `npm run prowlarr:check` exits 0, and running `prowlarr:configure` again changes nothing.
+- `task prowlarr:check` exits 0, and running `prowlarr:configure` again changes nothing.
 - A search returns results through a FlareSolverr indexer and a direct one: search a known
   title in the WebUI (Search), or:
 
@@ -279,7 +279,7 @@ and nothing native changes, so this is the lowest-risk phase.
   ```
 
 - Nothing else touched: `plex` and `qbittorrent` weren't recreated, and `plex-watch` is quiet.
-- `npm run update:dry` covers both (`UPDATE_SERVICES=… prowlarr flaresolverr`).
+- `task update:dry` covers both (`UPDATE_SERVICES=… prowlarr flaresolverr`).
 
 **Rollback**
 
@@ -315,7 +315,7 @@ which `plex-watch` read as deletions (rule 5) until Phase 7a.
 | indexers | pushed by Prowlarr (full sync); not configured here |
 | Plex | refreshed on import and delete, through `host.docker.internal:32400` |
 
-**How `arr-reclaim` decides.** `tools/arr-reclaim.sh`, run by `arr-reclaim.service`, ports
+**How `arr-reclaim` decides.** `jobs/arr-reclaim/arr-reclaim.sh`, run by `arr-reclaim.service`, ports
 pms-local's `plex-watch` + reconcile to the `:8081` instance. It watches the library with
 inotify and waits 60 s of quiet after a burst of deletions. It then removes a torrent **only
 when all three are true**:
@@ -341,45 +341,45 @@ torrent, rightly: the library still links it.
    there. Then run the preflight:
 
    ```bash
-   tools/preflight.sh
+   stack/preflight.sh
    ```
 
 2. Start them. Only `radarr` and `sonarr` are created.
 
    ```bash
-   npm start
+   task start
    ```
 
 3. Configure. These are idempotent, and each ends with a read-back:
 
    ```bash
-   npm run qbt:configure
+   task qbittorrent:configure
    ```
 
    ```bash
-   npm run arr:configure
+   task arr:configure
    ```
 
    ```bash
-   npm run prowlarr:configure
+   task prowlarr:configure
    ```
 
-   - `qbt:configure` sets the seeding limits.
+   - `task qbittorrent:configure` sets the seeding limits.
    - `arr:configure` restarts each app once to activate its allowed hosts.
    - `prowlarr:configure` adds Radarr and Sonarr as applications and pushes the indexers.
 
 4. Install and start the `arr-reclaim` watcher (with the updater units):
 
    ```bash
-   npm run deploy
+   task deploy
    ```
 
 **Verify**
 
-- `npm run arr:check` and `npm run prowlarr:check` show no drift. The download client and
+- `task arr:check` and `task prowlarr:check` show no drift. The download client and
   Plex tests pass, and both apps list their synced indexers.
-- `npm run check` shows `arr-reclaim.service` enabled and running, and
-  `npm run reclaim:audit` has nothing to do.
+- `task deploy:check` shows `arr-reclaim.service` enabled and running, and
+  `task arr-reclaim:audit` has nothing to do.
 - **End to end:** add *Night of the Living Dead (1968)* (public domain) in Radarr, 1080p,
   monitored, and search.
   - It downloads under category `radarr`, and imports as
@@ -432,7 +432,7 @@ upgrades, unmonitor on delete, and `arr-reclaim` freeing the space of a Plex del
 1. Start it. Only `seerr` is created:
 
    ```bash
-   npm start
+   task start
    ```
 
 2. **Sign in with Plex once**, in a browser: open `http://192.168.0.86:5055` and choose
@@ -446,7 +446,7 @@ upgrades, unmonitor on delete, and `arr-reclaim` freeing the space of a Plex del
    - marks the wizard finished and starts a full Plex scan
 
    ```bash
-   npm run seerr:configure
+   task seerr:configure
    ```
 
    Its key is Seerr's own, read from `/opt/appdata/seerr/settings.json`; nothing goes in
@@ -454,7 +454,7 @@ upgrades, unmonitor on delete, and `arr-reclaim` freeing the space of a Plex del
 
 **Verify**
 
-- `npm run seerr:check` exits 0:
+- `task seerr:check` exits 0:
   - Plex is `f3860770…` (the same server as Phase 1b)
   - Movies and TV Shows are the enabled libraries
   - both server tests pass at HD-1080p
@@ -492,7 +492,7 @@ because many have no 4K release. Decided 2026-09-29, with these parameters:
 | upgrades | **on**, to a better-scored 4K release | off |
 
 **Who owns what,** so no two tools fight:
-- **Recyclarr** (`recyclarr/recyclarr.yml`): those two profiles, the hand-picked
+- **Recyclarr** (`apps/recyclarr/recyclarr.yml`): those two profiles, the hand-picked
   `UHD Fallback` (below), and their custom formats.
 - **`arr-configure.sh`:** sizes (Recyclarr's `quality_definition` is deliberately left out),
   and upgrades off on every other profile.
@@ -520,7 +520,7 @@ default. It has the same 2160p group and size cap, with no Remux and no upgrades
 It still rejects files that are broken or fake (disc images, 3D, upscales, generated HDR,
 DV without fallback). To get a better copy later, switch the film back to
 `UHD Bluray + WEB`. Its upgrades replace the file, and `arr-reclaim` removes the old torrent.
-`npm run recyclarr:sync` creates it, and `npm run arr:check` then lists it as existing with
+`task recyclarr:sync` creates it, and `task arr:check` then lists it as existing with
 no Remux. The weekly search (Phase 6b) never looks at it.
 
 **Do**
@@ -528,7 +528,7 @@ no Remux. The weekly search (Phase 6b) never looks at it.
 1. **Preview.** This changes nothing:
 
    ```bash
-   npm run recyclarr:preview
+   task recyclarr:preview
    ```
 
    It should list both profiles and their custom formats, and **no quality definitions**.
@@ -538,15 +538,15 @@ no Remux. The weekly search (Phase 6b) never looks at it.
 2. **Apply,** in this order. Each step needs the one before it:
 
    ```bash
-   npm run recyclarr:sync
+   task recyclarr:sync
    ```
 
    ```bash
-   npm run arr:configure
+   task arr:configure
    ```
 
    ```bash
-   npm run seerr:configure
+   task seerr:configure
    ```
 
    `recyclarr:sync` creates the profiles. `arr:configure` then applies the 2160p caps and
@@ -554,11 +554,11 @@ no Remux. The weekly search (Phase 6b) never looks at it.
 
 **Verify**
 
-- `npm run arr:check`:
+- `task arr:check`:
   - Radarr: 2160p capped at 150/100, 1080p at 40/25; upgrades only on `UHD Bluray + WEB`
     (and `4K HDR or 1080p` after Phase 6b); the default profile exists with no Remux.
   - Sonarr: `WEB-1080p`, no upgrades; 1080p sizes with no max, 25 preferred.
-- `npm run seerr:check`: default profiles `UHD Bluray + WEB` and `WEB-1080p`.
+- `task seerr:check`: default profiles `UHD Bluray + WEB` and `WEB-1080p`.
 - Existing movies keep their profile.
 - **End to end:** request a film with 4K HDR releases, after a size check as before.
   - Radarr grabs a **2160p HDR** release within 150 MB/min × runtime.
@@ -573,7 +573,7 @@ no Remux. The weekly search (Phase 6b) never looks at it.
 - Delete the `UHD Bluray + WEB` and `WEB-1080p` profiles in Radarr and Sonarr. Recyclarr
   only ever wrote profiles and custom formats.
 - Set `default_profile` in `arr-configure.sh` and `profile_name` in `seerr-configure.sh`
-  back to `HD-1080p`, then re-run `npm run arr:configure` and `npm run seerr:configure`.
+  back to `HD-1080p`, then re-run `task arr:configure` and `task seerr:configure`.
 
 ---
 
@@ -587,10 +587,10 @@ scheduled search for missing movies. Decided 2026-10-02:
 
 | | what | owned by |
 |---|---|---|
-| profile | **`4K HDR or 1080p`**: the same TRaSH profile and scores as `UHD Bluray + WEB`, with a 1080p group (Bluray, WEB-DL, WEBRip) under the 4K one. Upgrades on, until 4K. No 720p, no Remux. 1080p x265 without HDR is rejected, as TRaSH intends | `recyclarr/recyclarr.yml` (a profile variant, Recyclarr ≥ 8.3) |
+| profile | **`4K HDR or 1080p`**: the same TRaSH profile and scores as `UHD Bluray + WEB`, with a 1080p group (Bluray, WEB-DL, WEBRip) under the 4K one. Upgrades on, until 4K. No 720p, no Remux. 1080p x265 without HDR is rejected, as TRaSH intends | `apps/recyclarr/recyclarr.yml` (a profile variant, Recyclarr ≥ 8.3) |
 | upgrades / no Remux | both 4K movie profiles | `arr-configure.sh` |
 | default | **unchanged**: requests default to `UHD Bluray + WEB`. Pick the variant per request in Seerr's request options (admin) | `seerr-configure.sh` |
-| re-search | **daily, 04:00**: the variant's monitored, released movies without a 4K file (1080p, or none) get one Radarr search. Movies already in 4K are left to RSS | `tools/arr-fallback-search.sh`, `arr-fallback-search.timer` |
+| re-search | **daily, 04:00**: the variant's monitored, released movies without a 4K file (1080p, or none) get one Radarr search. Movies already in 4K are left to RSS | `jobs/arr-fallback-search/arr-fallback-search.sh`, `arr-fallback-search.timer` |
 
 **What happens to a request.**
 - With a 4K HDR release, the variant takes it, as the default profile would.
@@ -603,7 +603,7 @@ scheduled search for missing movies. Decided 2026-10-02:
 
 **A movie already in Radarr** (for example a 4K request that is still waiting): set its
 profile to `4K HDR or 1080p` in Radarr, then *Search Movie*, or run
-`npm run arr:fallback-search`.
+`task arr-fallback-search:run`.
 
 **Do**
 
@@ -611,42 +611,42 @@ profile to `4K HDR or 1080p` in Radarr, then *Search Movie*, or run
    `UHD Bluray + WEB`, and no change to any other profile or custom format:
 
    ```bash
-   npm run recyclarr:preview
+   task recyclarr:preview
    ```
 
 2. **Apply,** in this order:
 
    ```bash
-   npm run recyclarr:sync
+   task recyclarr:sync
    ```
 
    ```bash
-   npm run arr:configure
+   task arr:configure
    ```
 
 3. **Arm the daily search** from the main clone, after the merge. It needs sudo, so it's
    yours to run:
 
    ```bash
-   npm run deploy
+   task deploy
    ```
 
 **Verify**
 
-- `npm run arr:check`: upgrades only on `UHD Bluray + WEB, 4K HDR or 1080p`; both exist
+- `task arr:check`: upgrades only on `UHD Bluray + WEB, 4K HDR or 1080p`; both exist
   with no Remux.
-- `npm run seerr:check`: the default is still `UHD Bluray + WEB`.
-- `npm run check`: `arr-fallback-search.timer` armed; `npm run status` shows its next run.
+- `task seerr:check`: the default is still `UHD Bluray + WEB`.
+- `task deploy:check`: `arr-fallback-search.timer` armed; `task status` shows its next run.
 - **End to end:** request a film with no 4K HDR release in Seerr, with `4K HDR or 1080p`
   in the request's options.
   - Radarr grabs a 1080p release within 40 MB/min × runtime.
   - Hardlinked import, then Available.
-  - `npm run arr:fallback-search:dry` lists it.
+  - `task arr-fallback-search:dry` lists it.
 
 **Done 2026-10-02 with *Cosmic Sin* (2021),** whose only 4K releases are SDR YTS encodes:
 - **The search when it was added grabbed nothing.** 1337x, which has the only usable
   releases, answered with 0 results, and 30 a minute later.
-- **`npm run arr:fallback-search` grabbed** a 1080p Bluray listed with 52 seeders that had
+- **`task arr-fallback-search:run` grabbed** a 1080p Bluray listed with 52 seeders that had
   no peers. Decluttarr's `remove_metadata_missing` replaced it about 40 minutes later with
   a 1080p WEBRip (1.8 GB, 1,742 seeders).
 - **Import:** hardlinked, 2 links; then Available in Seerr.
@@ -656,9 +656,9 @@ profile to `4K HDR or 1080p` in Radarr, then *Search Movie*, or run
 
 - Move any movies on `4K HDR or 1080p` to another profile, since Radarr won't delete a
   profile in use. Then delete the profile in Radarr.
-- Remove its entry from `recyclarr/recyclarr.yml` and `upgrade_profiles` in
+- Remove its entry from `apps/recyclarr/recyclarr.yml` and `upgrade_profiles` in
   `arr-configure.sh`.
-- Remove the timer from `tools/deploy.sh`, then
+- Remove the timer from `stack/deploy.sh`, then
   `sudo systemctl disable --now arr-fallback-search.timer`.
 
 ---
@@ -681,8 +681,8 @@ Why that release was picked (a `/release` search, 2026-09-29):
 | | what | owned by |
 |---|---|---|
 | seeder floor | **minimum 5 seeders** on every Radarr/Sonarr indexer, pushed from Prowlarr's sync profile | `prowlarr-configure.sh` (`MIN_SEEDERS`) |
-| 4K ranking | Bluray-2160p, WEB-DL-2160p and WEBRip-2160p in **one group**, so score (TRaSH's release-group tiers) decides; tiered groups are the well-seeded ones | `recyclarr/recyclarr.yml` |
-| replacement | **Decluttarr**: a queued download stalled (no connections), under **500 KB/s**, or stuck on metadata for 3 checks in a row, 10 min apart, is removed, blocklisted, and searched again (~30–40 min) | `decluttarr/config.yaml` |
+| 4K ranking | Bluray-2160p, WEB-DL-2160p and WEBRip-2160p in **one group**, so score (TRaSH's release-group tiers) decides; tiered groups are the well-seeded ones | `apps/recyclarr/recyclarr.yml` |
+| replacement | **Decluttarr**: a queued download stalled (no connections), under **500 KB/s**, or stuck on metadata for 3 checks in a row, 10 min apart, is removed, blocklisted, and searched again (~30–40 min) | `apps/decluttarr/config.yaml` |
 | qBittorrent | global download limit **64 MiB/s** (~537 Mbit/s, just under the 600 Mbit/s line; first set at 5 MiB/s from a wrong ~50 Mbit/s estimate, corrected 2026-09-30), so Decluttarr's slow check pauses while the line is busy rather than blaming a swarm; a stalled download no longer holds one of the 3 active slots | `qbt-configure.sh` |
 
 **What Decluttarr never does.** It works on the Radarr/Sonarr **queue** only, i.e. downloads
@@ -690,7 +690,7 @@ not yet imported, so an imported torrent that is seeding is never touched. A rem
 download was never imported, so it never reaches `arr-reclaim`'s import history
 (CLAUDE.md trap 9). A replaced *upgrade* leaves the old library file where it is. Only
 three jobs are listed, because listing a job turns it on; `remove_orphans` and
-`remove_unmonitored` would delete seeding torrents or upgrades. `tests/decluttarr-config.test.sh`
+`remove_unmonitored` would delete seeding torrents or upgrades. `apps/decluttarr/config.test.sh`
 pins that list.
 
 **Do**
@@ -699,33 +699,33 @@ pins that list.
    its qualities becoming one `UHD 2160p` group and "Upgrade Until Quality" following it:
 
    ```bash
-   npm run recyclarr:preview
+   task recyclarr:preview
    ```
 
    Then apply, in the Phase 6 order:
 
    ```bash
-   npm run recyclarr:sync
+   task recyclarr:sync
    ```
 
    ```bash
-   npm run arr:configure
+   task arr:configure
    ```
 
    ```bash
-   npm run seerr:configure
+   task seerr:configure
    ```
 
 2. **qBittorrent** (download limit, slow-torrent slots):
 
    ```bash
-   npm run qbt:configure
+   task qbittorrent:configure
    ```
 
 3. **Seeder floor.** This also pushes every indexer to Radarr and Sonarr once:
 
    ```bash
-   npm run prowlarr:configure
+   task prowlarr:configure
    ```
 
 4. **Decluttarr, in test mode first.** It logs what it would remove, and removes nothing:
@@ -753,7 +753,7 @@ pins that list.
 
 **Verify**
 
-- `npm run qbt:check`, `npm run prowlarr:check` and `npm run arr:check` are clean. The
+- `task qbittorrent:check`, `task prowlarr:check` and `task arr:check` are clean. The
   arr check reports `minimum seeders 5` on both apps; `1,5` means a push is still on its way.
 - A Dune search (Radarr → Interactive Search) ranks WEB Tier 01 releases above untiered
   Bluray encodes, and releases with under 5 seeders are refused.
@@ -765,11 +765,11 @@ pins that list.
 
 - `docker compose stop decluttarr` stops replacements at once; `docker compose rm decluttarr`
   removes it. Nothing else depends on it.
-- Seeder floor: set `MIN_SEEDERS=1` and re-run `npm run prowlarr:configure`.
+- Seeder floor: set `MIN_SEEDERS=1` and re-run `task prowlarr:configure`.
 - 4K ranking: remove `qualities:` and `until_quality` from `recyclarr.yml`, then
-  `npm run recyclarr:sync`.
+  `task recyclarr:sync`.
 - qBittorrent: drop `dl_limit` and `dont_count_slow_torrents` from `want_prefs`, set them
-  back in the WebUI (0 and off), and `npm run qbt:check` is clean again.
+  back in the WebUI (0 and off), and `task qbittorrent:check` is clean again.
 
 ---
 
@@ -884,8 +884,8 @@ The container keeps `:8081` and peer port 13762. Ollama stays: it isn't only pms
   ss -Hltnu 'sport = :8080 or sport = :13761'
   ```
 
-- `npm run check`, `npm run arr:check` and `npm run qbt:check` are clean, and
-  `npm run reclaim:audit` has nothing to do.
+- `task deploy:check`, `task arr:check` and `task qbittorrent:check` are clean, and
+  `task arr-reclaim:audit` has nothing to do.
 - A Seerr request goes all the way through: Radarr → `:8081` → hardlink import → Plex.
 
 **Rollback**
@@ -903,7 +903,7 @@ torrents don't come back, but their files never left the library.
 
 The runbook planned about 2 stable weeks on 7a first. It ran the same day, by choice.
 Ollama stays, and so does the `plexmediaserver` mask, which
-guards against a reinstall fighting the container for `:32400`. `npm run deploy` counts a
+guards against a reinstall fighting the container for `:32400`. `task deploy` counts a
 missing unit as masked too, so the container updater stays armed either way.
 
 1. **Archive native Plex, then remove both packages.** `apt remove` shows exactly these two.
@@ -955,8 +955,8 @@ missing unit as masked too, so the container updater stays armed either way.
 **Verify**
 
 - Plex still answers as `f3860770…`.
-- `npm run check` still shows `pms-update.timer` armed.
-- `tools/preflight.sh` shows `plexmediaserver` masked and the other three `not-found`.
+- `task deploy:check` still shows `pms-update.timer` armed.
+- `stack/preflight.sh` shows `plexmediaserver` masked and the other three `not-found`.
 - `systemctl --failed` is empty.
 
 **Rollback**
@@ -1017,13 +1017,13 @@ together: Plex's own download keeps working, into its database.
 2. Start it. Only `bazarr` is created:
 
    ```bash
-   npm start
+   task start
    ```
 
 3. Apply the settings:
 
    ```bash
-   npm run bazarr:configure
+   task bazarr:configure
    ```
 
    On the first apply Radarr and Sonarr take a few seconds to connect; the read-back waits
@@ -1032,14 +1032,14 @@ together: Plex's own download keeps working, into its database.
 
 **Verify**
 
-- `npm run bazarr:check` exits 0:
+- `task bazarr:check` exits 0:
   - settings, languages `es en` and the one profile as wanted
   - Radarr and Sonarr connected, the Plex token accepted
   - no title without a profile
 - A Radarr title (e.g. *Days of Thunder*) gets `Days of Thunder (1990).es.srt` and `.en.srt`
   beside the video, `dario:media`, `-rw-rw-r--`. The video still has its hardlink
   (`stat -c %h` unchanged). Plex lists both as subtitle tracks.
-- `npm run reclaim:audit` is unchanged.
+- `task arr-reclaim:audit` is unchanged.
 - Plex's own *Search subtitles* still works (retry if Plex's server answers 500).
 
 **Rollback**
