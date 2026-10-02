@@ -6,7 +6,7 @@
 #   tools/arr-fallback-search.sh --dry-run    list them; changes nothing
 #
 # Normally reached through npm (`npm run arr:fallback-search` / `:dry`) or the
-# weekly systemd/arr-fallback-search.timer.
+# daily systemd/arr-fallback-search.timer.
 #
 # Radarr searches a movie in full only when it is added; after that it sees new
 # releases through RSS alone, every 30 minutes. A 4K HDR release that was turned

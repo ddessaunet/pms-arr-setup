@@ -59,7 +59,7 @@ radarr:
       # rejected, and 1080p Bluray encodes get no tier score (the UHD formats
       # have none). The 1080p qualities are one group for the same reason as the
       # 4K ones. No 720p, no Remux. Radarr only finds a later 4K release through
-      # RSS, so tools/arr-fallback-search.sh re-searches these movies weekly.
+      # RSS, so tools/arr-fallback-search.sh re-searches these movies daily.
       - trash_id: 64fb5f9858489bdac2af690e27c8f42f  # UHD Bluray + WEB, variant
         name: 4K HDR or 1080p
         reset_unmatched_scores:

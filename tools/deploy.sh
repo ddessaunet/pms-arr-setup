@@ -48,7 +48,7 @@ NATIVE_PLEX_UNIT="plexmediaserver.service"
 # which no unit file shows. (The same reasoning as pms-local's plex-watch.)
 WATCHER="arr-reclaim.service"
 
-# The weekly Radarr re-search (tools/arr-fallback-search.sh). Unlike the
+# The daily Radarr re-search (tools/arr-fallback-search.sh). Unlike the
 # updater it does not depend on where Plex runs: always armed.
 SEARCH_TIMER="arr-fallback-search.timer"
 

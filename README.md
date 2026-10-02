@@ -45,14 +45,14 @@ native Plex database and qBittorrent state move across unchanged.
 | `tools/seerr-configure.sh` | After your one-time Plex sign-in, finishes Seerr's setup: Plex server and libraries, Radarr at 4K HDR and Sonarr at 1080p by default, admin-only sign-in, then a full Plex scan. `--check` reports drift. |
 | `tools/bazarr-configure.sh` | Applies Bazarr's settings: Radarr/Sonarr, Spanish + English as every title's profile, the subtitle providers (OpenSubtitles.com when `.env` has an account), a Plex refresh after each download, and its login. Owns all language profiles. `--check` reports drift. |
 | `recyclarr/recyclarr.yml` | The TRaSH profiles: 4K HDR movies (UHD Bluray + WEB), its opt-in variant `4K HDR or 1080p` for films with no 4K HDR release, and 1080p series (WEB-1080p), with their custom formats; 4K qualities in one group so release-group tiers decide. |
-| `tools/arr-fallback-search.sh` | Asks Radarr to search again for the monitored `4K HDR or 1080p` movies without a 4K file, which RSS alone would not find. Run weekly by `arr-fallback-search.timer`; `--dry-run` only lists them. |
+| `tools/arr-fallback-search.sh` | Asks Radarr to search again for the monitored `4K HDR or 1080p` movies without a 4K file, which RSS alone would not find. Run daily by `arr-fallback-search.timer`; `--dry-run` only lists them. |
 | `decluttarr/config.yaml` | Which queued downloads Decluttarr replaces: stalled, under 500 KB/s, or stuck on metadata. Nothing already imported. |
 | `tools/recyclarr.sh` | Runs Recyclarr once, as a throwaway container (`recyclarr:preview` / `recyclarr:sync`). |
 | `tools/lib/servarr.sh` | The API plumbing shared by the Prowlarr, Radarr and Sonarr configure scripts. |
 | `tools/deploy.sh` | Installs the units, arms the `pms-update` timer only while native Plex is masked or removed, and always arms the fallback search's. `--check` reports drift. |
 | `tools/update-stack.sh` | Pulls new images, skips the run if anyone is streaming, recreates the container, verifies it, and rolls back if it's unhealthy. Run weekly by `pms-update.timer`. |
 | `systemd/pms-update.{service,timer}` | Sunday 05:00, the same slot as pms-local's native updater. Installed by `npm run deploy`. |
-| `systemd/arr-fallback-search.{service,timer}` | Wednesday 04:00: `tools/arr-fallback-search.sh`. Installed and armed by `npm run deploy`. |
+| `systemd/arr-fallback-search.{service,timer}` | Daily 04:00: `tools/arr-fallback-search.sh`. Installed and armed by `npm run deploy`. |
 | `systemd/arr-reclaim.service` | The `arr-reclaim` watcher: pms-local's `plex-watch`, ported for the `:8081` instance. Installed, enabled and restarted by `npm run deploy`. |
 | `tests/*.test.sh` | Offline unit tests; `tests/run-all.sh` runs them all. |
 
