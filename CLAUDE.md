@@ -81,7 +81,7 @@ disappear. Confirm before anything destructive:
       `UHD Bluray + WEB` for movies and `WEB-1080p` for series, and their custom formats.
       Its 4K qualities are **one group** on purpose: Radarr ranks quality before score, so
       split, any Bluray encode beat a well-seeded tiered WEB release.
-    - **`arr-configure.sh`:** sizes (1080p 40, 2160p 150 MB/min; Recyclarr's
+    - **`arr-configure.sh`:** sizes (Radarr 1080p 40, 2160p 150 MB/min; Sonarr 1080p no max; Recyclarr's
       `quality_definition` must stay out), and upgrades **only** on `UHD Bluray + WEB`.
     - **`seerr-configure.sh`:** requests default to those profiles.
 

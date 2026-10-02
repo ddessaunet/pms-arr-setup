@@ -98,13 +98,20 @@ want_plex_top() {
 }
 
 # Size caps, in MB per minute of runtime (the unit both apps use), as
-# quality<TAB>max<TAB>preferred. /mnt/data runs near full: the defaults let
-# Radarr take Bluray-1080p and Remux-1080p at ANY size (the 10 GB Night of the
-# Living Dead grab) and offered a 31.5 GB Iron Man 2 pack.
-#   1080p  40 / 25   ~4.8 GB max, ~3 GB preferred for a 2-hour film; ~1.8 GB
-#                    max for a 45-minute episode
-#   2160p 150 / 100  ~18 GB max, ~12 GB preferred for a 2-hour film: most 4K
-#                    HDR WEB-DLs, not the 30-60 GB 4K Bluray encodes
+# quality<TAB>max<TAB>preferred; a max of `none` is no max (null in the API).
+# /mnt/data runs near full: the defaults let Radarr take Bluray-1080p and
+# Remux-1080p at ANY size (the 10 GB Night of the Living Dead grab) and offered
+# a 31.5 GB Iron Man 2 pack.
+#   radarr 1080p  40 / 25   ~4.8 GB max, ~3 GB preferred for a 2-hour film
+#   radarr 2160p 150 / 100  ~18 GB max, ~12 GB preferred for a 2-hour film: most
+#                           4K HDR WEB-DLs, not the 30-60 GB 4K Bluray encodes
+#   sonarr 1080p none / 25  episodes are short against their real size: a
+#                           half-hour show's 1080p WEB-DL runs 1-1.6 GB on a
+#                           22-minute runtime, and 40 MB/min (880 MB) rejected
+#                           every valid Scrubs S02 release. Series stay 1080p
+#                           and single-grab, so the max is the profile's job.
+#                           25 preferred only breaks ties (after quality, score
+#                           and seeders), toward the smaller file.
 # Sizes are owned here, not by Recyclarr (its quality_definition is omitted).
 size_caps() {
     case "$1" in
@@ -112,7 +119,7 @@ size_caps() {
                     HDTV-1080p 40 25   WEBDL-1080p 40 25   WEBRip-1080p 40 25   Bluray-1080p 40 25 \
                     HDTV-2160p 150 100 WEBDL-2160p 150 100 WEBRip-2160p 150 100 Bluray-2160p 150 100 ;;
         sonarr) printf '%s\t%s\t%s\n' \
-                    HDTV-1080p 40 25   WEBRip-1080p 40 25  WEBDL-1080p 40 25    Bluray-1080p 40 25 ;;
+                    HDTV-1080p none 25 WEBRip-1080p none 25 WEBDL-1080p none 25 Bluray-1080p none 25 ;;
     esac
 }
 size_capped() { size_caps "$1" | cut -f1; }
@@ -130,7 +137,8 @@ upgrade_profiles() { case "$1" in radarr) echo "UHD Bluray + WEB" ;; sonarr) : ;
 sizes_to_fix() { # definitions-json caps(title<TAB>max<TAB>preferred lines)
     jq -c --arg c "$2" '
         ($c | split("\n") | map(select(. != "") | split("\t"))
-            | map({key: .[0], value: {max: (.[1] | tonumber), pref: (.[2] | tonumber)}}) | from_entries) as $caps
+            | map({key: .[0], value: {max: (.[1] | if . == "none" then null else tonumber end),
+                                    pref: (.[2] | tonumber)}}) | from_entries) as $caps
         | [.[] | select($caps[.title]) | . as $d | $caps[$d.title] as $w
                | select($d.maxSize != $w.max or $d.preferredSize != $w.pref)
                | .maxSize = $w.max | .preferredSize = $w.pref]' <<<"$1"
@@ -232,9 +240,10 @@ verify_sizes() { # app
     return 1
 }
 
-# "1080p 40/25, 2160p 150/100 MB/min" for the log.
+# "1080p 40/25, 2160p 150/100 MB/min" (or "1080p no max/25 MB/min") for the log.
 sizes_summary() {
-    size_caps "$1" | awk -F'\t' '{r=$1; sub(/.*-/, "", r); if (!(r in s)) {s[r]=$2"/"$3; o[++n]=r}}
+    size_caps "$1" | awk -F'\t' '{r=$1; sub(/.*-/, "", r); m=($2=="none" ? "no max" : $2)
+                                  if (!(r in s)) {s[r]=m"/"$3; o[++n]=r}}
         END {for (i=1; i<=n; i++) printf "%s%s %s", (i>1 ? ", " : ""), o[i], s[o[i]]; printf " MB/min"}'
 }
 

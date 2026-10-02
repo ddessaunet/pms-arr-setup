@@ -103,6 +103,14 @@ ok_eq "2160p 150 MB/min is ~18 GB for a 2-hour film" "18000" "$(( $(size_caps ra
 ok_eq "Remux-2160p is never capped into eligibility" "0" "$(jq '[.[] | select(.title=="Remux-2160p")] | length' <<<"$F4")"
 ok_eq "sonarr has no 2160p caps (series stay 1080p)" "0" "$(size_caps sonarr | grep -c 2160p)"
 ok_eq "summary line" "1080p 40/25, 2160p 150/100 MB/min" "$(sizes_summary radarr)"
+DS='[{"id":15,"title":"WEBDL-1080p","minSize":4,"preferredSize":25,"maxSize":40},
+     {"id":16,"title":"Bluray-1080p","minSize":4,"preferredSize":95,"maxSize":null},
+     {"id":12,"title":"WEBDL-720p","minSize":3,"preferredSize":95,"maxSize":130}]'
+FS="$(sizes_to_fix "$DS" "$(size_caps sonarr)")"
+ok_eq "sonarr 1080p gets no max, 25 preferred" "15:null/25 16:null/25" "$(jq -r '[.[] | "\(.id):\(.maxSize)/\(.preferredSize)"] | join(" ")' <<<"$FS")"
+ok_eq "a 22-minute episode at 1 GB is not capped" "null" "$(jq -c '.[] | select(.id==15) | .maxSize' <<<"$FS")"
+ok_eq "sonarr already uncapped → nothing to fix" "0" "$(sizes_to_fix "$(jq -c 'map(.maxSize = null | .preferredSize = 25)' <<<"$DS")" "$(size_caps sonarr)" | jq length)"
+ok_eq "sonarr summary line" "1080p no max/25 MB/min" "$(sizes_summary sonarr)"
 P='{"id":4,"name":"HD-1080p","items":[
     {"quality":{"id":7,"name":"Bluray-1080p"},"allowed":true},
     {"quality":{"id":30,"name":"Remux-1080p"},"allowed":true},
