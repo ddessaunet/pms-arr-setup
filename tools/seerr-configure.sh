@@ -17,9 +17,9 @@
 # $APPDATA/seerr/settings.json — nothing to put in .env. Radarr and Sonarr are
 # reached with their .env keys.
 #
-# Requests from Seerr are ordinary Radarr/Sonarr adds, so everything Phase 4
-# set up applies to them unchanged: 1080p, hardlinked imports, no upgrades,
-# unmonitor on delete, and arr-reclaim freeing the space of a Plex delete.
+# Requests from Seerr are ordinary Radarr/Sonarr adds, so everything Phases 4
+# and 6 set up applies to them unchanged: the profiles below, hardlinked
+# imports, unmonitor on delete, and arr-reclaim freeing the space of a Plex delete.
 #
 # Exit: 0 applied and verified (or no drift; a FAILING test only warns) ·
 # 1 drift, or a step failed · 2 usage · 3 not reachable, or no admin yet.
@@ -55,8 +55,9 @@ want_main() { jq -cn '{newPlexLogin: false}'; }
 
 # The profile a request uses by default, per app — the ones Recyclarr creates
 # (recyclarr/recyclarr.yml) and arr-configure.sh's default_profile names.
-# Movies are 4K HDR; series stay 1080p. For a film with no 4K release, request
-# it with HD-1080p from the request's options (admin).
+# Movies are 4K HDR; series stay 1080p. For a film with no 4K HDR release, pick
+# "4K HDR or 1080p" in the request's options (admin): 1080p now, replaced by 4K
+# HDR when one appears. It stays opt-in, so it is never the default here.
 profile_name() { case "$1" in radarr) echo "UHD Bluray + WEB" ;; sonarr) echo "WEB-1080p" ;; esac; }
 
 # The host's LAN address, for the "open in Radarr/Sonarr" links Seerr shows.

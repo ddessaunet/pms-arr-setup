@@ -40,17 +40,19 @@ native Plex database and qBittorrent state move across unchanged.
 | `tools/start.sh` | Preflight, then `docker compose up -d` for whatever the current phase has enabled. Never passes `--profile`. |
 | `tools/qbt-configure.sh` | Applies the `:8081` qBittorrent's settings through its API (paths, categories, peer port, download limit, host-header domains) and reads them back. Idempotent; `--check` reports drift. |
 | `tools/prowlarr-configure.sh` | Applies Prowlarr's login, FlareSolverr proxy, indexer list and minimum seeders through its API, pushes the indexers to Radarr/Sonarr, then tests every indexer. Idempotent; `--check` reports drift. |
-| `tools/arr-configure.sh` | Applies Radarr's and Sonarr's login, naming, media management, root folder, no-upgrade profiles, qBittorrent client and Plex connection, then tests them. Never imports or renames existing media. `--check` reports drift. |
+| `tools/arr-configure.sh` | Applies Radarr's and Sonarr's login, naming, media management, root folder, upgrade allow-list (only the two 4K movie profiles), no Remux, qBittorrent client and Plex connection, then tests them. Never imports or renames existing media. `--check` reports drift. |
 | `tools/arr-reclaim.sh` | When media Radarr/Sonarr imported is deleted (in Plex, or in Radarr/Sonarr with its files), removes its torrent with its data from the `:8081` qBittorrent. Keeps a ledger of imports in `/opt/appdata/.arr-reclaim.imports`, since Radarr/Sonarr drop the history of what they delete. Run by `arr-reclaim.service`; `--audit` changes nothing. |
-| `tools/seerr-configure.sh` | After your one-time Plex sign-in, finishes Seerr's setup: Plex server and libraries, Radarr/Sonarr at HD-1080p, admin-only sign-in, then a full Plex scan. `--check` reports drift. |
+| `tools/seerr-configure.sh` | After your one-time Plex sign-in, finishes Seerr's setup: Plex server and libraries, Radarr at 4K HDR and Sonarr at 1080p by default, admin-only sign-in, then a full Plex scan. `--check` reports drift. |
 | `tools/bazarr-configure.sh` | Applies Bazarr's settings: Radarr/Sonarr, Spanish + English as every title's profile, the subtitle providers (OpenSubtitles.com when `.env` has an account), a Plex refresh after each download, and its login. Owns all language profiles. `--check` reports drift. |
-| `recyclarr/recyclarr.yml` | The TRaSH profiles: 4K HDR movies (UHD Bluray + WEB), 1080p series (WEB-1080p), with their custom formats; 4K qualities in one group so release-group tiers decide. |
+| `recyclarr/recyclarr.yml` | The TRaSH profiles: 4K HDR movies (UHD Bluray + WEB), its opt-in variant `4K HDR or 1080p` for films with no 4K HDR release, and 1080p series (WEB-1080p), with their custom formats; 4K qualities in one group so release-group tiers decide. |
+| `tools/arr-fallback-search.sh` | Asks Radarr to search again for the monitored `4K HDR or 1080p` movies without a 4K file, which RSS alone would not find. Run weekly by `arr-fallback-search.timer`; `--dry-run` only lists them. |
 | `decluttarr/config.yaml` | Which queued downloads Decluttarr replaces: stalled, under 500 KB/s, or stuck on metadata. Nothing already imported. |
 | `tools/recyclarr.sh` | Runs Recyclarr once, as a throwaway container (`recyclarr:preview` / `recyclarr:sync`). |
 | `tools/lib/servarr.sh` | The API plumbing shared by the Prowlarr, Radarr and Sonarr configure scripts. |
-| `tools/deploy.sh` | Installs the `pms-update` units, and arms the timer only while native Plex is masked or removed. `--check` reports drift. |
+| `tools/deploy.sh` | Installs the units, arms the `pms-update` timer only while native Plex is masked or removed, and always arms the fallback search's. `--check` reports drift. |
 | `tools/update-stack.sh` | Pulls new images, skips the run if anyone is streaming, recreates the container, verifies it, and rolls back if it's unhealthy. Run weekly by `pms-update.timer`. |
 | `systemd/pms-update.{service,timer}` | Sunday 05:00, the same slot as pms-local's native updater. Installed by `npm run deploy`. |
+| `systemd/arr-fallback-search.{service,timer}` | Wednesday 04:00: `tools/arr-fallback-search.sh`. Installed and armed by `npm run deploy`. |
 | `systemd/arr-reclaim.service` | The `arr-reclaim` watcher: pms-local's `plex-watch`, ported for the `:8081` instance. Installed, enabled and restarted by `npm run deploy`. |
 | `tests/*.test.sh` | Offline unit tests; `tests/run-all.sh` runs them all. |
 
@@ -65,7 +67,7 @@ lives in `/opt/appdata`.
 |---|---|
 | `npm start` | Preflight, then start every service the current phase has enabled. |
 | `npm stop` | Stop them. Containers and config are kept; nothing here runs `down -v`. |
-| `npm run status` | `docker compose ps`, and when the updater runs next. |
+| `npm run status` | `docker compose ps`, and when the updater and the fallback search run next. |
 | `npm run logs` | Follow the logs; `npm run logs -- plex` for one service. |
 | `npm run lint` | `shellcheck` on `tools/` and `tests/`, and check that `compose.yaml` renders. |
 | `npm test` | The offline test suites. |
@@ -79,6 +81,8 @@ lives in `/opt/appdata`.
 | `npm run prowlarr:check` | Report Prowlarr drift and test the indexers. Changes nothing. |
 | `npm run arr:configure` | Apply Radarr's and Sonarr's settings, then test their qBittorrent and Plex connections. |
 | `npm run arr:check` | Report Radarr/Sonarr drift. Changes nothing. |
+| `npm run arr:fallback-search` | Search Radarr again now for the `4K HDR or 1080p` movies without a 4K file. |
+| `npm run arr:fallback-search:dry` | List those movies. Changes nothing. |
 | `npm run reclaim:audit` | What `arr-reclaim` would remove right now. Changes nothing. |
 | `npm run seerr:configure` | Finish Seerr's setup after the Plex sign-in, then test its connections. |
 | `npm run seerr:check` | Report Seerr drift. Changes nothing. |

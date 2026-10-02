@@ -10,7 +10,8 @@
     "plexmediaserver is masked - the same signal pms-local's deploy uses.",
     "start never passes --profile: profiled services are runbook steps.",
     "stop keeps containers and config; nothing here runs `down -v`.",
-    "reclaim:audit shows what arr-reclaim.service would remove; it changes nothing."
+    "reclaim:audit shows what arr-reclaim.service would remove; it changes nothing.",
+    "arr:fallback-search:dry lists what arr-fallback-search.timer would search; it changes nothing."
   ],
   "name": "pms-arr-setup",
   "version": "0.0.0",
@@ -25,7 +26,7 @@
     "deploy": "tools/deploy.sh",
     "start": "tools/start.sh",
     "stop": "docker compose stop",
-    "status": "docker compose ps; echo; systemctl list-timers pms-update.timer --all --no-pager",
+    "status": "docker compose ps; echo; systemctl list-timers pms-update.timer arr-fallback-search.timer --all --no-pager",
     "logs": "docker compose logs -f --tail 100",
     "update": "tools/update-stack.sh",
     "update:dry": "tools/update-stack.sh --dry-run",
@@ -35,6 +36,8 @@
     "prowlarr:check": "tools/prowlarr-configure.sh --check",
     "arr:configure": "tools/arr-configure.sh",
     "arr:check": "tools/arr-configure.sh --check",
+    "arr:fallback-search": "tools/arr-fallback-search.sh",
+    "arr:fallback-search:dry": "tools/arr-fallback-search.sh --dry-run",
     "reclaim:audit": "tools/arr-reclaim.sh --audit",
     "seerr:configure": "tools/seerr-configure.sh",
     "seerr:check": "tools/seerr-configure.sh --check",

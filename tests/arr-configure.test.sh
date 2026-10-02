@@ -131,6 +131,18 @@ UNR="$(profile_without_remux "$UHD")"
 ok_eq "merged 4K group: Remux off, group and members kept" "false true true true" \
     "$(jq -r '"\(.items[0].allowed) \(.items[1].allowed) \(.items[1].items[0].allowed) \(.items[1].items[1].allowed)"' <<<"$UNR")"
 
+# The fallback variant adds a 1080p group under the 4K one; Remux-1080p beside
+# it is the mistake that matters there.
+FB='{"id":8,"name":"4K HDR or 1080p","items":[
+    {"quality":{"id":30,"name":"Remux-1080p"},"allowed":true},
+    {"id":1004,"name":"HD 1080p","allowed":true,"items":[
+        {"quality":{"id":7,"name":"Bluray-1080p"},"allowed":true}]},
+    {"id":1003,"name":"UHD 2160p","allowed":true,"items":[
+        {"quality":{"id":19,"name":"Bluray-2160p"},"allowed":true}]}]}'
+if profile_allows_remux "$FB"; then PASS=$((PASS+1)); echo "  ok    fallback with Remux-1080p is caught"; else FAIL=$((FAIL+1)); echo "  FAIL  fallback Remux-1080p missed"; fi
+ok_eq "fallback: Remux off, both groups kept" "false true true true true" \
+    "$(profile_without_remux "$FB" | jq -r '"\(.items[0].allowed) \(.items[1].allowed) \(.items[1].items[0].allowed) \(.items[2].allowed) \(.items[2].items[0].allowed)"')"
+
 # ─── minimum seeders, as pushed by Prowlarr ──────────────────────────────────
 echo
 echo "indexer_min_seeders"
@@ -142,17 +154,20 @@ ok_eq "field missing → unset"        "unset" "$(indexer_min_seeders '[{"name":
 
 # ─── defaults and the upgrade allow-list ─────────────────────────────────────
 echo
-echo "default_profile / upgrade_profiles / upgrades_to_fix"
+echo "default_profile / upgrade_profiles / remux_free_profiles / upgrades_to_fix"
 ok_eq "movies default to 4K HDR"   "UHD Bluray + WEB" "$(default_profile radarr)"
 ok_eq "series default to 1080p"    "WEB-1080p"        "$(default_profile sonarr)"
-ok_eq "only the 4K movie profile upgrades" "UHD Bluray + WEB" "$(upgrade_profiles radarr)"
+ok_eq "only the two 4K movie profiles upgrade" $'UHD Bluray + WEB\n4K HDR or 1080p' "$(upgrade_profiles radarr)"
 ok_eq "no series profile upgrades" "" "$(upgrade_profiles sonarr)"
+ok_eq "radarr: no Remux on the default or the fallback" $'UHD Bluray + WEB\n4K HDR or 1080p' "$(remux_free_profiles radarr)"
+ok_eq "sonarr: no Remux on the default" "WEB-1080p" "$(remux_free_profiles sonarr)"
 PR='[{"id":4,"name":"HD-1080p","upgradeAllowed":true},{"id":7,"name":"UHD Bluray + WEB","upgradeAllowed":false},
-     {"id":1,"name":"Any","upgradeAllowed":false}]'
+     {"id":1,"name":"Any","upgradeAllowed":false},{"id":8,"name":"4K HDR or 1080p","upgradeAllowed":false}]'
 UF="$(upgrades_to_fix "$PR" "$(upgrade_profiles radarr)")"
-ok_eq "HD-1080p off, UHD on, Any untouched" '[{"name":"HD-1080p","u":false},{"name":"UHD Bluray + WEB","u":true}]' \
+ok_eq "HD-1080p off, both 4K profiles on, Any untouched" \
+    '[{"name":"HD-1080p","u":false},{"name":"UHD Bluray + WEB","u":true},{"name":"4K HDR or 1080p","u":true}]' \
     "$(jq -c '[.[] | {name, u: .upgradeAllowed}]' <<<"$UF")"
-ok_eq "already right → nothing to fix" "0" "$(upgrades_to_fix "$(jq -c '(.[0].upgradeAllowed)=false | (.[1].upgradeAllowed)=true' <<<"$PR")" "$(upgrade_profiles radarr)" | jq length)"
+ok_eq "already right → nothing to fix" "0" "$(upgrades_to_fix "$(jq -c '(.[0].upgradeAllowed)=false | (.[1].upgradeAllowed)=true | (.[3].upgradeAllowed)=true' <<<"$PR")" "$(upgrade_profiles radarr)" | jq length)"
 ok_eq "sonarr: every upgrading profile turned off" '["HD-1080p"]' "$(upgrades_to_fix "$PR" "$(upgrade_profiles sonarr)" | jq -c '[.[].name]')"
 
 # ─── resources (tools/lib/servarr.sh) ─────────────────────────────────────────
