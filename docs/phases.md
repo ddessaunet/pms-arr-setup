@@ -492,7 +492,8 @@ because many have no 4K release. Decided 2026-09-29, with these parameters:
 | upgrades | **on**, to a better-scored 4K release | off |
 
 **Who owns what,** so no two tools fight:
-- **Recyclarr** (`recyclarr/recyclarr.yml`): those two profiles and their custom formats.
+- **Recyclarr** (`recyclarr/recyclarr.yml`): those two profiles, the hand-picked
+  `UHD Fallback` (below), and their custom formats.
 - **`arr-configure.sh`:** sizes (Recyclarr's `quality_definition` is deliberately left out),
   and upgrades off on every other profile.
 - **`seerr-configure.sh`:** requests default to those two profiles.
@@ -506,6 +507,21 @@ because many have no 4K release. Decided 2026-09-29, with these parameters:
 **Playback:** transcoding is CPU-only, so 4K HDR has to **direct-play** (a 4K HDR TV app,
 Shield or Apple TV). **Films with no 4K HDR release:** this profile grabs nothing for them,
 and the request waits. Request them with `4K HDR or 1080p` instead (Phase 6b).
+
+**4K releases exist, but none pass:** switch the film to **`UHD Fallback`** (Radarr → movie →
+Edit → Quality Profile, then Search; or pick it in Seerr's request options). It is never a
+default. It has the same 2160p group and size cap, with no Remux and no upgrades, but:
+- HDR is preferred (+3000, HDR10+ +100), not required.
+- There are no release-group tiers.
+- LQ groups such as YTS pass.
+- Audio is ranked as in the default (TrueHD Atmos 5000 down to DD 750). HDR is raised from
+  the guide's 500 so that it comes first: only TrueHD Atmos or DTS X on SDR outranks HDR.
+
+It still rejects files that are broken or fake (disc images, 3D, upscales, generated HDR,
+DV without fallback). To get a better copy later, switch the film back to
+`UHD Bluray + WEB`. Its upgrades replace the file, and `arr-reclaim` removes the old torrent.
+`npm run recyclarr:sync` creates it, and `npm run arr:check` then lists it as existing with
+no Remux. The weekly search (Phase 6b) never looks at it.
 
 **Do**
 

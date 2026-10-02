@@ -130,8 +130,12 @@ size_capped() { size_caps "$1" | cut -f1; }
 # the opt-in variant for films with no 4K HDR release: 1080p first, then 4K HDR.
 default_profile() { case "$1" in radarr) echo "UHD Bluray + WEB" ;; sonarr) echo "WEB-1080p" ;; esac; }
 upgrade_profiles() { case "$1" in radarr) printf '%s\n' "UHD Bluray + WEB" "4K HDR or 1080p" ;; sonarr) : ;; esac; }
-# The profiles kept free of Remux: the default and every upgrading one.
-remux_free_profiles() { { default_profile "$1"; upgrade_profiles "$1"; } | sed '/^$/d' | awk '!seen[$0]++'; }
+# The profiles kept free of Remux: the default, every upgrading one, and the
+# hand-picked 4K fallback (recyclarr.yml), which never upgrades.
+fallback_profiles() { case "$1" in radarr) echo "UHD Fallback" ;; sonarr) : ;; esac; }
+remux_free_profiles() {
+    { default_profile "$1"; upgrade_profiles "$1"; fallback_profiles "$1"; } | sed '/^$/d' | awk '!seen[$0]++'
+}
 
 # ─── pure helpers (tests/arr-configure.test.sh) ───────────────────────────────
 
