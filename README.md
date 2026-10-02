@@ -105,18 +105,17 @@ Adding an app:
 ## Running it
 
 [Task](https://taskfile.dev) is the task runner: a single binary, at version 3.44 or later.
-Install it once from its official apt repository:
+This box installs and updates its tools with Homebrew, whose formula is `go-task`. The
+binary is still `task`:
 
 ```bash
-curl -1sLf 'https://dl.cloudsmith.io/public/task/task/setup.deb.sh' | sudo -E bash
+brew install go-task
 ```
 
-```bash
-sudo apt install task
-```
-
-Run tasks as yourself. The scripts ask for sudo themselves where they need it. Compose runs
-from the main clone, and state lives in `/opt/appdata`.
+Run tasks as yourself, never `sudo task`: sudo's `PATH` has no Homebrew in it. The scripts
+ask for sudo themselves where they need it. The systemd units never call `task`, so the
+timers don't depend on it. Compose runs from the main clone, and state lives in
+`/opt/appdata`.
 
 **Tasks that change containers or units run from the main clone only.** These are `start`,
 `stop`, `<app>:up`, `<app>:update`, `update` and `deploy`. `compose.yaml` fixes the project

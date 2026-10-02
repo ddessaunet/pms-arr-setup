@@ -149,7 +149,10 @@ disappear. Confirm before anything destructive:
 - Commit subjects are lowercase and imperative; bodies explain *why*.
 - `.env` holds secrets and is gitignored. Only `.env.example` is tracked.
 - [Task](https://taskfile.dev) (`Taskfile.yml`) is the task runner, nothing else: no
-  dependencies. Run `task lint test` before committing. `task --list` shows every task.
+  dependencies. It comes from Homebrew (`brew install go-task`), like the box's other
+  tools. Run `task lint test` before committing, and never `sudo task` (sudo's `PATH` lacks
+  Homebrew). `task --list` shows every task. From a non-login shell, load Homebrew first:
+  `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"`.
 - A new app follows the app contract in the README: `apps/<app>/` with `compose.yaml`,
   `Taskfile.yml`, `README.md` (and `configure.sh` plus its test when this repo owns its
   settings), one include line each in `compose.yaml` and `Taskfile.yml`. Tests live beside
