@@ -45,8 +45,8 @@ Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
    `/mnt/data/streaming` as "deleted in Plex" and removed the matching native torrent **and
    its data**, so until then the arrs only *added* files. It's retired now, and moves are
    safe. pms-local is not modified by this migration; what the stack needs from it is ported here (`arr-reclaim`).
-6. **Upgrades only in the 4K movie profile (`UHD Bluray + WEB`), and every size is capped**
-   (1080p 40, 2160p 150 MB/min; `arr-configure.sh`). Everything else is single-grab.
+6. **Upgrades only in the 4K movie profile (`UHD Bluray + WEB`), and movie sizes are capped**
+   (Radarr 1080p 40, 2160p 150 MB/min; Sonarr 1080p no max; `arr-configure.sh`). Everything else is single-grab.
 7. **Media is deleted in Plex, and that frees the space.** For Radarr/Sonarr imports,
    this repo's `arr-reclaim` removes the torrent, and it does the same when one is deleted
    in Radarr/Sonarr with its files. For the rest of the library, including
@@ -306,7 +306,7 @@ which `plex-watch` read as deletions (rule 5) until Phase 7a.
 |---|---|
 | Radarr | `:7878`, root `/mnt/data/streaming/movies`, new imports `Title (Year)/Title (Year).ext` |
 | Sonarr | `:8989`, root `/mnt/data/streaming/series`, `Show/Season 01/Show - S01E01.ext` |
-| quality | **1080p** (`HD-1080p`, **no Remux**), sizes **capped at 40 MB/min** (about 4.8 GB for a 2-hour film, 1.8 GB for a 45-minute episode; 25 preferred), **no upgrades** on any profile until Phase 6 |
+| quality | **1080p** (`HD-1080p`, **no Remux**), sizes **capped at 40 MB/min** (about 4.8 GB for a 2-hour film; 25 preferred). Sonarr's max was later removed: 880 MB for a 22-minute episode rejected every real 1080p WEB-DL, **no upgrades** on any profile until Phase 6 |
 | downloads | the `:8081` qBittorrent, categories `radarr` / `sonarr`, **hardlinked** into the library |
 | seeding | ratio 2.0 or 14 days, then the torrent **stops**, and *Remove Completed* removes it (the library keeps its hardlink) |
 | deleted in Plex | **unmonitored**, never re-downloaded, and **`arr-reclaim`** removes its torrent **with its data** within about a minute |
@@ -487,7 +487,7 @@ because many have no 4K release. Decided 2026-09-29, with these parameters:
 | default profile | TRaSH **UHD Bluray + WEB** | TRaSH **WEB-1080p** |
 | qualities | Bluray-2160p, WEB-DL/WEBRip-2160p **as one group**, so score decides (see Download health); **no Remux, no 1080p** | WEB-DL/WEBRip-1080p |
 | HDR | **HDR +500, HDR10+ +100.** SDR, DV without an HDR10 fallback (purple/green on non-DV screens), x265 without HDR, and generated HDR are all **−10000**, so they're rejected | — |
-| size cap | **150 MB/min** (~18 GB for 2 hours: most 4K HDR WEB-DLs, not 30–60 GB Bluray encodes) | 40 MB/min (~1.8 GB for 45 minutes) |
+| size cap | **150 MB/min** (~18 GB for 2 hours: most 4K HDR WEB-DLs, not 30–60 GB Bluray encodes) | **none** (25 preferred): a half-hour show's 1080p WEB-DL runs 1–1.6 GB, over 40 MB/min |
 | upgrades | **on**, to a better-scored 4K release | off |
 
 **Who owns what,** so no two tools fight:
@@ -540,7 +540,7 @@ request options; that profile stays as it was, without upgrades.
 - `npm run arr:check`:
   - Radarr: 2160p capped at 150/100, 1080p at 40/25; upgrades only on `UHD Bluray + WEB`;
     the default profile exists with no Remux.
-  - Sonarr: `WEB-1080p`, no upgrades.
+  - Sonarr: `WEB-1080p`, no upgrades; 1080p sizes with no max, 25 preferred.
 - `npm run seerr:check`: default profiles `UHD Bluray + WEB` and `WEB-1080p`.
 - Existing movies keep their profile.
 - **End to end:** request a film with 4K HDR releases, after a size check as before.

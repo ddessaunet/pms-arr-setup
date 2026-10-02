@@ -10,7 +10,8 @@
 # Then `npm run arr:configure` and `npm run seerr:configure` (see docs/phases.md →
 # Phase 6). Ownership, so no two tools fight:
 #   - Recyclarr: the two profiles below and their custom formats/scores.
-#   - arr-configure.sh: quality SIZES (1080p 40, 2160p 150 MB/min) — hence no
+#   - arr-configure.sh: quality SIZES (Radarr 1080p 40, 2160p 150 MB/min; Sonarr
+#     1080p no max) — hence no
 #     `quality_definition:` here, which would reset them to TRaSH's sizes.
 #   - seerr-configure.sh: which profile a request uses by default.
 #
