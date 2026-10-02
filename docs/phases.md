@@ -514,6 +514,8 @@ default. It has the same 2160p group and size cap, with no Remux and no upgrades
 - HDR is preferred, not required.
 - There are no release-group tiers.
 - LQ groups such as YTS pass.
+- Audio is ranked as in the default (TrueHD Atmos 5000 down to DD 750). At these scores,
+  audio outweighs HDR: SDR with DD+ beats HDR with AAC.
 
 It still rejects files that are broken or fake (disc images, 3D, upscales, generated HDR,
 DV without fallback). To get a better copy later, switch the film back to

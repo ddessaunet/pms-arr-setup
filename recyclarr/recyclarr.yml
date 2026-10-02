@@ -120,6 +120,27 @@ radarr:
           - 5caaaa1c08c1742aa4342d8c4cc463f2  # Repack3
         assign_scores_to:
           - name: UHD Fallback
+      # The required members of [Audio] Audio Formats, as the guide-backed
+      # profiles get them, so a lossless or Atmos track still outranks stereo AAC.
+      # At the guide's scores audio outweighs HDR here: SDR with DD+ (1750) beats
+      # HDR with AAC (500 + 1000).
+      - trash_ids:
+          - 496f355514737f7d83bf7aa4d24f8169  # TrueHD ATMOS (5000)
+          - 2f22d89048b01681dde8afe203bf2e95  # DTS X (4500)
+          - 417804f7f2c4308c1f4c5d380d4c4475  # ATMOS (undefined) (3000)
+          - 1af239278386be2919e1bcee0bde047e  # DD+ ATMOS (3000)
+          - 3cafb66171b47f226146a0770576870f  # TrueHD (2750)
+          - dcf3ec6938fa32445f590a4da84256cd  # DTS-HD MA (2500)
+          - a570d4a0e56a2874b64e5bfa55202a1b  # FLAC (2250)
+          - e7c2fcae07cbada050a0af3357491d7b  # PCM (2250)
+          - 8e109e50e0a0b83a5098b056e13bf6db  # DTS-HD HRA (2000)
+          - 185f1dd7264c4562b9022d963ac37424  # DD+ (1750)
+          - f9f847ac70a0af62ea4a08280b859636  # DTS-ES (1500)
+          - 1c1a4c5e823891c75bc50380a6866f73  # DTS (1250)
+          - 240770601cc226190c367ef59aba7463  # AAC (1000)
+          - c2998bd0d90ed5621d8df281e839436e  # DD (750)
+        assign_scores_to:
+          - name: UHD Fallback
     custom_format_groups:
       add:
         - trash_id: ff204bbcecdd487d1cefcefdbf0c278d  # [Optional] Golden Rule UHD

@@ -87,7 +87,8 @@ disappear. Confirm before anything destructive:
       `arr-fallback-search.sh`, and `tests/arr-fallback-search.test.sh` pins it.
       And the hand-picked **`UHD Fallback`**, for films with 4K releases the strict profile
       rejects: not guide-backed, so it gets only the formats listed for it. HDR preferred
-      but not required, no tiers, no LQ penalty (YTS passes), no Remux, no upgrades.
+      but not required, audio scored as in the default, no tiers, no LQ penalty (YTS
+      passes), no Remux, no upgrades.
     - **`arr-configure.sh`:** sizes (Radarr 1080p 40, 2160p 150 MB/min; Sonarr 1080p no max; Recyclarr's
       `quality_definition` must stay out), and upgrades and no Remux **only** on the two
       4K movie profiles.
