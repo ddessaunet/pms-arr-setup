@@ -1,0 +1,58 @@
+version: '3'
+
+# site/ — the docs website (Starlight), the source of what apps/docs serves.
+# Not an app: it has no container. `build` writes site/dist, and apps/docs
+# (nginx) serves the MAIN clone's site/dist, so in the main clone `build`
+# publishes. Built on the host: node from nvm (.nvmrc), pnpm from Homebrew
+# (package.json pins the version, so nvm's own pnpm switches to it).
+
+env:
+  ASTRO_TELEMETRY_DISABLED: '1'
+
+tasks:
+  install:
+    desc: Install the site's packages, exactly as pnpm-lock.yaml says
+    preconditions:
+      - sh: command -v node
+        msg: node is not on PATH. nvm loads from ~/.profile; run `. "$(brew --prefix nvm)/nvm.sh"` in this shell.
+      - sh: command -v pnpm
+        msg: pnpm is not installed (brew install pnpm).
+    sources: [package.json, pnpm-lock.yaml, pnpm-workspace.yaml]
+    generates: [node_modules/.modules.yaml]
+    cmds:
+      - pnpm install --frozen-lockfile
+
+  dev:
+    desc: Live preview on :4321, reachable from the LAN (publishes nothing)
+    deps: [install]
+    cmds:
+      - pnpm exec astro dev --host {{.CLI_ARGS}}
+
+  test:
+    desc: The site's unit tests — reading the profiles and checking them against recyclarr.yml
+    deps: [install]
+    cmds:
+      - node --test src/lib/*.test.ts
+
+  check:
+    desc: Prove the site builds, into a scratch folder (publishes nothing)
+    deps: [install]
+    cmds:
+      - defer: rm -rf .dist-check
+      - pnpm exec astro build --outDir .dist-check
+
+  build:
+    desc: Build, then swap the result into site/dist (in the main clone this publishes it)
+    deps: [install]
+    cmds:
+      # Astro empties its outDir before rendering, so building in place would
+      # leave nginx an empty site, or a broken build serving nothing. Build
+      # beside it, and swap only once the build succeeded.
+      - defer: rm -rf .dist-next   # a failed build's leftovers
+      - rm -rf .dist-next
+      - pnpm exec astro build --outDir .dist-next
+      - |
+        rm -rf .dist-prev
+        if [ -d dist ]; then mv dist .dist-prev; fi
+        mv .dist-next dist
+        rm -rf .dist-prev

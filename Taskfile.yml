@@ -25,9 +25,12 @@ includes:
   recyclarr:           { taskfile: apps/recyclarr,           dir: apps/recyclarr }
   decluttarr:          { taskfile: apps/decluttarr,          dir: apps/decluttarr }
   bazarr:              { taskfile: apps/bazarr,              dir: apps/bazarr }
+  docs:                { taskfile: apps/docs,                dir: apps/docs }
   arr-reclaim:         { taskfile: jobs/arr-reclaim,         dir: jobs/arr-reclaim }
   arr-fallback-search: { taskfile: jobs/arr-fallback-search, dir: jobs/arr-fallback-search }
   pms-update:          { taskfile: jobs/pms-update,          dir: jobs/pms-update }
+  # Not an app: the docs website's source. apps/docs serves what `site:build` writes.
+  site:                { taskfile: site,                     dir: site }
 
 vars:
   # The apps with a configure.sh, in the order trap 11 applies them.

@@ -1,0 +1,39 @@
+---
+// Every quality profile, grouped by app, as cards.
+import { profiles, sizes } from '../lib/profiles.ts';
+import ProfileCard from './ProfileCard.astro';
+
+const APPS = [
+  { app: 'radarr', title: 'Movies', via: 'Radarr' },
+  { app: 'sonarr', title: 'Series', via: 'Sonarr' },
+] as const;
+---
+
+<div class="map profile-map">
+  {APPS.map(({ app, title, via }) => (
+    <section>
+      <h3 class="app">{title} <span>· {via}</span></h3>
+      <div class="grid">
+        {profiles.filter((p) => p.app === app).map((p) => <ProfileCard profile={p} sizes={sizes[app]} />)}
+      </div>
+    </section>
+  ))}
+</div>
+
+<style is:global>
+  /* Three cards side by side need more than Starlight's 45rem prose column;
+     only the page that shows the map gets the room. */
+  :root:has(.profile-map) { --sl-content-width: 72rem; }
+</style>
+
+<style>
+  .map { display: flex; flex-direction: column; gap: 2rem; }
+  .app { margin: 0 0 0.75rem; font-size: var(--sl-text-h4); color: var(--sl-color-white); }
+  .app span { color: var(--sl-color-gray-3); font-weight: 400; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+    gap: 1rem;
+    align-items: start;
+  }
+</style>

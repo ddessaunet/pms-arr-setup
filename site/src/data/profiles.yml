@@ -1,0 +1,56 @@
+# What the quality-profiles map says that apps/recyclarr/recyclarr.yml can't.
+#
+# The facts (names, qualities, upgrades, scores) come from recyclarr.yml, and
+# the size caps, defaults and upgrade list from stack/lib/arr-configure.sh,
+# when the site is built. This file explains them. The build fails if a profile
+# is here but not there, or the other way round, so add, rename or remove a
+# profile in both, then `task site:check`.
+
+# Profiles recyclarr.yml names only by trash_id: the guide's name and allowed
+# qualities, from the TRaSH guide's JSON (docs/json/<app>/quality-profiles/).
+guide:
+  72dae194fc92bf828f32cde7744e51a1:
+    name: WEB-1080p
+    url: https://trash-guides.info/Sonarr/sonarr-setup-quality-profiles/
+    qualities:
+      - name: WEB 1080p
+        qualities: [WEBRip-1080p, WEBDL-1080p]
+
+profiles:
+  UHD Bluray + WEB:
+    app: radarr
+    role: default
+    pickedBy: Every movie request in Seerr, and every movie added in Radarr.
+    summary: 4K HDR, or nothing. A better-scored 4K HDR release replaces the first grab.
+    hdr: Required
+    lq: rejected
+    dailySearch: false
+
+  4K HDR or 1080p:
+    app: radarr
+    role: opt-in
+    pickedBy: Per request, in Seerr's request options — for a film with no 4K HDR release.
+    summary: Takes 1080p now and replaces it with 4K HDR once one appears.
+    hdr: Required for 4K; 1080p takes SDR (not x265)
+    lq: rejected
+    dailySearch: true
+
+  UHD Fallback:
+    app: radarr
+    role: by-hand
+    pickedBy: >-
+      By hand, for a film whose 4K releases the default rejects: Radarr → movie →
+      Edit → Quality Profile, then Search (or Seerr's request options).
+    summary: Any sound 4K release, SDR and YTS included. Never upgrades; move the film back to the default to have it replaced.
+    hdr: Preferred (scored 3000), not required
+    lq: accepted
+    dailySearch: false
+
+  WEB-1080p:
+    app: sonarr
+    role: default
+    pickedBy: Every series request in Seerr, and every series added in Sonarr.
+    summary: 1080p web releases, scored by streaming service and release group.
+    hdr: null
+    lq: rejected
+    dailySearch: false

@@ -9,3 +9,12 @@
 .vscode/
 .DS_Store
 *.swp
+
+# The docs website (site/): installed packages and builds. dist is what apps/docs serves.
+site/node_modules/
+site/dist/
+site/.astro/
+site/.dist-*/
+
+# Task's record of which tasks are up to date (sources/generates).
+.task/

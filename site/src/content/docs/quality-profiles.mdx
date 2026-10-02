@@ -1,0 +1,34 @@
+---
+title: Quality profiles
+description: Which Radarr and Sonarr quality profile a title gets, and what each one accepts.
+template: splash
+tableOfContents: false
+---
+
+import PickFlow from '../../components/PickFlow.astro';
+import ProfileMap from '../../components/ProfileMap.astro';
+
+A quality profile decides which releases Radarr or Sonarr will grab for a title, which one
+it prefers, and whether a better one later replaces it. Every movie gets the default 4K HDR
+profile unless you pick another; series always get 1080p.
+
+This page is built from the repo: the profiles from `apps/recyclarr/recyclarr.yml`, the
+size caps, defaults and upgrade rules from `stack/lib/arr-configure.sh`. It shows the repo
+as of the last `task site:build`, not what Radarr has live: after changing a profile, run
+`task recyclarr:sync` and `task arr:configure` too.
+
+## Which profile do I pick
+
+<div class="not-content">
+  <PickFlow />
+</div>
+
+## The profiles
+
+Qualities are listed most preferred first. Within one group, the release's custom-format
+score decides, so a well-seeded web release from a top group can beat an unknown Bluray
+encode.
+
+<div class="not-content">
+  <ProfileMap />
+</div>

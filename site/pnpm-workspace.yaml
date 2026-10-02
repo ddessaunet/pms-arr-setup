@@ -1,0 +1,5 @@
+# pnpm settings for site/ (no workspace packages). Install scripts run only
+# for the packages named here; pnpm refuses an install with any other.
+allowBuilds:
+  esbuild: true
+  sharp: true

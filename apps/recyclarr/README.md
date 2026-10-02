@@ -46,3 +46,6 @@ profile a request gets) third. State goes in `/opt/appdata/recyclarr`.
   no upgrades.
 - **`quality_definition` must stay out**: Radarr and Sonarr's `configure.sh` owns the sizes.
 - **Its image tag (`:8`) is its update policy**. It is not on the weekly updater.
+- **The docs website's map is built from this file.** A profile added, renamed or removed
+  here needs the same change in `site/src/data/profiles.yml`; `task site:check` fails until
+  they match (see [docs](../docs/README.md)).

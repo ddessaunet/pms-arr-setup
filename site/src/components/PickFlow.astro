@@ -1,0 +1,119 @@
+---
+// "Which profile do I pick": one question for a movie, three answers, each
+// linking to its card. Profiles are looked up by name, so renaming one without
+// updating this flow fails the build instead of leaving a dead link.
+import { profiles } from '../lib/profiles.ts';
+import { profileSlug } from '../lib/profiles-core.ts';
+
+function pick(name: string) {
+  const p = profiles.find((x) => x.name === name);
+  if (!p) throw new Error(`PickFlow.astro names the profile "${name}", which recyclarr.yml does not define`);
+  return { name: p.name, href: `#${profileSlug(p.name)}`, role: p.role };
+}
+
+const series = pick('WEB-1080p');
+const answers = [
+  {
+    when: 'Yes, there is a 4K HDR release',
+    profile: pick('UHD Bluray + WEB'),
+    how: 'Nothing to do: every request gets it.',
+  },
+  {
+    when: 'No 4K at all (yet)',
+    profile: pick('4K HDR or 1080p'),
+    how: 'Choose it in Seerr’s request options. It takes 1080p now and is re-searched daily for 4K HDR.',
+  },
+  {
+    when: 'There is 4K, but the default rejects it (SDR, x265 without HDR, YTS…)',
+    profile: pick('UHD Fallback'),
+    how: 'In Radarr: movie → Edit → Quality Profile, then Search. It never upgrades.',
+  },
+];
+---
+
+<div class="flow">
+  <div class="start">
+    <div class="node">A series?</div>
+    <a class="leaf" href={series.href} data-role={series.role}>
+      <span class="name">{series.name}</span>
+      <span class="how">Always. Nothing to pick.</span>
+    </a>
+  </div>
+
+  <div class="node question">A movie: does it have a 4K HDR release?</div>
+  <ol class="branches">
+    {answers.map((a) => (
+      <li>
+        <span class="when">{a.when}</span>
+        <a class="leaf" href={a.profile.href} data-role={a.profile.role}>
+          <span class="name">{a.profile.name}</span>
+          <span class="how">{a.how}</span>
+        </a>
+      </li>
+    ))}
+  </ol>
+</div>
+
+<style>
+  .flow { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+  .node {
+    padding: 0.6rem 0.9rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.5rem;
+    background: var(--sl-color-gray-6);
+    color: var(--sl-color-white);
+    font-weight: 600;
+    text-align: center;
+  }
+  .start { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .start .node { flex: none; }
+  .start .leaf { flex: 1 1 16rem; }
+  .question { align-self: center; max-width: 32rem; }
+
+  .branches {
+    list-style: none;
+    margin: 0;
+    padding: 1.25rem 0 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    gap: 1rem;
+    position: relative;
+  }
+  /* The trunk from the question down to the branches. */
+  .branches::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: 1.25rem;
+    border-left: 2px solid var(--sl-color-gray-4);
+  }
+  .branches li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 2px solid var(--sl-color-gray-4);
+  }
+  .when { font-size: var(--sl-text-sm); color: var(--sl-color-gray-2); font-style: italic; }
+
+  .leaf {
+    --tone-low: var(--sl-color-gray-6);
+    --tone-high: var(--sl-color-text);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 0.5rem;
+    border-left: 4px solid var(--tone-high);
+    background: var(--tone-low);
+    text-decoration: none;
+    color: var(--sl-color-gray-1);
+  }
+  .leaf[data-role='default'] { --tone-low: var(--sl-color-green-low); --tone-high: var(--sl-color-green-high); }
+  .leaf[data-role='opt-in'] { --tone-low: var(--sl-color-blue-low); --tone-high: var(--sl-color-blue-high); }
+  .leaf[data-role='by-hand'] { --tone-low: var(--sl-color-orange-low); --tone-high: var(--sl-color-orange-high); }
+  .leaf:hover .name { text-decoration: underline; }
+  .name { font-weight: 700; color: var(--tone-high); }
+  .how { font-size: var(--sl-text-sm); }
+</style>

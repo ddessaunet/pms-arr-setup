@@ -66,6 +66,8 @@ ok_eq "compose.yaml includes exactly apps/*" "${APPS[*]}" \
     "$(sed -n 's|^  - apps/\([^/]*\)/compose.yaml$|\1|p' compose.yaml | sort | paste -sd' ')"
 ok_eq "Taskfile.yml includes exactly apps/* and jobs/*" "$(printf '%s\n' "${APPS[@]}" "${JOBS[@]}" | sort | paste -sd' ')" \
     "$(sed -nE 's#^  ([a-z-]+): +\{ taskfile: (apps|jobs)/\1, +dir: \2/\1[ ,].*#\1#p' Taskfile.yml | sort | paste -sd' ')"
+ok "Taskfile.yml includes site/ (the website, served by apps/docs)" \
+    grep -qE '^  site: +\{ taskfile: site, +dir: site \}' Taskfile.yml
 CONFIGURED="$(sed -n 's/^  CONFIGURED: //p' Taskfile.yml)"
 ok_eq "CONFIGURED is every app with a configure.sh" \
     "$(for a in "${APPS[@]}"; do [[ -f "apps/$a/configure.sh" ]] && echo "$a"; done | sort | paste -sd' ')" \
