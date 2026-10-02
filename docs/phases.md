@@ -22,7 +22,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 7a — retire native qBittorrent and `plex-watch` (2026-09-29: 9 native torrents dropped, all 10 library files kept at 1 link; both services disabled)
 - [x] Phase 7b — remove native Plex and pms-local's leftovers (2026-09-29, same day as 7a by choice: DB archived to /root, packages, units, files and user removed)
 - [x] Phase 8 — library cleanup (2026-09-30; one-off for this box, so not kept in the repo)
-- [ ] Phase 9 — Bazarr: Spanish + English subtitles beside the media
+- [x] Phase 9 — Bazarr: Spanish + English subtitles beside the media (2026-10-01: Days of Thunder `.es.srt` beside the video, Plex lists it, hardlink kept, reclaim audit removes nothing)
 
 Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
 
@@ -863,9 +863,10 @@ Native qBittorrent and pms-local are gone for good.
 Native Plex can be reinstalled from Plex's apt repository and restored from
 `/root/plexmediaserver-native.tgz`. That database stops at the Phase 1b cutover, so
 everything watched or added since then is only in the container's database.
+
 ---
 
-## Phase 9 — Bazarr (subtitles)
+## Phase 9 — Bazarr (subtitles) (done 2026-10-01)
 
 **Why.** Plex's own *Search subtitles* is unreliable, and it isn't a permissions problem.
 Plex saves a subtitle it downloads into **its own database** (`Saved sub of N bytes to blob db`
@@ -899,7 +900,9 @@ together: Plex's own download keeps working, into its database.
 
 **Do**
 
-1. Optional: create a free account at opensubtitles.com and put it in `.env`:
+1. Optional: create a free account at **opensubtitles.com** and put it in `.env`. An
+   opensubtitles**.org** account is a different site and its login is refused
+   (`AuthenticationError`, provider paused 12 h):
 
    ```
    OPENSUBTITLES_USER=…
