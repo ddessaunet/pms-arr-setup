@@ -95,8 +95,8 @@ radarr:
         qualities:
           - name: UHD 2160p
             qualities: [Bluray-2160p, WEBDL-2160p, WEBRip-2160p]
-    # Scores for UHD Fallback, at the guide's scores, since the groups below
-    # only reach the guide-backed profiles: the
+    # Scores for UHD Fallback, at the guide's scores except HDR (below), since
+    # the groups below only reach the guide-backed profiles: the
     # [Unwanted] group minus LQ / LQ (Release Title), DV (w/o HDR fallback),
     # HDR and HDR10+ Boost, and Repack/Proper. Not SDR or x265 (no HDR/DV): both
     # -10000 on the two profiles above, and what most YTS 2160p releases are.
@@ -113,17 +113,23 @@ radarr:
           - c465ccc73923871b3eb1802042331306  # Line/Mic Dubbed
           - 712d74cd88bceb883ee32f773656b1f5  # Sing-Along Versions
           - bfd8eb01832d646a0a89c4deb46f8564  # Upscaled
-          - 493b6d1dbec3c3364c59d7607f7e3405  # HDR (500)
           - caa37d0df9c348912df1fb1d88f9273a  # HDR10+ Boost (100)
           - e7718d7a3ce595f289bfee26adc178f5  # Repack/Proper
           - ae43b294509409a6a13919dedd4764c4  # Repack2
           - 5caaaa1c08c1742aa4342d8c4cc463f2  # Repack3
         assign_scores_to:
           - name: UHD Fallback
+      # HDR at 3000, not the guide's 500: this profile accepts SDR, and at 500 the
+      # audio scores below would outweigh it (SDR with DD+, 1750, over HDR with
+      # AAC, 1500). At 3000 HDR comes first; only TrueHD Atmos or DTS X on SDR
+      # (5000 / 4500) still beats HDR with plain DD (3750).
+      - trash_ids:
+          - 493b6d1dbec3c3364c59d7607f7e3405  # HDR
+        score: 3000
+        assign_scores_to:
+          - name: UHD Fallback
       # The required members of [Audio] Audio Formats, as the guide-backed
       # profiles get them, so a lossless or Atmos track still outranks stereo AAC.
-      # At the guide's scores audio outweighs HDR here: SDR with DD+ (1750) beats
-      # HDR with AAC (500 + 1000).
       - trash_ids:
           - 496f355514737f7d83bf7aa4d24f8169  # TrueHD ATMOS (5000)
           - 2f22d89048b01681dde8afe203bf2e95  # DTS X (4500)
