@@ -18,6 +18,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 4 — Radarr + Sonarr (2026-09-29: grab → hardlink import → Plex delete → arr-reclaim freed 10 GB, unmonitored)
 - [x] Phase 5 — Seerr (requests) (2026-09-29: two requests auto-approved → HD-1080p grab → hardlink import → Available)
 - [x] Phase 6 — Recyclarr: 4K HDR as the default for movies (2026-10-01: Air grabbed 2160p HDR10+ in the cap, hardlinked, Available; Dune's 1080p torrent reclaimed when 4K replaced it)
+- [ ] Phase 6b — opt-in `4K HDR or 1080p` profile for films with no 4K HDR release, re-searched weekly
 - [ ] Download health — seeder floor, 4K ranked by release tier, Decluttarr replaces stalled/slow grabs
 - [x] Phase 7a — retire native qBittorrent and `plex-watch` (2026-09-29: 9 native torrents dropped, all 10 library files kept at 1 link; both services disabled)
 - [x] Phase 7b — remove native Plex and pms-local's leftovers (2026-09-29, same day as 7a by choice: DB archived to /root, packages, units, files and user removed)
@@ -45,7 +46,7 @@ Run `tools/preflight.sh` before each of Phases 0–1b. It is read-only.
    `/mnt/data/streaming` as "deleted in Plex" and removed the matching native torrent **and
    its data**, so until then the arrs only *added* files. It's retired now, and moves are
    safe. pms-local is not modified by this migration; what the stack needs from it is ported here (`arr-reclaim`).
-6. **Upgrades only in the 4K movie profile (`UHD Bluray + WEB`), and movie sizes are capped**
+6. **Upgrades only in the 4K movie profiles (`UHD Bluray + WEB` and its `4K HDR or 1080p` variant), and movie sizes are capped**
    (Radarr 1080p 40, 2160p 150 MB/min; Sonarr 1080p no max; `arr-configure.sh`). Everything else is single-grab.
 7. **Media is deleted in Plex, and that frees the space.** For Radarr/Sonarr imports,
    this repo's `arr-reclaim` removes the torrent, and it does the same when one is deleted
@@ -503,8 +504,8 @@ because many have no 4K release. Decided 2026-09-29, with these parameters:
   torrent once nothing links to its data (`upgraded`).
 
 **Playback:** transcoding is CPU-only, so 4K HDR has to **direct-play** (a 4K HDR TV app,
-Shield or Apple TV). **Films with no 4K release:** request them with `HD-1080p` from Seerr's
-request options; that profile stays as it was, without upgrades.
+Shield or Apple TV). **Films with no 4K HDR release:** this profile grabs nothing for them,
+and the request waits. Request them with `4K HDR or 1080p` instead (Phase 6b).
 
 **Do**
 
@@ -538,8 +539,8 @@ request options; that profile stays as it was, without upgrades.
 **Verify**
 
 - `npm run arr:check`:
-  - Radarr: 2160p capped at 150/100, 1080p at 40/25; upgrades only on `UHD Bluray + WEB`;
-    the default profile exists with no Remux.
+  - Radarr: 2160p capped at 150/100, 1080p at 40/25; upgrades only on `UHD Bluray + WEB`
+    (and `4K HDR or 1080p` after Phase 6b); the default profile exists with no Remux.
   - Sonarr: `WEB-1080p`, no upgrades; 1080p sizes with no max, 25 preferred.
 - `npm run seerr:check`: default profiles `UHD Bluray + WEB` and `WEB-1080p`.
 - Existing movies keep their profile.
@@ -557,6 +558,83 @@ request options; that profile stays as it was, without upgrades.
   only ever wrote profiles and custom formats.
 - Set `default_profile` in `arr-configure.sh` and `profile_name` in `seerr-configure.sh`
   back to `HD-1080p`, then re-run `npm run arr:configure` and `npm run seerr:configure`.
+
+---
+
+## Phase 6b — `4K HDR or 1080p`: always get something, then 4K
+
+`UHD Bluray + WEB` accepts nothing below 4K HDR. A film with no such release (common for
+anything older than about 2015) gets **no download**: Radarr keeps it monitored and
+missing, and the Seerr request waits. Radarr also searches a movie in full **only when it is
+added**. After that it sees new releases through RSS only, every 30 minutes, and has no
+scheduled search for missing movies. Decided 2026-10-02:
+
+| | what | owned by |
+|---|---|---|
+| profile | **`4K HDR or 1080p`**: the same TRaSH profile and scores as `UHD Bluray + WEB`, with a 1080p group (Bluray, WEB-DL, WEBRip) under the 4K one. Upgrades on, until 4K. No 720p, no Remux. 1080p x265 without HDR is rejected, as TRaSH intends | `recyclarr/recyclarr.yml` (a profile variant, Recyclarr ≥ 8.3) |
+| upgrades / no Remux | both 4K movie profiles | `arr-configure.sh` |
+| default | **unchanged**: requests default to `UHD Bluray + WEB`. Pick the variant per request in Seerr's request options (admin) | `seerr-configure.sh` |
+| re-search | **weekly, Wednesday 04:00**: the variant's monitored, released movies without a 4K file (1080p, or none) get one Radarr search. Movies already in 4K are left to RSS | `tools/arr-fallback-search.sh`, `arr-fallback-search.timer` |
+
+**What happens to a request.**
+- With a 4K HDR release, the variant takes it, as the default profile would.
+- Without one, it takes the best-scored 1080p within 40 MB/min.
+- A 4K HDR release later replaces that file, found through RSS or the weekly search, and
+  `arr-reclaim` removes the 1080p torrent (`upgraded`).
+- Score upgrades also happen within 1080p, for example an untiered WEB-DL replaced by a
+  tiered one.
+- 1080p Bluray encodes get no tier score: the UHD formats have none.
+
+**A movie already in Radarr** (for example a 4K request that is still waiting): set its
+profile to `4K HDR or 1080p` in Radarr, then *Search Movie*, or run
+`npm run arr:fallback-search`.
+
+**Do**
+
+1. **Preview.** It should show `4K HDR or 1080p` as **New**, with the same scores as
+   `UHD Bluray + WEB`, and no change to any other profile or custom format:
+
+   ```bash
+   npm run recyclarr:preview
+   ```
+
+2. **Apply,** in this order:
+
+   ```bash
+   npm run recyclarr:sync
+   ```
+
+   ```bash
+   npm run arr:configure
+   ```
+
+3. **Arm the weekly search** from the main clone, after the merge. It needs sudo, so it's
+   yours to run:
+
+   ```bash
+   npm run deploy
+   ```
+
+**Verify**
+
+- `npm run arr:check`: upgrades only on `UHD Bluray + WEB, 4K HDR or 1080p`; both exist
+  with no Remux.
+- `npm run seerr:check`: the default is still `UHD Bluray + WEB`.
+- `npm run check`: `arr-fallback-search.timer` armed; `npm run status` shows its next run.
+- **End to end:** request a film with no 4K HDR release in Seerr, with `4K HDR or 1080p`
+  in the request's options.
+  - Radarr grabs a 1080p release within 40 MB/min × runtime.
+  - Hardlinked import, then Available.
+  - `npm run arr:fallback-search:dry` lists it.
+
+**Rollback**
+
+- Move any movies on `4K HDR or 1080p` to another profile, since Radarr won't delete a
+  profile in use. Then delete the profile in Radarr.
+- Remove its entry from `recyclarr/recyclarr.yml` and `upgrade_profiles` in
+  `arr-configure.sh`.
+- Remove the timer from `tools/deploy.sh`, then
+  `sudo systemctl disable --now arr-fallback-search.timer`.
 
 ---
 

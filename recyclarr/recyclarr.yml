@@ -9,7 +9,8 @@
 #
 # Then `npm run arr:configure` and `npm run seerr:configure` (see docs/phases.md →
 # Phase 6). Ownership, so no two tools fight:
-#   - Recyclarr: the two profiles below and their custom formats/scores.
+#   - Recyclarr: the three profiles below (two for movies: the default 4K HDR
+#     one and its opt-in "4K HDR or 1080p" variant) and their formats/scores.
 #   - arr-configure.sh: quality SIZES (Radarr 1080p 40, 2160p 150 MB/min; Sonarr
 #     1080p no max) — hence no
 #     `quality_definition:` here, which would reset them to TRaSH's sizes.
@@ -24,6 +25,10 @@ radarr:
     api_key: !env_var RADARR_API_KEY
     quality_profiles:
       - trash_id: 64fb5f9858489bdac2af690e27c8f42f  # UHD Bluray + WEB
+        # Named because the variant below shares this trash_id (Recyclarr then
+        # requires a name on each). Keep it exactly this: Recyclarr's state,
+        # arr-configure.sh and seerr-configure.sh all find the profile by name.
+        name: UHD Bluray + WEB
         reset_unmatched_scores:
           enabled: true
         # Upgrades ON here, and only here: a better-scored 4K release (e.g. HDR10+)
@@ -43,6 +48,31 @@ radarr:
         qualities:
           - name: UHD 2160p
             qualities: [Bluray-2160p, WEBDL-2160p, WEBRip-2160p]
+      # CHANGED: not in the template. The same TRaSH profile again, opt-in from
+      # Seerr's request options for a film with no 4K HDR release: it takes 4K
+      # HDR when there is one, else 1080p, and replaces the 1080p file with 4K
+      # HDR when one appears (quality before score; 4K SDR stays -10000, so only
+      # HDR replaces it). The CF groups below carry no assign_scores_to, so both
+      # profiles get the same formats and scores. Score upgrades also happen
+      # within 1080p (e.g. an untiered WEB-DL replaced by a tiered one);
+      # arr-reclaim removes the replaced torrent. 1080p x265 without HDR stays
+      # rejected, and 1080p Bluray encodes get no tier score (the UHD formats
+      # have none). The 1080p qualities are one group for the same reason as the
+      # 4K ones. No 720p, no Remux. Radarr only finds a later 4K release through
+      # RSS, so tools/arr-fallback-search.sh re-searches these movies weekly.
+      - trash_id: 64fb5f9858489bdac2af690e27c8f42f  # UHD Bluray + WEB, variant
+        name: 4K HDR or 1080p
+        reset_unmatched_scores:
+          enabled: true
+        upgrade:
+          allowed: true
+          until_quality: UHD 2160p
+        min_format_score: 0
+        qualities:
+          - name: UHD 2160p
+            qualities: [Bluray-2160p, WEBDL-2160p, WEBRip-2160p]
+          - name: HD 1080p
+            qualities: [Bluray-1080p, WEBDL-1080p, WEBRip-1080p]
     custom_format_groups:
       add:
         - trash_id: ff204bbcecdd487d1cefcefdbf0c278d  # [Optional] Golden Rule UHD

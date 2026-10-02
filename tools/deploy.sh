@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# deploy.sh — install the systemd units (the updater's and arr-reclaim's), arm
-# or disarm the updater's timer, and (re)start the arr-reclaim watcher.
+# deploy.sh — install the systemd units (the updater's, arr-reclaim's and the
+# fallback search's), arm or disarm the updater's timer, arm the fallback
+# search's, and (re)start the arr-reclaim watcher.
 #
 #   tools/deploy.sh            install, reload, arm/disarm, verify
 #   tools/deploy.sh --check    report drift only; changes nothing
@@ -36,6 +37,8 @@ MANIFEST=(
     "systemd/pms-update.service:/etc/systemd/system/pms-update.service:644"
     "systemd/pms-update.timer:/etc/systemd/system/pms-update.timer:644"
     "systemd/arr-reclaim.service:/etc/systemd/system/arr-reclaim.service:644"
+    "systemd/arr-fallback-search.service:/etc/systemd/system/arr-fallback-search.service:644"
+    "systemd/arr-fallback-search.timer:/etc/systemd/system/arr-fallback-search.timer:644"
 )
 TIMER="pms-update.timer"
 NATIVE_PLEX_UNIT="plexmediaserver.service"
@@ -45,15 +48,21 @@ NATIVE_PLEX_UNIT="plexmediaserver.service"
 # which no unit file shows. (The same reasoning as pms-local's plex-watch.)
 WATCHER="arr-reclaim.service"
 
+# The weekly Radarr re-search (tools/arr-fallback-search.sh). Unlike the
+# updater it does not depend on where Plex runs: always armed.
+SEARCH_TIMER="arr-fallback-search.timer"
+
 # What each unit's ExecStart must say, as unit|command. A unit cannot use a
 # relative path, so it names this clone; a moved clone would leave it running
 # a file that is gone.
 EXECS=(
     "systemd/pms-update.service|$REPO/tools/update-stack.sh"
     "systemd/arr-reclaim.service|$REPO/tools/arr-reclaim.sh watch"
+    "systemd/arr-fallback-search.service|$REPO/tools/arr-fallback-search.sh"
 )
 
 TIMER_CHANGED=0
+SEARCH_TIMER_CHANGED=0
 ANY_CHANGED=0
 
 # entry → MF_SRC / MF_DST / MF_MODE
@@ -131,6 +140,11 @@ check() {
         else
             echo "WATCHER DOWN: $WATCHER is not enabled and running — npm run deploy"; rc=1
         fi
+        if systemctl is-enabled --quiet "$SEARCH_TIMER" 2>/dev/null; then
+            echo "ok: $SEARCH_TIMER armed"
+        else
+            echo "TIMER DISARMED: $SEARCH_TIMER should be armed — npm run deploy"; rc=1
+        fi
     fi
     return "$rc"
 }
@@ -174,6 +188,7 @@ install_all() {
         printf 'installed %s %s\n' "$MF_MODE" "$MF_DST"
         ANY_CHANGED=1
         if [[ "$MF_DST" == *"$TIMER" ]]; then TIMER_CHANGED=1; fi
+        if [[ "$MF_DST" == *"$SEARCH_TIMER" ]]; then SEARCH_TIMER_CHANGED=1; fi
     done
 
     # Explicit, and load-bearing under `set -e`: without it this function
@@ -208,6 +223,13 @@ arm() {
         echo "disabled $TIMER — Plex is native, and pms-local's plex-update.timer updates it"
     fi
 
+    sudo systemctl enable --now "$SEARCH_TIMER"
+    echo "enabled $SEARCH_TIMER"
+    if [[ "$SEARCH_TIMER_CHANGED" == 1 ]]; then
+        sudo systemctl restart "$SEARCH_TIMER"
+        echo "restarted $SEARCH_TIMER (unit file changed)"
+    fi
+
     sudo systemctl enable "$WATCHER"
     sudo systemctl restart "$WATCHER"
     echo "enabled and restarted $WATCHER"
@@ -222,12 +244,13 @@ verify() {
     local rc=0
     # Catches a typo'd or removed directive before it costs you a Sunday.
     systemd-analyze verify "/etc/systemd/system/$TIMER" \
-        /etc/systemd/system/pms-update.service "/etc/systemd/system/$WATCHER" 2>&1 \
-        | grep -E 'pms-update|arr-reclaim' || true
+        /etc/systemd/system/pms-update.service "/etc/systemd/system/$WATCHER" \
+        "/etc/systemd/system/$SEARCH_TIMER" /etc/systemd/system/arr-fallback-search.service 2>&1 \
+        | grep -E 'pms-update|arr-reclaim|arr-fallback' || true
     check || rc=1
 
     echo
-    systemctl list-timers "$TIMER" --all --no-pager
+    systemctl list-timers "$TIMER" "$SEARCH_TIMER" --all --no-pager
 
     if [[ "$rc" == 0 ]]; then echo "checked"; else echo "checked, with problems above"; fi
     return "$rc"

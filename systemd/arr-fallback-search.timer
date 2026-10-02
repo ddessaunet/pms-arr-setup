@@ -1,0 +1,24 @@
+# arr-fallback-search.timer — weekly re-search of the fallback profile.
+#
+# Source of truth is <repo>/systemd/arr-fallback-search.timer.
+#   sudo systemctl enable --now arr-fallback-search.timer
+#   systemctl list-timers arr-fallback-search.timer
+#
+# Radarr finds later releases through RSS only; this catches a 4K HDR release
+# for a "4K HDR or 1080p" movie that RSS missed (tools/arr-fallback-search.sh).
+
+[Unit]
+Description=Weekly Radarr search for fallback movies without a 4K file
+
+[Timer]
+# Wednesday 04:00: away from Sunday's container update (pms-update.timer), which
+# may be recreating Radarr at the time.
+OnCalendar=Wed *-*-* 04:00
+RandomizedDelaySec=30min
+
+# A run missed because the box was off fires shortly after the next boot.
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

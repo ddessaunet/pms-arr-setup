@@ -126,9 +126,12 @@ size_capped() { size_caps "$1" | cut -f1; }
 
 # The default profile for new adds (created by Recyclarr, recyclarr/recyclarr.yml;
 # seerr-configure.sh points requests at the same one), and the profiles allowed
-# to upgrade — every other profile is kept at no-upgrade.
+# to upgrade — every other profile is kept at no-upgrade. "4K HDR or 1080p" is
+# the opt-in variant for films with no 4K HDR release: 1080p first, then 4K HDR.
 default_profile() { case "$1" in radarr) echo "UHD Bluray + WEB" ;; sonarr) echo "WEB-1080p" ;; esac; }
-upgrade_profiles() { case "$1" in radarr) echo "UHD Bluray + WEB" ;; sonarr) : ;; esac; }
+upgrade_profiles() { case "$1" in radarr) printf '%s\n' "UHD Bluray + WEB" "4K HDR or 1080p" ;; sonarr) : ;; esac; }
+# The profiles kept free of Remux: the default and every upgrading one.
+remux_free_profiles() { { default_profile "$1"; upgrade_profiles "$1"; } | sed '/^$/d' | awk '!seen[$0]++'; }
 
 # ─── pure helpers (tests/arr-configure.test.sh) ───────────────────────────────
 
@@ -193,10 +196,8 @@ apply_root() { # app
     log "  root folder $root added"
 }
 
-# No upgrades on any profile until Recyclarr (Phase 6): an upgrade deletes
-# the old library file, which plex-watch reads as a Plex deletion.
-# Upgrades only where upgrade_profiles says (the 4K movie profile); an upgrade
-# replaces a library file, so everything else stays single-grab.
+# Upgrades only where upgrade_profiles says (the two 4K movie profiles); an
+# upgrade replaces a library file, so everything else stays single-grab.
 apply_profiles() { # app
     local p n=0
     get /qualityprofile || { log "  FAIL  read quality profiles (HTTP $HTTP)"; return 1; }
@@ -207,7 +208,7 @@ apply_profiles() { # app
         log "  upgrades $(jq -r 'if .upgradeAllowed then "on" else "off" end' <<<"$p") for $(jq -r .name <<<"$p")"
         n=$((n + 1))
     done < <(upgrades_to_fix "$(body)" "$(upgrade_profiles "$1")" | jq -c '.[]')
-    [[ "$n" -gt 0 ]] || log "  upgrades already only on: $(upgrade_profiles "$1" | paste -sd, - | sed 's/^$/(none)/')"
+    [[ "$n" -gt 0 ]] || log "  upgrades already only on: $(upgrade_profiles "$1" | paste -sd, - | sed 's/,/, /g; s/^$/(none)/')"
 }
 
 # The capped definitions, each read by id. Radarr 6.4 reports quality sizes a
@@ -259,8 +260,8 @@ apply_sizes() { # app
     log "  sizes capped: $(sizes_summary "$1") ($n quality/ies changed)"
 }
 
-apply_no_remux() { # app
-    local p name; name="$(default_profile "$1")"
+apply_no_remux() { # profile-name
+    local p name="$1"
     get /qualityprofile || { log "  FAIL  read quality profiles (HTTP $HTTP)"; return 1; }
     p="$(body | jq -c --arg n "$name" '.[] | select(.name == $n)')"
     # Recyclarr creates it; say so rather than fail the rest of the settings.
@@ -271,13 +272,18 @@ apply_no_remux() { # app
     log "  Remux removed from $name"
 }
 
+apply_no_remux_all() { # app
+    local name
+    while IFS= read -r name; do apply_no_remux "$name" || return 1; done < <(remux_free_profiles "$1")
+}
+
 apply_app() { # app
     apply_host &&
     apply_config "$1" naming "$(want_naming "$1")" &&
     apply_config "$1" mediamanagement "$(want_media "$1")" &&
     apply_root "$1" &&
     apply_profiles "$1" &&
-    apply_no_remux "$1" &&
+    apply_no_remux_all "$1" &&
     apply_sizes "$1" &&
     apply_resource "download client" downloadclient QBittorrent \
         "$(want_client_top)" "$(want_client_fields "$1")" password "$QBT_ARR_PASS" &&
@@ -307,17 +313,20 @@ verify_app() { # app
     else log "  DRIFT    root folder $root missing"; rc=1; fi
 
     get /qualityprofile || { log "  FAIL  read quality profiles"; return 1; }
-    local profiles allowed p dp
+    local profiles allowed p dp pn what
     profiles="$(body)"; allowed="$(upgrade_profiles "$1")"
     n="$(upgrades_to_fix "$profiles" "$allowed" | jq length)"
-    if [[ "$n" -eq 0 ]]; then log "  ok       upgrades only on: $(paste -sd, - <<<"$allowed" | sed 's/^$/(none)/')"
+    if [[ "$n" -eq 0 ]]; then log "  ok       upgrades only on: $(paste -sd, - <<<"$allowed" | sed 's/,/, /g; s/^$/(none)/')"
     else log "  DRIFT    $n profile(s) with upgrades set the wrong way: $(upgrades_to_fix "$profiles" "$allowed" | jq -r '[.[].name] | join(", ")')"; rc=1; fi
 
     dp="$(default_profile "$1")"
-    p="$(jq -c --arg n "$dp" '.[] | select(.name == $n)' <<<"$profiles")"
-    if [[ -z "$p" ]]; then log "  DRIFT    default profile '$dp' missing — npm run recyclarr:sync"; rc=1
-    elif profile_allows_remux "$p"; then log "  DRIFT    '$dp' allows Remux"; rc=1
-    else log "  ok       default profile '$dp' exists, no Remux"; fi
+    while IFS= read -r pn; do
+        what="profile '$pn'"; [[ "$pn" == "$dp" ]] && what="default profile '$pn'"
+        p="$(jq -c --arg n "$pn" '.[] | select(.name == $n)' <<<"$profiles")"
+        if [[ -z "$p" ]]; then log "  DRIFT    $what missing — npm run recyclarr:sync"; rc=1
+        elif profile_allows_remux "$p"; then log "  DRIFT    '$pn' allows Remux"; rc=1
+        else log "  ok       $what exists, no Remux"; fi
+    done < <(remux_free_profiles "$1")
 
     verify_sizes "$1" || rc=1
 

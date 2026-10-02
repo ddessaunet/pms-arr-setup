@@ -80,10 +80,20 @@ disappear. Confirm before anything destructive:
     - **Recyclarr** (`recyclarr/recyclarr.yml`, run on demand): the default profiles, 4K HDR
       `UHD Bluray + WEB` for movies and `WEB-1080p` for series, and their custom formats.
       Its 4K qualities are **one group** on purpose: Radarr ranks quality before score, so
-      split, any Bluray encode beat a well-seeded tiered WEB release.
+      split, any Bluray encode beat a well-seeded tiered WEB release. It also makes the
+      opt-in **`4K HDR or 1080p`** (Phase 6b): a variant of the same TRaSH profile (same
+      `trash_id`, so the same scores) with a 1080p group under the 4K one, for films with no
+      4K HDR release. Its name is matched exactly by `arr-configure.sh` and
+      `arr-fallback-search.sh`, and `tests/arr-fallback-search.test.sh` pins it.
     - **`arr-configure.sh`:** sizes (Radarr 1080p 40, 2160p 150 MB/min; Sonarr 1080p no max; Recyclarr's
-      `quality_definition` must stay out), and upgrades **only** on `UHD Bluray + WEB`.
-    - **`seerr-configure.sh`:** requests default to those profiles.
+      `quality_definition` must stay out), and upgrades and no Remux **only** on the two
+      4K movie profiles.
+    - **`seerr-configure.sh`:** requests default to those profiles; the variant is picked
+      per request, never the default.
+
+    Radarr searches a movie in full only when it is added, and after that only through
+    RSS. So `arr-fallback-search.timer` (Wednesday) searches the variant's movies without a
+    4K file again.
 
     Run `recyclarr:sync` → `arr:configure` → `seerr:configure`. Radarr reports quality sizes
     a few seconds late after a write, so the read-back re-reads for up to about 10 s before
@@ -93,8 +103,8 @@ disappear. Confirm before anything destructive:
     `/opt/appdata/seerr/settings.json`, not `.env`. Seerr rejects read-only fields in writes,
     so the script only ever sends the fields it owns. Its requests are ordinary Radarr/Sonarr
     adds; nothing in Seerr touches files.
-13. **`systemd/pms-update.service` and `systemd/arr-reclaim.service` hardcode this clone's
-    path** in `ExecStart`, because the scripts need `compose.yaml` and `.env` beside them.
+13. **`systemd/pms-update.service`, `systemd/arr-reclaim.service` and
+    `systemd/arr-fallback-search.service` hardcode this clone's path** in `ExecStart`, because the scripts need `compose.yaml` and `.env` beside them.
     `npm run deploy` refuses to install a unit whose path doesn't match the clone. Moving
     the clone means editing those lines.
 
