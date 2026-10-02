@@ -90,8 +90,12 @@ radarr:
         reset_unmatched_scores:
           enabled: true
         min_format_score: 0
+        # until_quality even with upgrades off: Recyclarr sets the cutoff from it,
+        # and Radarr refuses a new profile whose cutoff is not an allowed quality
+        # ("Cutoff must be an allowed quality or group", the first sync of this).
         upgrade:
           allowed: false
+          until_quality: UHD 2160p
         qualities:
           - name: UHD 2160p
             qualities: [Bluray-2160p, WEBDL-2160p, WEBRip-2160p]
