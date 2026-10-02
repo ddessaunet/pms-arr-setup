@@ -159,7 +159,7 @@ ok_eq "movies default to 4K HDR"   "UHD Bluray + WEB" "$(default_profile radarr)
 ok_eq "series default to 1080p"    "WEB-1080p"        "$(default_profile sonarr)"
 ok_eq "only the two 4K movie profiles upgrade" $'UHD Bluray + WEB\n4K HDR or 1080p' "$(upgrade_profiles radarr)"
 ok_eq "no series profile upgrades" "" "$(upgrade_profiles sonarr)"
-ok_eq "radarr: no Remux on the default or the fallback" $'UHD Bluray + WEB\n4K HDR or 1080p' "$(remux_free_profiles radarr)"
+ok_eq "radarr: no Remux on the default, the variant or UHD Fallback" $'UHD Bluray + WEB\n4K HDR or 1080p\nUHD Fallback' "$(remux_free_profiles radarr)"
 ok_eq "sonarr: no Remux on the default" "WEB-1080p" "$(remux_free_profiles sonarr)"
 PR='[{"id":4,"name":"HD-1080p","upgradeAllowed":true},{"id":7,"name":"UHD Bluray + WEB","upgradeAllowed":false},
      {"id":1,"name":"Any","upgradeAllowed":false},{"id":8,"name":"4K HDR or 1080p","upgradeAllowed":false}]'
@@ -169,6 +169,10 @@ ok_eq "HD-1080p off, both 4K profiles on, Any untouched" \
     "$(jq -c '[.[] | {name, u: .upgradeAllowed}]' <<<"$UF")"
 ok_eq "already right → nothing to fix" "0" "$(upgrades_to_fix "$(jq -c '(.[0].upgradeAllowed)=false | (.[1].upgradeAllowed)=true | (.[3].upgradeAllowed)=true' <<<"$PR")" "$(upgrade_profiles radarr)" | jq length)"
 ok_eq "sonarr: every upgrading profile turned off" '["HD-1080p"]' "$(upgrades_to_fix "$PR" "$(upgrade_profiles sonarr)" | jq -c '[.[].name]')"
+# The hand-picked UHD Fallback (recyclarr.yml) never upgrades.
+PRF="$(jq -c '. + [{"id":8,"name":"UHD Fallback","upgradeAllowed":true}]' <<<"$PR")"
+ok_eq "fallback upgrading → turned off" "false" \
+    "$(upgrades_to_fix "$PRF" "$(upgrade_profiles radarr)" | jq -c '.[] | select(.name == "UHD Fallback") | .upgradeAllowed')"
 
 # ─── resources (tools/lib/servarr.sh) ─────────────────────────────────────────
 echo
