@@ -1,0 +1,17 @@
+version: '3'
+
+# recyclarr — see README.md. A one-shot tool, not a long-running service: no
+# logs, up or update. Its image tag (:8) is the update policy.
+
+tasks:
+  preview:
+    desc: What a Recyclarr sync would change (changes nothing; the report needs a terminal)
+    interactive: true
+    cmds:
+      - ./run.sh sync --preview
+
+  sync:
+    desc: Apply the TRaSH profiles; then task arr:configure and task seerr:configure
+    interactive: true
+    cmds:
+      - ./run.sh sync

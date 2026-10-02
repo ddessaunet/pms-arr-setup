@@ -1,0 +1,9 @@
+version: '3'
+
+# prowlarr — see README.md. Its tasks come from the templates in
+# stack/taskfiles/; SERVICE is the compose service they act on.
+
+includes:
+  service:  { taskfile: ../../stack/taskfiles/service.yml, flatten: true, vars: { SERVICE: prowlarr } }
+  update:   { taskfile: ../../stack/taskfiles/update.yml, flatten: true, vars: { SERVICE: prowlarr } }
+  configure: { taskfile: ../../stack/taskfiles/configure.yml, flatten: true, vars: { SERVICE: prowlarr } }

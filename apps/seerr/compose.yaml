@@ -1,0 +1,27 @@
+# seerr — requests (Phase 5). Included by the root compose.yaml (project `pms`).
+#
+# The request UI in front of Radarr and Sonarr (the merged successor of
+# Jellyseerr/Overseerr). It only files requests — no media mounts. A request
+# becomes an ordinary Radarr/Sonarr add, so Phase 4's rules apply to it.
+#
+# Its API key is its own, generated on first start into its settings.json.
+# First run: sign in with Plex in the browser once; apps/seerr/configure.sh
+# does the rest of the setup wizard.
+
+services:
+  seerr:
+    image: ghcr.io/seerr-team/seerr:latest
+    container_name: seerr
+    init: true
+    environment:
+      TZ: ${TZ:?set TZ in .env}
+      LOG_LEVEL: info
+      PORT: 5055
+    ports:
+      - "5055:5055"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/seerr:/app/config
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [arr]
+    restart: unless-stopped

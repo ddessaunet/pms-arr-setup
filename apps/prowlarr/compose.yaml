@@ -1,0 +1,29 @@
+# prowlarr — the indexer manager (Phase 3). Included by the root compose.yaml
+# (project `pms`).
+#
+# Prowlarr manages the indexers and, from Phase 4, pushes them to Radarr and
+# Sonarr. It only searches: no media mounts at all.
+#
+# The API key and auth mode come from .env, so the key is known before the
+# first start and Phase 4 can use it without copying it out of the UI. The
+# login, FlareSolverr proxy and indexers are applied by
+# apps/prowlarr/configure.sh, not clicked in the WebUI.
+
+services:
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    environment:
+      PUID: ${PUID:?set PUID in .env}
+      PGID: ${PGID:?set PGID in .env}
+      TZ: ${TZ:?set TZ in .env}
+      UMASK: "002"
+      PROWLARR__AUTH__APIKEY: ${PROWLARR_API_KEY:?set PROWLARR_API_KEY in .env}
+      PROWLARR__AUTH__METHOD: Forms
+      PROWLARR__AUTH__REQUIRED: DisabledForLocalAddresses
+    ports:
+      - "9696:9696"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/prowlarr:/config
+    networks: [arr]
+    restart: unless-stopped

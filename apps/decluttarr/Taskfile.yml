@@ -1,0 +1,8 @@
+version: '3'
+
+# decluttarr — see README.md. Its tasks come from the templates in
+# stack/taskfiles/; SERVICE is the compose service they act on.
+# No update: the image is pinned; bump its tag by hand (compose.yaml).
+
+includes:
+  service:  { taskfile: ../../stack/taskfiles/service.yml, flatten: true, vars: { SERVICE: decluttarr } }

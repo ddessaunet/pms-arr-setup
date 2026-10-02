@@ -41,10 +41,10 @@ and goes straight to the gate.
 ## Installing
 
 ```bash
-npm run deploy
+task deploy
 ```
 
-This installs `systemd/pms-update.{service,timer}` and arms the timer **only while
+This installs `jobs/pms-update/pms-update.{service,timer}` and arms the timer **only while
 `plexmediaserver` is masked**, which is to say only after the Phase 1b cutover. Once Phase 7b
 has removed the package, a missing unit counts as masked too. Otherwise it disarms the
 timer. That's the same signal pms-local's deploy uses to disarm its own
@@ -52,7 +52,7 @@ timer. That's the same signal pms-local's deploy uses to disarm its own
 refuses to run if the unit's `ExecStart` doesn't point at this clone.
 
 ```bash
-npm run check
+task deploy:check
 ```
 
 This reports drift (a missing, changed or wrong-mode unit, or a timer armed when it
@@ -86,7 +86,7 @@ With several services, each one is tried and the worst exit code wins.
 ## Running it by hand
 
 ```bash
-npm run update:dry
+task update:dry
 ```
 
 `--dry-run` still **pulls**, because that's how it finds out whether there's anything new.
@@ -96,7 +96,7 @@ Everything after the gate is skipped.
 To update one service now, outside the schedule:
 
 ```bash
-tools/update-stack.sh plex
+jobs/pms-update/update-stack.sh plex
 ```
 
 ## Adding a service
@@ -105,7 +105,7 @@ When a later phase brings a service up, add its compose name to `UPDATE_SERVICES
 (space-separated, e.g. `UPDATE_SERVICES=plex qbittorrent prowlarr`). With no hooks it gets
 the default health check: stays up for 20 seconds without restarting, and no gate.
 
-Only add hooks if the service needs them. They are functions in `tools/update-stack.sh` named
+Only add hooks if the service needs them. They are functions in `jobs/pms-update/update-stack.sh` named
 after the compose service, with dashes as underscores:
 
 | hook | purpose |
@@ -143,7 +143,7 @@ cutover, though, so anything watched since then is missing.
 ## Tests
 
 ```bash
-tests/update-stack.test.sh
+jobs/pms-update/update-stack.test.sh
 ```
 
 The tests run offline: `curl` is stubbed, and nothing outside a temp directory is written.

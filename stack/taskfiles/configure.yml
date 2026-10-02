@@ -1,0 +1,20 @@
+version: '3'
+
+# For apps whose settings live in this repo: apps/<app>/configure.sh applies
+# them through the app's API and reads them back. Idempotent; --check only
+# reports drift.
+
+tasks:
+  configure:
+    desc: Apply {{.SERVICE}}'s settings, then verify them
+    dir: '{{.ROOT_DIR}}'
+    requires: { vars: [SERVICE] }
+    cmds:
+      - apps/{{.SERVICE}}/configure.sh
+
+  check:
+    desc: Report {{.SERVICE}}'s settings drift (changes nothing)
+    dir: '{{.ROOT_DIR}}'
+    requires: { vars: [SERVICE] }
+    cmds:
+      - apps/{{.SERVICE}}/configure.sh --check

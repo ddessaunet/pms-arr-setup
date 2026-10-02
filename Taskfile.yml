@@ -1,0 +1,138 @@
+version: '3'
+
+# The task runner for this repo (https://taskfile.dev, task >= 3.44).
+#
+#   task --list                 every task, with what it does
+#   task <app>:<verb>           one app: logs, ps, up, update, configure, check
+#   task <verb>                 the whole stack: start, stop, status, check, deploy
+#
+# Every app in apps/ and job in jobs/ is included here under its own name. The
+# per-app verbs come from stack/taskfiles/ (see README → "The app contract");
+# stack/layout.test.sh fails when an app is missing here or in compose.yaml.
+#
+# Tasks that change containers or units run only from the main clone
+# (stack/main-clone.sh): compose.yaml fixes the project name, so a worktree
+# would act on the live stack.
+
+includes:
+  plex:                { taskfile: apps/plex,                dir: apps/plex }
+  qbittorrent:         { taskfile: apps/qbittorrent,         dir: apps/qbittorrent, aliases: [qbt] }
+  prowlarr:            { taskfile: apps/prowlarr,            dir: apps/prowlarr }
+  flaresolverr:        { taskfile: apps/flaresolverr,        dir: apps/flaresolverr }
+  radarr:              { taskfile: apps/radarr,              dir: apps/radarr }
+  sonarr:              { taskfile: apps/sonarr,              dir: apps/sonarr }
+  seerr:               { taskfile: apps/seerr,               dir: apps/seerr }
+  recyclarr:           { taskfile: apps/recyclarr,           dir: apps/recyclarr }
+  decluttarr:          { taskfile: apps/decluttarr,          dir: apps/decluttarr }
+  bazarr:              { taskfile: apps/bazarr,              dir: apps/bazarr }
+  arr-reclaim:         { taskfile: jobs/arr-reclaim,         dir: jobs/arr-reclaim }
+  arr-fallback-search: { taskfile: jobs/arr-fallback-search, dir: jobs/arr-fallback-search }
+  pms-update:          { taskfile: jobs/pms-update,          dir: jobs/pms-update }
+
+vars:
+  # The apps with a configure.sh, in the order trap 11 applies them.
+  CONFIGURED: qbittorrent prowlarr radarr sonarr seerr bazarr
+
+tasks:
+  start:
+    desc: Preflight, then start every service the current phase has enabled (main clone only)
+    preconditions:
+      - sh: stack/main-clone.sh
+        msg: Run it from the main clone.
+    cmds:
+      - stack/start.sh
+
+  stop:
+    desc: Stop the stack; containers and config are kept (main clone only)
+    preconditions:
+      - sh: stack/main-clone.sh
+        msg: Run it from the main clone.
+    cmds:
+      - docker compose stop
+
+  status:
+    desc: The containers, and when the updater and the fallback search run next
+    cmds:
+      - docker compose ps
+      - echo
+      - systemctl list-timers pms-update.timer arr-fallback-search.timer --all --no-pager
+
+  logs:
+    desc: Follow the logs (task logs -- plex for one service)
+    cmds:
+      - docker compose logs -f --tail 100 {{.CLI_ARGS}}
+
+  preflight:
+    desc: Read-only checks before a phase (task start runs them too)
+    cmds:
+      - stack/preflight.sh
+
+  lint:
+    desc: shellcheck every script, and check that compose.yaml renders
+    preconditions:
+      - sh: command -v shellcheck
+        msg: shellcheck not installed (sudo apt install shellcheck)
+    cmds:
+      - shellcheck -x apps/*/*.sh jobs/*/*.sh stack/*.sh stack/lib/*.sh
+      # Placeholder values: this checks the files, not the .env (preflight
+      # does that), so it also works in a worktree or a fresh clone.
+      - >-
+        env PUID=1000 PGID=1000 TZ=UTC APPDATA=/opt/appdata
+        PROWLARR_API_KEY=x RADARR_API_KEY=x SONARR_API_KEY=x QBT_ARR_USER=x QBT_ARR_PASS=x
+        docker compose --env-file /dev/null --profile '*' config -q
+
+  test:
+    desc: The offline test suites
+    env:
+      TASK: '{{.TASK_EXE}}'
+    cmds:
+      - stack/run-tests.sh
+
+  check:
+    desc: Deploy drift and every app's settings drift, in one report (changes nothing)
+    cmds:
+      - cmd: |
+          rc=0
+          stack/deploy.sh --check || rc=1
+          for app in {{.CONFIGURED}}; do
+            echo; echo "── $app"
+            "{{.TASK_EXE}}" "$app:check" || rc=1
+          done
+          exit $rc
+
+  deploy:check:
+    desc: Deploy drift only — units missing or changed, timers armed wrongly (changes nothing)
+    cmds:
+      - stack/deploy.sh --check
+
+  deploy:
+    desc: Lint and test, then install the units and arm the timers (asks for sudo; main clone only)
+    preconditions:
+      - sh: stack/main-clone.sh
+        msg: Run it from the main clone.
+    cmds:
+      - task: lint
+      - task: test
+      - stack/deploy.sh
+
+  update:
+    desc: Update every service in UPDATE_SERVICES now (task update -- plex for one)
+    cmds:
+      - task: pms-update:run
+
+  update:dry:
+    desc: Updater rehearsal — pulls, but recreates nothing
+    cmds:
+      - task: pms-update:dry
+
+  arr:configure:
+    desc: Apply Radarr's and Sonarr's settings (after recyclarr:sync, before seerr:configure)
+    cmds:
+      - task: radarr:configure
+      - task: sonarr:configure
+
+  arr:check:
+    desc: Report Radarr and Sonarr drift (changes nothing)
+    cmds:
+      - task: radarr:check
+      - task: sonarr:check

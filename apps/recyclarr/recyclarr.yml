@@ -1,0 +1,182 @@
+# yaml-language-server: $schema=https://schemas.recyclarr.dev/v8/config-schema.json
+#
+# recyclarr.yml — the TRaSH quality profiles and custom formats for Radarr and
+# Sonarr. Run on demand, never on a schedule, so scoring changes land when you
+# choose and a preview shows them first:
+#
+#   task recyclarr:preview      what a sync would change; changes nothing
+#   task recyclarr:sync         apply it
+#
+# Then `task arr:configure` and `task seerr:configure` (see docs/phases.md →
+# Phase 6). Ownership, so no two tools fight:
+#   - Recyclarr: the four profiles below (three for movies: the default 4K HDR
+#     one, its opt-in "4K HDR or 1080p" variant, and the hand-picked "UHD
+#     Fallback") and their formats/scores.
+#   - arr-configure.sh: quality SIZES (Radarr 1080p 40, 2160p 150 MB/min; Sonarr
+#     1080p no max) — hence no
+#     `quality_definition:` here, which would reset them to TRaSH's sizes.
+#   - seerr-configure.sh: which profile a request uses by default.
+#
+# Started from recyclarr/config-templates (v8): radarr/uhd-bluray-web.yml and
+# sonarr/web-1080p.yml, with the changes marked CHANGED.
+
+radarr:
+  movies-4k-hdr:
+    base_url: http://radarr:7878
+    api_key: !env_var RADARR_API_KEY
+    quality_profiles:
+      - trash_id: 64fb5f9858489bdac2af690e27c8f42f  # UHD Bluray + WEB
+        # Named because the variant below shares this trash_id (Recyclarr then
+        # requires a name on each). Keep it exactly this: Recyclarr's state,
+        # arr-configure.sh and seerr-configure.sh all find the profile by name.
+        name: UHD Bluray + WEB
+        reset_unmatched_scores:
+          enabled: true
+        # Upgrades ON here, and only here: a better-scored 4K release (e.g. HDR10+)
+        # replaces the first grab. arr-reclaim removes the replaced torrent
+        # (`upgraded`); arr-configure.sh keeps every other profile at no-upgrade.
+        upgrade:
+          allowed: true
+          until_quality: UHD 2160p
+        # CHANGED: the template ranks Bluray-2160p above a "WEB 2160p" group, and
+        # Radarr compares quality BEFORE custom-format score, so any Bluray encode,
+        # even from an unknown group with 11 seeders, beat every WEB release,
+        # tiered or not (Dune: Part Two, 2026-09-29, over a WEB Tier 01 release with
+        # 508). One group makes the score, and so the TRaSH release-group tiers,
+        # decide within 4K. Tiered UHD Bluray encodes (1700-1800) still edge out
+        # WEB Tier 01 (1700); untiered encoders fall below tiered WEB. Remux stays
+        # out (arr-configure.sh), and qualities not listed stay disallowed.
+        qualities:
+          - name: UHD 2160p
+            qualities: [Bluray-2160p, WEBDL-2160p, WEBRip-2160p]
+      # CHANGED: not in the template. The same TRaSH profile again, opt-in from
+      # Seerr's request options for a film with no 4K HDR release: it takes 4K
+      # HDR when there is one, else 1080p, and replaces the 1080p file with 4K
+      # HDR when one appears (quality before score; 4K SDR stays -10000, so only
+      # HDR replaces it). The CF groups below carry no assign_scores_to, so both
+      # profiles get the same formats and scores. Score upgrades also happen
+      # within 1080p (e.g. an untiered WEB-DL replaced by a tiered one);
+      # arr-reclaim removes the replaced torrent. 1080p x265 without HDR stays
+      # rejected, and 1080p Bluray encodes get no tier score (the UHD formats
+      # have none). The 1080p qualities are one group for the same reason as the
+      # 4K ones. No 720p, no Remux. Radarr only finds a later 4K release through
+      # RSS, so jobs/arr-fallback-search/arr-fallback-search.sh re-searches these movies daily.
+      - trash_id: 64fb5f9858489bdac2af690e27c8f42f  # UHD Bluray + WEB, variant
+        name: 4K HDR or 1080p
+        reset_unmatched_scores:
+          enabled: true
+        upgrade:
+          allowed: true
+          until_quality: UHD 2160p
+        min_format_score: 0
+        qualities:
+          - name: UHD 2160p
+            qualities: [Bluray-2160p, WEBDL-2160p, WEBRip-2160p]
+          - name: HD 1080p
+            qualities: [Bluray-1080p, WEBDL-1080p, WEBRip-1080p]
+      # CHANGED (not in the template): a looser 4K profile, picked by hand for a
+      # movie that has 4K releases but none UHD Bluray + WEB accepts (Radarr →
+      # movie → Edit → Quality Profile, then Search; or Seerr's request
+      # options). It is never the default; for a film with no 4K at all,
+      # "4K HDR or 1080p" is the one. Same 2160p group, no Remux, the same 150 MB/min cap; but HDR
+      # is preferred, not required, and there are no release-group tiers, so
+      # among equal scores indexer priority and then seeders decide. LQ groups
+      # (YTS, YIFY) pass: the -10000 blockers below are only the files that are
+      # broken or fake (disc images, 3D, upscales, DV without HDR fallback, …).
+      # No upgrades: move the movie back to UHD Bluray + WEB to have that profile
+      # replace the file once a good release appears. Not guide-backed (no
+      # trash_id), so the CF groups below never reach it.
+      - name: UHD Fallback
+        reset_unmatched_scores:
+          enabled: true
+        min_format_score: 0
+        # until_quality even with upgrades off: Recyclarr sets the cutoff from it,
+        # and Radarr refuses a new profile whose cutoff is not an allowed quality
+        # ("Cutoff must be an allowed quality or group", the first sync of this).
+        upgrade:
+          allowed: false
+          until_quality: UHD 2160p
+        qualities:
+          - name: UHD 2160p
+            qualities: [Bluray-2160p, WEBDL-2160p, WEBRip-2160p]
+    # Scores for UHD Fallback, at the guide's scores except HDR (below), since
+    # the groups below only reach the guide-backed profiles: the
+    # [Unwanted] group minus LQ / LQ (Release Title), DV (w/o HDR fallback),
+    # HDR and HDR10+ Boost, and Repack/Proper. Not SDR or x265 (no HDR/DV): both
+    # -10000 on the two profiles above, and what most YTS 2160p releases are.
+    custom_formats:
+      - trash_ids:
+          - b8cd450cbfa689c0259a01d9e29ba3d6  # 3D
+          - cae4ca30163749b891686f95532519bd  # AV1
+          - ed38b889b31be83fda192888e2286d83  # BR-DISK
+          - b6832f586342ef70d9c128d40c07b872  # Bad Dual Groups
+          - cc444569854e9de0b084ab2b8b1532b2  # Black and White Editions
+          - 923b6abef9b17f937fab56cfcf89e1f1  # DV (w/o HDR fallback)
+          - 0a3f082873eb454bde444150b70253cc  # Extras
+          - e6886871085226c3da1830830146846c  # Generated Dynamic HDR
+          - c465ccc73923871b3eb1802042331306  # Line/Mic Dubbed
+          - 712d74cd88bceb883ee32f773656b1f5  # Sing-Along Versions
+          - bfd8eb01832d646a0a89c4deb46f8564  # Upscaled
+          - caa37d0df9c348912df1fb1d88f9273a  # HDR10+ Boost (100)
+          - e7718d7a3ce595f289bfee26adc178f5  # Repack/Proper
+          - ae43b294509409a6a13919dedd4764c4  # Repack2
+          - 5caaaa1c08c1742aa4342d8c4cc463f2  # Repack3
+        assign_scores_to:
+          - name: UHD Fallback
+      # HDR at 3000, not the guide's 500: this profile accepts SDR, and at 500 the
+      # audio scores below would outweigh it (SDR with DD+, 1750, over HDR with
+      # AAC, 1500). At 3000 HDR comes first; only TrueHD Atmos or DTS X on SDR
+      # (5000 / 4500) still beats HDR with plain DD (3750).
+      - trash_ids:
+          - 493b6d1dbec3c3364c59d7607f7e3405  # HDR
+        score: 3000
+        assign_scores_to:
+          - name: UHD Fallback
+      # The required members of [Audio] Audio Formats, as the guide-backed
+      # profiles get them, so a lossless or Atmos track still outranks stereo AAC.
+      - trash_ids:
+          - 496f355514737f7d83bf7aa4d24f8169  # TrueHD ATMOS (5000)
+          - 2f22d89048b01681dde8afe203bf2e95  # DTS X (4500)
+          - 417804f7f2c4308c1f4c5d380d4c4475  # ATMOS (undefined) (3000)
+          - 1af239278386be2919e1bcee0bde047e  # DD+ ATMOS (3000)
+          - 3cafb66171b47f226146a0770576870f  # TrueHD (2750)
+          - dcf3ec6938fa32445f590a4da84256cd  # DTS-HD MA (2500)
+          - a570d4a0e56a2874b64e5bfa55202a1b  # FLAC (2250)
+          - e7c2fcae07cbada050a0af3357491d7b  # PCM (2250)
+          - 8e109e50e0a0b83a5098b056e13bf6db  # DTS-HD HRA (2000)
+          - 185f1dd7264c4562b9022d963ac37424  # DD+ (1750)
+          - f9f847ac70a0af62ea4a08280b859636  # DTS-ES (1500)
+          - 1c1a4c5e823891c75bc50380a6866f73  # DTS (1250)
+          - 240770601cc226190c367ef59aba7463  # AAC (1000)
+          - c2998bd0d90ed5621d8df281e839436e  # DD (750)
+        assign_scores_to:
+          - name: UHD Fallback
+    custom_format_groups:
+      add:
+        - trash_id: ff204bbcecdd487d1cefcefdbf0c278d  # [Optional] Golden Rule UHD
+        - trash_id: a3ac6af01d78e4f21fcb75f601ac96df  # [Unwanted] Unwanted Formats
+        # CHANGED: the three below are off in the template. Together with the
+        # [HDR Formats] HDR group (synced by default) they are what makes this
+        # profile 4K *HDR* rather than just 2160p:
+        - trash_id: 7fc2751eef7e6bdc70b74136e5e35c76  # [HDR Formats] DV (w/o HDR fallback)
+        - trash_id: b29413a7487478fe98228ce79e5689e4  # [HDR Formats] HDR10+ Boost
+        - trash_id: 47f0d69750de9e16855915fa73bb7b08  # [HDR Formats] SDR
+          select:
+            - 9c38ebb7384dada637be8899efa68e6f  # SDR
+
+sonarr:
+  series-1080p:
+    base_url: http://sonarr:8989
+    api_key: !env_var SONARR_API_KEY
+    quality_profiles:
+      - trash_id: 72dae194fc92bf828f32cde7744e51a1  # WEB-1080p
+        reset_unmatched_scores:
+          enabled: true
+        # CHANGED: TRaSH's profile upgrades; series here do not (decided for Phase 6).
+        upgrade:
+          allowed: false
+    custom_format_groups:
+      add:
+        - trash_id: 158188097a58d7687dee647e04af0da3  # [Optional] Golden Rule HD
+        - trash_id: 85fae4a2294965b75710ef2989c850eb  # [Streaming Services] HD/UHD boost
+        - trash_id: 59c3af66780d08332fdc64e68297098f  # [Unwanted] Unwanted Formats

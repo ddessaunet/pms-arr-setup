@@ -1,0 +1,24 @@
+version: '3'
+
+# Updating one app outside the weekly run, through the same updater
+# (jobs/pms-update/update-stack.sh): skip while anyone streams, recreate,
+# verify, roll back if unhealthy. Left out for pinned images (decluttarr) and
+# one-shot tools (recyclarr).
+
+tasks:
+  update:
+    desc: Update {{.SERVICE}} now — pull, recreate, verify, roll back if unhealthy (main clone only)
+    dir: '{{.ROOT_DIR}}'
+    requires: { vars: [SERVICE] }
+    preconditions:
+      - sh: stack/main-clone.sh
+        msg: Run it from the main clone.
+    cmds:
+      - jobs/pms-update/update-stack.sh {{.SERVICE}}
+
+  update:dry:
+    desc: Pull {{.SERVICE}}'s image and report; recreates nothing
+    dir: '{{.ROOT_DIR}}'
+    requires: { vars: [SERVICE] }
+    cmds:
+      - jobs/pms-update/update-stack.sh --dry-run {{.SERVICE}}

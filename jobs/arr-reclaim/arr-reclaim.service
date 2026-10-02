@@ -1,0 +1,55 @@
+# arr-reclaim.service — reclaim the space of Radarr/Sonarr downloads deleted in Plex.
+#
+# Source of truth is this file. `task deploy`
+# installs it, enables it and restarts it; `task deploy:check` reports drift.
+#
+#   systemctl status arr-reclaim
+#   journalctl -u arr-reclaim -f
+#
+# The container counterpart of pms-local's plex-watch.service, which keeps
+# looking after the native qBittorrent. Both watch the same library; each
+# removes torrents only from its own qBittorrent.
+
+[Unit]
+Description=Remove Radarr/Sonarr torrents whose library files were deleted in Plex
+Documentation=https://github.com/ddessaunet/pms-arr-setup/blob/main/docs/phases.md
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+# Without this it could start before /mnt/data is mounted, watch the empty
+# mountpoint underneath, and see nothing forever (as plex-watch notes).
+RequiresMountsFor=/mnt/data
+
+[Service]
+Type=simple
+# Runs from the clone (.env beside it). deploy.sh refuses a mismatched path.
+ExecStart=/home/dario/repositories/pms-arr-setup/jobs/arr-reclaim/arr-reclaim.sh watch
+
+# Not root. It deletes torrent data through qBittorrent's API; the only thing
+# it touches locally is removing empty folders under /mnt/data/streaming,
+# which dario owns.
+User=dario
+Group=dario
+
+# inotifywait exiting, or qBittorrent away for a while, should not end the
+# watch. RestartSec keeps a persistent failure from spinning.
+Restart=always
+RestartSec=30
+
+NoNewPrivileges=yes
+ProtectSystem=full
+PrivateTmp=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# A watcher: never the reason a transcode stutters.
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

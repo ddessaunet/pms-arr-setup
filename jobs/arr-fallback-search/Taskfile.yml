@@ -1,0 +1,20 @@
+version: '3'
+
+# arr-fallback-search — see README.md. Run daily at 04:00 by
+# arr-fallback-search.timer; `task deploy` installs and arms it.
+
+tasks:
+  run:
+    desc: Search Radarr again now for the "4K HDR or 1080p" movies without a 4K file
+    cmds:
+      - ./arr-fallback-search.sh
+
+  dry:
+    desc: List those movies (changes nothing)
+    cmds:
+      - ./arr-fallback-search.sh --dry-run
+
+  logs:
+    desc: The last runs' journal
+    cmds:
+      - journalctl -u arr-fallback-search.service -n 100 --no-pager

@@ -1,0 +1,24 @@
+version: '3'
+
+# pms-update — see README.md. Run Sundays at 05:00 by pms-update.timer;
+# `task deploy` installs it and arms the timer while native Plex is masked or
+# gone. `task update` / `task <app>:update` reach the same script.
+
+tasks:
+  run:
+    desc: Update every service in UPDATE_SERVICES now (main clone only)
+    preconditions:
+      - sh: ../../stack/main-clone.sh
+        msg: Run it from the main clone.
+    cmds:
+      - ./update-stack.sh {{.CLI_ARGS}}
+
+  dry:
+    desc: Pull and report; recreates nothing
+    cmds:
+      - ./update-stack.sh --dry-run {{.CLI_ARGS}}
+
+  logs:
+    desc: The last runs' journal
+    cmds:
+      - journalctl -u pms-update.service -n 100 --no-pager

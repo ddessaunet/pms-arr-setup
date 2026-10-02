@@ -1,0 +1,45 @@
+# pms-update.service — one run of jobs/pms-update/update-stack.sh.
+#
+# Source of truth is this file. `task deploy` installs it with its timer, and
+# arms the timer only while native Plex is masked or gone.
+#
+#   journalctl -u pms-update
+#
+# ExecStart points into the clone because compose runs from the clone — the
+# script needs compose.yaml and .env beside it. Move the clone, edit this path.
+
+[Unit]
+Description=Update the pms containers (pull, wait out streams, recreate, verify, roll back)
+Documentation=https://github.com/ddessaunet/pms-arr-setup/blob/main/docs/updating.md
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/home/dario/repositories/pms-arr-setup/jobs/pms-update/update-stack.sh
+
+# Not root. dario is in the docker group, owns /opt/appdata (the lock, and
+# Plex's Preferences.xml for the token) and owns the clone.
+User=dario
+Group=dario
+
+# Pull (Plex's image is ~350 MB), up to UPDATE_HEALTH_WAIT for the new
+# container, and as long again for a rollback, per service.
+TimeoutStartSec=30min
+
+# ── on hardening ──────────────────────────────────────────────────────────────
+# Modest on purpose. Membership of the docker group is root-equivalent, so
+# sandboxing this process buys little, and the docker CLI writes under ~/.docker,
+# which rules out ProtectHome.
+NoNewPrivileges=yes
+ProtectSystem=full
+PrivateTmp=yes
+ProtectClock=yes
+ProtectHostname=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# Stay out of the way of a transcode that began after the session check.
+Nice=10
+IOSchedulingClass=idle

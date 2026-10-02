@@ -1,0 +1,35 @@
+# sonarr — manages the series (Phase 4). Included by the root compose.yaml
+# (project `pms`).
+#
+# Radarr and Sonarr manage the whole library. Most titles are unmonitored, so
+# they are never searched or upgraded.
+#
+# /mnt/data is ONE bind mount: they hardlink from torrents/ into streaming/,
+# and link() fails with EXDEV across two bind mounts on the same filesystem.
+# Plex is host-networked, so they reach it through the host gateway.
+#
+# API key from .env (fixed before first start, pushed to by Prowlarr); every
+# other setting is applied by apps/sonarr/configure.sh (stack/lib/arr-configure.sh).
+# Space of a download deleted in Plex is reclaimed by jobs/arr-reclaim.
+
+services:
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      PUID: ${PUID:?set PUID in .env}
+      PGID: ${PGID:?set PGID in .env}
+      TZ: ${TZ:?set TZ in .env}
+      UMASK: "002"
+      SONARR__AUTH__APIKEY: ${SONARR_API_KEY:?set SONARR_API_KEY in .env}
+      SONARR__AUTH__METHOD: Forms
+      SONARR__AUTH__REQUIRED: DisabledForLocalAddresses
+    ports:
+      - "8989:8989"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/sonarr:/config
+      - /mnt/data:/mnt/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [arr]
+    restart: unless-stopped

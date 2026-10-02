@@ -28,71 +28,120 @@ native Plex database and qBittorrent state move across unchanged.
 |---|---|
 | [Phases](docs/phases.md) | The runbook and progress checklist. Each phase has Do / Verify / Rollback. |
 | [Updating](docs/updating.md) | The weekly container updater: streaming check, health wait, rollback, exit codes, adding a service. |
+| `apps/<app>/README.md` | One per app: what it does, its ports, secrets, who owns its settings, its tasks and traps. |
+| `jobs/<job>/README.md` | One per host job: what it does, when it runs, its tasks. |
 
-## Files
+## Layout
 
-| file | role |
-|---|---|
-| `package.json` | Task runner only: no dependencies, nothing installed. See [Running it](#running-it). |
-| `compose.yaml` | The stack. Services are gated behind profiles until their phase is done. |
-| `.env.example` | Copy to `.env` (gitignored): UID/GID, timezone, appdata path, Plex claim. |
-| `tools/preflight.sh` | Read-only checks before a phase: docker, `.env`, same-filesystem hardlinks, ports, native service state. |
-| `tools/start.sh` | Preflight, then `docker compose up -d` for whatever the current phase has enabled. Never passes `--profile`. |
-| `tools/qbt-configure.sh` | Applies the `:8081` qBittorrent's settings through its API (paths, categories, peer port, download limit, host-header domains) and reads them back. Idempotent; `--check` reports drift. |
-| `tools/prowlarr-configure.sh` | Applies Prowlarr's login, FlareSolverr proxy, indexer list and minimum seeders through its API, pushes the indexers to Radarr/Sonarr, then tests every indexer. Idempotent; `--check` reports drift. |
-| `tools/arr-configure.sh` | Applies Radarr's and Sonarr's login, naming, media management, root folder, upgrade allow-list (only the two 4K movie profiles), no Remux, qBittorrent client and Plex connection, then tests them. Never imports or renames existing media. `--check` reports drift. |
-| `tools/arr-reclaim.sh` | When media Radarr/Sonarr imported is deleted (in Plex, or in Radarr/Sonarr with its files), removes its torrent with its data from the `:8081` qBittorrent. Keeps a ledger of imports in `/opt/appdata/.arr-reclaim.imports`, since Radarr/Sonarr drop the history of what they delete. Run by `arr-reclaim.service`; `--audit` changes nothing. |
-| `tools/seerr-configure.sh` | After your one-time Plex sign-in, finishes Seerr's setup: Plex server and libraries, Radarr at 4K HDR and Sonarr at 1080p by default, admin-only sign-in, then a full Plex scan. `--check` reports drift. |
-| `tools/bazarr-configure.sh` | Applies Bazarr's settings: Radarr/Sonarr, Spanish + English as every title's profile, the subtitle providers (OpenSubtitles.com when `.env` has an account), a Plex refresh after each download, and its login. Owns all language profiles. `--check` reports drift. |
-| `recyclarr/recyclarr.yml` | The TRaSH profiles: 4K HDR movies (UHD Bluray + WEB), its opt-in variant `4K HDR or 1080p` for films with no 4K HDR release, and 1080p series (WEB-1080p), with their custom formats; 4K qualities in one group so release-group tiers decide. |
-| `tools/arr-fallback-search.sh` | Asks Radarr to search again for the monitored `4K HDR or 1080p` movies without a 4K file, which RSS alone would not find. Run daily by `arr-fallback-search.timer`; `--dry-run` only lists them. |
-| `decluttarr/config.yaml` | Which queued downloads Decluttarr replaces: stalled, under 500 KB/s, or stuck on metadata. Nothing already imported. |
-| `tools/recyclarr.sh` | Runs Recyclarr once, as a throwaway container (`recyclarr:preview` / `recyclarr:sync`). |
-| `tools/lib/servarr.sh` | The API plumbing shared by the Prowlarr, Radarr and Sonarr configure scripts. |
-| `tools/deploy.sh` | Installs the units, arms the `pms-update` timer only while native Plex is masked or removed, and always arms the fallback search's. `--check` reports drift. |
-| `tools/update-stack.sh` | Pulls new images, skips the run if anyone is streaming, recreates the container, verifies it, and rolls back if it's unhealthy. Run weekly by `pms-update.timer`. |
-| `systemd/pms-update.{service,timer}` | Sunday 05:00, the same slot as pms-local's native updater. Installed by `npm run deploy`. |
-| `systemd/arr-fallback-search.{service,timer}` | Daily 04:00: `tools/arr-fallback-search.sh`. Installed and armed by `npm run deploy`. |
-| `systemd/arr-reclaim.service` | The `arr-reclaim` watcher: pms-local's `plex-watch`, ported for the `:8081` instance. Installed, enabled and restarted by `npm run deploy`. |
-| `tests/*.test.sh` | Offline unit tests; `tests/run-all.sh` runs them all. |
+One folder per app and per job, every one the same shape:
+
+```
+compose.yaml          name: pms, the arr network, and an include for every apps/*/compose.yaml
+Taskfile.yml          every task (task --list); includes every app and job under its own name
+.env.example          copy to .env (gitignored): UID/GID, timezone, appdata, API keys, logins
+apps/<app>/           one compose service
+  compose.yaml        that service alone, with its comments
+  Taskfile.yml        which standard tasks it gets (from stack/taskfiles/), plus its own
+  README.md           Role · Access · Secrets · Settings · Tasks · Traps
+  configure.sh        if this repo owns its settings: apply idempotently, --check reports drift
+  configure.test.sh   offline tests, beside what they test
+  <config>            recyclarr.yml, decluttarr's config.yaml
+jobs/<job>/           a host-side systemd job that spans apps: script, unit(s), test, README, Taskfile
+stack/                what the whole stack shares
+  taskfiles/          the per-app task templates: service, update, configure
+  lib/                servarr.sh (Servarr API plumbing), arr-configure.sh (Radarr + Sonarr)
+  start.sh  preflight.sh  deploy.sh  run-tests.sh  main-clone.sh
+  layout.test.sh      the app contract, below
+docs/                 the runbook and the updater
+```
+
+| app | port | role |
+|---|---|---|
+| [plex](apps/plex/README.md) | 32400 (host network) | The media server; the live library and watch history. |
+| [qbittorrent](apps/qbittorrent/README.md) | 8081, peer 13762 | The download client for Radarr/Sonarr. |
+| [prowlarr](apps/prowlarr/README.md) | 9696 | Indexers, pushed to Radarr/Sonarr. |
+| [flaresolverr](apps/flaresolverr/README.md) | — | Cloudflare solver for the indexers tagged `flare`. |
+| [radarr](apps/radarr/README.md) | 7878 | Movies. |
+| [sonarr](apps/sonarr/README.md) | 8989 | Series. |
+| [seerr](apps/seerr/README.md) | 5055 | Requests. |
+| [recyclarr](apps/recyclarr/README.md) | — | TRaSH quality profiles, on demand. |
+| [decluttarr](apps/decluttarr/README.md) | — | Replaces stalled or crawling downloads. |
+| [bazarr](apps/bazarr/README.md) | 6767 | Spanish and English subtitles. |
+
+| job | runs | role |
+|---|---|---|
+| [arr-reclaim](jobs/arr-reclaim/README.md) | always (watcher) | Frees a torrent once the media it imported is deleted. |
+| [arr-fallback-search](jobs/arr-fallback-search/README.md) | daily 04:00 | Re-searches the `4K HDR or 1080p` movies without a 4K file. |
+| [pms-update](jobs/pms-update/README.md) | Sunday 05:00 | Updates the containers, with a streaming check and a rollback. |
+
+## The app contract
+
+`stack/layout.test.sh` (part of `task test`) fails unless:
+
+- Every folder in `apps/` is included by `compose.yaml` and `Taskfile.yml`. Its
+  `compose.yaml` defines exactly the service of that name, with `container_name` the same
+  and no project name. A linuxserver image sets `PUID`, `PGID`, `TZ` and `UMASK`. Anchors
+  can't cross files, so each app writes those four out.
+- Every app has a `README.md` with the sections **Role, Access, Secrets, Settings, Tasks**.
+  **Traps** is added when it has some.
+- Every app has the standard tasks for what it is:
+  - a long-running service gets `logs`, `ps` and `up`;
+  - one on the weekly updater also gets `update` and `update:dry`;
+  - one whose settings live here also gets `configure` and `check`, takes `--check`, has a
+    test, and is in `CONFIGURED` in `Taskfile.yml`, so `task check` covers it.
+
+  There are two exceptions, each with its reason in the test. Recyclarr is one-shot
+  (`preview` and `sync` only). Decluttarr is pinned, so it has no `update`.
+- Every job has a script, a test, a unit in `stack/deploy.sh`'s manifest whose `ExecStart`
+  exists, a `README.md` (**Role, Schedule, Tasks**) and a `Taskfile.yml`.
+- Every script resolves the repo root correctly from where it lives.
+
+Adding an app:
+
+1. Create `apps/<app>/` with those files.
+2. Add one `include` line to `compose.yaml` and one to `Taskfile.yml`.
+3. Add it to `UPDATE_SERVICES` in `.env` if the weekly updater should cover it.
 
 ## Running it
 
-npm is only a task runner here, as in pms-local: there are no dependencies, and node comes
-from nvm. Run it as yourself, never `sudo npm …` — sudo strips nvm from `PATH`, and the
-scripts ask for sudo themselves where they need it. Compose runs from this clone; the state
-lives in `/opt/appdata`.
+[Task](https://taskfile.dev) is the task runner: a single binary, at version 3.44 or later.
+Install it once from its official apt repository:
+
+```bash
+curl -1sLf 'https://dl.cloudsmith.io/public/task/task/setup.deb.sh' | sudo -E bash
+```
+
+```bash
+sudo apt install task
+```
+
+Run tasks as yourself. The scripts ask for sudo themselves where they need it. Compose runs
+from the main clone, and state lives in `/opt/appdata`.
+
+**Tasks that change containers or units run from the main clone only.** These are `start`,
+`stop`, `<app>:up`, `<app>:update`, `update` and `deploy`. `compose.yaml` fixes the project
+name, so compose run from a worktree acts on the live stack, and a relative bind (decluttarr's
+config) would then point into a checkout that is deleted later. `stack/main-clone.sh`
+enforces this.
 
 | command | does |
 |---|---|
-| `npm start` | Preflight, then start every service the current phase has enabled. |
-| `npm stop` | Stop them. Containers and config are kept; nothing here runs `down -v`. |
-| `npm run status` | `docker compose ps`, and when the updater and the fallback search run next. |
-| `npm run logs` | Follow the logs; `npm run logs -- plex` for one service. |
-| `npm run lint` | `shellcheck` on `tools/` and `tests/`, and check that `compose.yaml` renders. |
-| `npm test` | The offline test suites. |
-| `npm run check` | Deploy drift: units missing, changed or wrong mode, or the timer armed wrongly. Changes nothing. |
-| `npm run deploy` | Lint and test, then install the units and arm or disarm the timer. |
-| `npm run update:dry` | Updater rehearsal: pulls, but recreates nothing. |
-| `npm run update` | Update now, outside the Sunday schedule. |
-| `npm run qbt:configure` | Apply the `:8081` qBittorrent's settings; the first run also sets its login from `.env`. |
-| `npm run qbt:check` | Report qBittorrent settings drift. Changes nothing. |
-| `npm run prowlarr:configure` | Apply Prowlarr's login, FlareSolverr proxy and indexers, then test each indexer. |
-| `npm run prowlarr:check` | Report Prowlarr drift and test the indexers. Changes nothing. |
-| `npm run arr:configure` | Apply Radarr's and Sonarr's settings, then test their qBittorrent and Plex connections. |
-| `npm run arr:check` | Report Radarr/Sonarr drift. Changes nothing. |
-| `npm run arr:fallback-search` | Search Radarr again now for the `4K HDR or 1080p` movies without a 4K file. |
-| `npm run arr:fallback-search:dry` | List those movies. Changes nothing. |
-| `npm run reclaim:audit` | What `arr-reclaim` would remove right now. Changes nothing. |
-| `npm run seerr:configure` | Finish Seerr's setup after the Plex sign-in, then test its connections. |
-| `npm run seerr:check` | Report Seerr drift. Changes nothing. |
-| `npm run bazarr:configure` | Apply Bazarr's settings, then check its Radarr, Sonarr and Plex connections. |
-| `npm run bazarr:check` | Report Bazarr drift. Changes nothing. |
-| `npm run recyclarr:preview` | What a Recyclarr sync would change. Changes nothing (run in a terminal; the report is a table). |
-| `npm run recyclarr:sync` | Apply the TRaSH profiles. Then `arr:configure` and `seerr:configure`. |
+| `task --list` | Every task, with a line on what it does. |
+| `task start` | Preflight, then start every service the current phase has enabled. |
+| `task stop` | Stop them. Containers and config are kept; nothing here runs `down -v`. |
+| `task status` | `docker compose ps`, and when the updater and the fallback search run next. |
+| `task logs` | Follow the logs. `task logs -- plex` or `task plex:logs` for one service. |
+| `task preflight` | Read-only checks before a phase: docker, `.env`, same-filesystem hardlinks, ports, native service state. |
+| `task lint` | `shellcheck` on every script, and check that `compose.yaml` renders. |
+| `task test` | The offline test suites, the app contract included. |
+| `task check` | Deploy drift and every app's settings drift, in one report. Changes nothing. |
+| `task deploy:check` | Deploy drift only: units missing, changed or with the wrong mode, or a timer armed wrongly. |
+| `task deploy` | Lint and test, then install the units and arm or disarm the timers. |
+| `task update` / `update:dry` | Update now, outside the Sunday schedule / rehearse: pull, recreate nothing. |
+| `task <app>:configure` / `<app>:check` | Apply an app's settings / report its drift. `task arr:configure` covers Radarr and Sonarr. |
+| `task <app>:logs` / `ps` / `up` / `update` | One app's logs, container, recreate (to apply a compose edit), update. |
+| `task recyclarr:preview` / `recyclarr:sync` | What a Recyclarr sync would change / apply it. Then `arr:configure` and `seerr:configure`. |
+| `task arr-reclaim:audit` | What `arr-reclaim` would remove right now. Changes nothing. |
+| `task arr-fallback-search:run` / `:dry` | Search Radarr again now for the `4K HDR or 1080p` movies without a 4K file / list them. |
 
-Before a phase:
-
-```bash
-tools/preflight.sh
-```
+`qbt:` is an alias for `qbittorrent:`.

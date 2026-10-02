@@ -1,0 +1,35 @@
+# radarr — manages the movies (Phase 4). Included by the root compose.yaml
+# (project `pms`).
+#
+# Radarr and Sonarr manage the whole library. Most titles are unmonitored, so
+# they are never searched or upgraded.
+#
+# /mnt/data is ONE bind mount: they hardlink from torrents/ into streaming/,
+# and link() fails with EXDEV across two bind mounts on the same filesystem.
+# Plex is host-networked, so they reach it through the host gateway.
+#
+# API key from .env (fixed before first start, pushed to by Prowlarr); every
+# other setting is applied by apps/radarr/configure.sh (stack/lib/arr-configure.sh).
+# Space of a download deleted in Plex is reclaimed by jobs/arr-reclaim.
+
+services:
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      PUID: ${PUID:?set PUID in .env}
+      PGID: ${PGID:?set PGID in .env}
+      TZ: ${TZ:?set TZ in .env}
+      UMASK: "002"
+      RADARR__AUTH__APIKEY: ${RADARR_API_KEY:?set RADARR_API_KEY in .env}
+      RADARR__AUTH__METHOD: Forms
+      RADARR__AUTH__REQUIRED: DisabledForLocalAddresses
+    ports:
+      - "7878:7878"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/radarr:/config
+      - /mnt/data:/mnt/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [arr]
+    restart: unless-stopped
