@@ -18,7 +18,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 4 — Radarr + Sonarr (2026-09-29: grab → hardlink import → Plex delete → arr-reclaim freed 10 GB, unmonitored)
 - [x] Phase 5 — Seerr (requests) (2026-09-29: two requests auto-approved → HD-1080p grab → hardlink import → Available)
 - [x] Phase 6 — Recyclarr: 4K HDR as the default for movies (2026-10-01: Air grabbed 2160p HDR10+ in the cap, hardlinked, Available; Dune's 1080p torrent reclaimed when 4K replaced it)
-- [ ] Phase 6b — opt-in `4K HDR or 1080p` profile for films with no 4K HDR release, re-searched weekly
+- [x] Phase 6b — opt-in `4K HDR or 1080p` profile for films with no 4K HDR release, re-searched daily (2026-10-02: Cosmic Sin grabbed 1080p WEBRip, hardlinked, Available; a dead first grab replaced by Decluttarr)
 - [ ] Download health — seeder floor, 4K ranked by release tier, Decluttarr replaces stalled/slow grabs
 - [x] Phase 7a — retire native qBittorrent and `plex-watch` (2026-09-29: 9 native torrents dropped, all 10 library files kept at 1 link; both services disabled)
 - [x] Phase 7b — remove native Plex and pms-local's leftovers (2026-09-29, same day as 7a by choice: DB archived to /root, packages, units, files and user removed)
@@ -590,12 +590,12 @@ scheduled search for missing movies. Decided 2026-10-02:
 | profile | **`4K HDR or 1080p`**: the same TRaSH profile and scores as `UHD Bluray + WEB`, with a 1080p group (Bluray, WEB-DL, WEBRip) under the 4K one. Upgrades on, until 4K. No 720p, no Remux. 1080p x265 without HDR is rejected, as TRaSH intends | `recyclarr/recyclarr.yml` (a profile variant, Recyclarr ≥ 8.3) |
 | upgrades / no Remux | both 4K movie profiles | `arr-configure.sh` |
 | default | **unchanged**: requests default to `UHD Bluray + WEB`. Pick the variant per request in Seerr's request options (admin) | `seerr-configure.sh` |
-| re-search | **weekly, Wednesday 04:00**: the variant's monitored, released movies without a 4K file (1080p, or none) get one Radarr search. Movies already in 4K are left to RSS | `tools/arr-fallback-search.sh`, `arr-fallback-search.timer` |
+| re-search | **daily, 04:00**: the variant's monitored, released movies without a 4K file (1080p, or none) get one Radarr search. Movies already in 4K are left to RSS | `tools/arr-fallback-search.sh`, `arr-fallback-search.timer` |
 
 **What happens to a request.**
 - With a 4K HDR release, the variant takes it, as the default profile would.
 - Without one, it takes the best-scored 1080p within 40 MB/min.
-- A 4K HDR release later replaces that file, found through RSS or the weekly search, and
+- A 4K HDR release later replaces that file, found through RSS or the daily search, and
   `arr-reclaim` removes the 1080p torrent (`upgraded`).
 - Score upgrades also happen within 1080p, for example an untiered WEB-DL replaced by a
   tiered one.
@@ -624,7 +624,7 @@ profile to `4K HDR or 1080p` in Radarr, then *Search Movie*, or run
    npm run arr:configure
    ```
 
-3. **Arm the weekly search** from the main clone, after the merge. It needs sudo, so it's
+3. **Arm the daily search** from the main clone, after the merge. It needs sudo, so it's
    yours to run:
 
    ```bash
@@ -642,6 +642,15 @@ profile to `4K HDR or 1080p` in Radarr, then *Search Movie*, or run
   - Radarr grabs a 1080p release within 40 MB/min × runtime.
   - Hardlinked import, then Available.
   - `npm run arr:fallback-search:dry` lists it.
+
+**Done 2026-10-02 with *Cosmic Sin* (2021),** whose only 4K releases are SDR YTS encodes:
+- **The search when it was added grabbed nothing.** 1337x, which has the only usable
+  releases, answered with 0 results, and 30 a minute later.
+- **`npm run arr:fallback-search` grabbed** a 1080p Bluray listed with 52 seeders that had
+  no peers. Decluttarr's `remove_metadata_missing` replaced it about 40 minutes later with
+  a 1080p WEBRip (1.8 GB, 1,742 seeders).
+- **Import:** hardlinked, 2 links; then Available in Seerr.
+- **The re-search timer went from weekly to daily** because of that empty first search.
 
 **Rollback**
 

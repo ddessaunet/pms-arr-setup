@@ -1,4 +1,4 @@
-# arr-fallback-search.timer — weekly re-search of the fallback profile.
+# arr-fallback-search.timer — daily re-search of the fallback profile.
 #
 # Source of truth is <repo>/systemd/arr-fallback-search.timer.
 #   sudo systemctl enable --now arr-fallback-search.timer
@@ -6,14 +6,18 @@
 #
 # Radarr finds later releases through RSS only; this catches a 4K HDR release
 # for a "4K HDR or 1080p" movie that RSS missed (tools/arr-fallback-search.sh).
+# Daily, not weekly: Radarr's one search at add time can come back empty when an
+# indexer hiccups (Cosmic Sin, 2026-10-02: 1337x returned 0, then 30 a minute
+# later), and a request should not wait a week for the next try. It only
+# searches the few movies on that profile without a 4K file, so it costs little.
 
 [Unit]
-Description=Weekly Radarr search for fallback movies without a 4K file
+Description=Daily Radarr search for fallback movies without a 4K file
 
 [Timer]
-# Wednesday 04:00: away from Sunday's container update (pms-update.timer), which
-# may be recreating Radarr at the time.
-OnCalendar=Wed *-*-* 04:00
+# 04:00, plus up to 30 min: done before Sunday's container update (pms-update.timer,
+# 05:00), which may recreate Radarr. The search itself takes seconds.
+OnCalendar=*-*-* 04:00
 RandomizedDelaySec=30min
 
 # A run missed because the box was off fires shortly after the next boot.

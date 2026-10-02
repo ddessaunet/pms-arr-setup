@@ -96,7 +96,7 @@ disappear. Confirm before anything destructive:
       per request, never the default.
 
     Radarr searches a movie in full only when it is added, and after that only through
-    RSS. So `arr-fallback-search.timer` (Wednesday) searches the variant's movies without a
+    RSS. So `arr-fallback-search.timer` (daily, 04:00) searches the variant's movies without a
     4K file again.
 
     Run `recyclarr:sync` → `arr:configure` → `seerr:configure`. Radarr reports quality sizes
