@@ -144,6 +144,14 @@ disappear. Confirm before anything destructive:
     (`stack/main-clone.sh`). The configure scripts talk to the apps' APIs, not compose, so
     they run anywhere.
 
+17. **The docs website is built from the repo and checks it.** `apps/docs` (nginx, `:8088`)
+    serves the main clone's `site/dist`, which `task site:build` writes. The quality-profiles
+    map reads `apps/recyclarr/recyclarr.yml` and `stack/lib/arr-configure.sh` at build time,
+    with explanations in `site/src/data/profiles.yml`. Adding, renaming or removing a
+    profile, or changing the defaults, upgrades or size caps, means updating `profiles.yml`
+    too: `task site:check` fails until they agree. A failed build leaves the published site
+    as it was. Mount `site/`, never `site/dist`: the build swaps `dist` for a new folder.
+
 ## Conventions
 
 - Commit subjects are lowercase and imperative; bodies explain *why*.

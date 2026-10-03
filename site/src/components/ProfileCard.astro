@@ -1,0 +1,139 @@
+---
+// One quality profile: who picks it, what it accepts, and how it behaves.
+// Every value comes from src/lib/profiles.ts; nothing here is hand-written
+// per profile.
+import type { Profile, SizeCap } from '../lib/profiles-core.ts';
+import { profileSlug } from '../lib/profiles-core.ts';
+
+interface Props { profile: Profile; sizes: SizeCap[] }
+const { profile: p, sizes } = Astro.props;
+
+const ROLE = {
+  default: { label: 'Default', tone: 'green' },
+  'opt-in': { label: 'Opt-in', tone: 'blue' },
+  'by-hand': { label: 'By hand', tone: 'orange' },
+} as const;
+const role = ROLE[p.role];
+
+// The size caps for the resolutions this profile can take. A 2-hour film is
+// the yardstick: MB/min × 120 / 1000 ≈ GB.
+const resolutions = [...new Set(p.groups.flatMap((g) => g.qualities.map((q) => q.match(/(\d+p)$/)?.[1]).filter(Boolean)))];
+const caps = sizes.filter((s) => resolutions.includes(s.resolution));
+const gb = (mbPerMin: number) => Math.round((mbPerMin * 120) / 100) / 10;
+
+const upgrades = p.upgrade.allowed
+  ? `Yes, until ${p.upgrade.until} and the best score`
+  : p.upgrade.allowed === false ? 'No — the first grab stays' : 'As the guide sets it';
+const formats = p.formats.kind === 'guide'
+  ? `TRaSH guide profile, ${p.formats.groups} format group(s) added`
+  : `Hand-picked: ${p.formats.count} custom formats`;
+---
+
+<article class="card" id={profileSlug(p.name)} data-tone={role.tone}>
+  <header>
+    <h3>{p.name}</h3>
+    <span class="badge">{role.label}</span>
+  </header>
+  <p class="summary">{p.summary}</p>
+  <p class="picked"><strong>Picked:</strong> {p.pickedBy}</p>
+
+  <div class="ladder" aria-label="Accepted qualities, most preferred first">
+    {p.groups.map((g, i) => (
+      <div class="rung">
+        <span class="rank">{i + 1}</span>
+        <span class="group">{g.name}</span>
+        <span class="chips">{g.qualities.map((q) => <code>{q}</code>)}</span>
+      </div>
+    ))}
+    {p.guideQualities && <p class="source">Qualities from the <a href={p.guideUrl ?? undefined}>TRaSH guide</a> (recyclarr.yml names this profile by id).</p>}
+  </div>
+
+  <dl>
+    <dt>Upgrades</dt><dd>{upgrades}</dd>
+    {p.hdr && (<><dt>HDR</dt><dd>{p.hdr}</dd></>)}
+    <dt>Low-quality groups</dt><dd>{p.lq === 'accepted' ? 'Accepted (YTS, YIFY…)' : 'Rejected'}</dd>
+    <dt>Remux</dt><dd>{p.remux ? 'Allowed' : 'Never'}</dd>
+    <dt>Size cap</dt>
+    <dd>
+      {caps.map((c) => (
+        <span class="cap">
+          {c.resolution}: {c.max === null ? 'no maximum' : `≤ ${c.max} MB/min (≈ ${gb(c.max)} GB for 2 h)`}, prefers {c.preferred}
+        </span>
+      ))}
+    </dd>
+    <dt>Scoring</dt><dd>{formats}{p.minFormatScore !== null && `, minimum score ${p.minFormatScore}`}</dd>
+    {p.dailySearch && (<><dt>Re-searched</dt><dd>Daily at 04:00 while it has no 4K file (arr-fallback-search)</dd></>)}
+  </dl>
+</article>
+
+<style>
+  .card {
+    --tone-low: var(--sl-color-gray-6);
+    --tone-high: var(--sl-color-text);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--sl-color-hairline);
+    border-top: 4px solid var(--tone-high);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg);
+    scroll-margin-top: calc(var(--sl-nav-height) + 1rem);
+  }
+  .card[data-tone='green'] { --tone-low: var(--sl-color-green-low); --tone-high: var(--sl-color-green-high); }
+  .card[data-tone='blue'] { --tone-low: var(--sl-color-blue-low); --tone-high: var(--sl-color-blue-high); }
+  .card[data-tone='orange'] { --tone-low: var(--sl-color-orange-low); --tone-high: var(--sl-color-orange-high); }
+  .card:target { outline: 2px solid var(--tone-high); outline-offset: 3px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  h3 { margin: 0; font-size: var(--sl-text-xl); color: var(--sl-color-white); }
+  .badge {
+    flex: none;
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    background: var(--tone-low);
+    color: var(--tone-high);
+  }
+  p { margin: 0; }
+  .summary { color: var(--sl-color-white); }
+  .picked { font-size: var(--sl-text-sm); color: var(--sl-color-gray-2); }
+
+  .ladder { display: flex; flex-direction: column; gap: 0.35rem; }
+  .rung {
+    display: grid;
+    grid-template-columns: 1.5rem auto 1fr;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 0.35rem;
+    background: var(--sl-color-gray-6);
+  }
+  .rank {
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    font-size: var(--sl-text-xs);
+    font-weight: 700;
+    background: var(--tone-low);
+    color: var(--tone-high);
+  }
+  .group { font-weight: 600; color: var(--sl-color-white); white-space: nowrap; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .chips code { font-size: var(--sl-text-code-sm); padding: 0.05rem 0.35rem; border-radius: 0.25rem; background: var(--sl-color-bg); }
+  .source { font-size: var(--sl-text-xs); color: var(--sl-color-gray-3); }
+
+  dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.3rem 0.9rem;
+    margin: 0;
+    font-size: var(--sl-text-sm);
+  }
+  dt { color: var(--sl-color-gray-3); }
+  dd { margin: 0; color: var(--sl-color-gray-1); }
+  .cap { display: block; }
+</style>

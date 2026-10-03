@@ -1,0 +1,15 @@
+{
+  "name": "pms-docs",
+  "private": true,
+  "type": "module",
+  "description": "The docs website for pms-arr-setup (Starlight). Task runs it: see site/Taskfile.yml.",
+  "packageManager": "pnpm@12.8.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.42.5",
+    "astro": "^7.3.5",
+    "yaml": "^2.9.1"
+  }
+}

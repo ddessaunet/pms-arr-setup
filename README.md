@@ -47,13 +47,17 @@ apps/<app>/           one compose service
   configure.test.sh   offline tests, beside what they test
   <config>            recyclarr.yml, decluttarr's config.yaml
 jobs/<job>/           a host-side systemd job that spans apps: script, unit(s), test, README, Taskfile
+site/                 the docs website's source (Starlight); apps/docs serves what it builds
 stack/                what the whole stack shares
   taskfiles/          the per-app task templates: service, update, configure
   lib/                servarr.sh (Servarr API plumbing), arr-configure.sh (Radarr + Sonarr)
   start.sh  preflight.sh  deploy.sh  run-tests.sh  main-clone.sh
   layout.test.sh      the app contract, below
-docs/                 the runbook and the updater
+docs/                 the runbook and the updater (Markdown, read in the repo)
 ```
+
+`docs/` is the runbook, `site/` the website's source, and `apps/docs` the container that
+serves the built website.
 
 | app | port | role |
 |---|---|---|
@@ -67,6 +71,7 @@ docs/                 the runbook and the updater
 | [recyclarr](apps/recyclarr/README.md) | — | TRaSH quality profiles, on demand. |
 | [decluttarr](apps/decluttarr/README.md) | — | Replaces stalled or crawling downloads. |
 | [bazarr](apps/bazarr/README.md) | 6767 | Spanish and English subtitles. |
+| [docs](apps/docs/README.md) | 8088 | This repo's docs website: for now, the quality-profiles map. |
 
 | job | runs | role |
 |---|---|---|
@@ -142,5 +147,7 @@ enforces this.
 | `task recyclarr:preview` / `recyclarr:sync` | What a Recyclarr sync would change / apply it. Then `arr:configure` and `seerr:configure`. |
 | `task arr-reclaim:audit` | What `arr-reclaim` would remove right now. Changes nothing. |
 | `task arr-fallback-search:run` / `:dry` | Search Radarr again now for the `4K HDR or 1080p` movies without a 4K file / list them. |
+| `task site:build` | Build the docs website and swap it in; in the main clone this publishes it on `:8088`. |
+| `task site:check` / `site:test` / `site:dev` | Prove it builds / its unit tests / a live preview on `:4321`. These need node (nvm) and pnpm (Homebrew). |
 
 `qbt:` is an alias for `qbittorrent:`.

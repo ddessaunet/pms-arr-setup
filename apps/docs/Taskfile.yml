@@ -1,0 +1,9 @@
+version: '3'
+
+# docs — see README.md. Its tasks come from the templates in
+# stack/taskfiles/; SERVICE is the compose service they act on. Publishing new
+# content is `task site:build`: nginx reads the files live.
+
+includes:
+  service:  { taskfile: ../../stack/taskfiles/service.yml, flatten: true, vars: { SERVICE: docs } }
+  update:   { taskfile: ../../stack/taskfiles/update.yml, flatten: true, vars: { SERVICE: docs } }

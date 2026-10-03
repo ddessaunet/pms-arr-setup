@@ -31,6 +31,7 @@ include:
   - apps/recyclarr/compose.yaml
   - apps/decluttarr/compose.yaml
   - apps/bazarr/compose.yaml
+  - apps/docs/compose.yaml
 
 # Shared by every service but Plex, so they reach each other by service name.
 # Declared here only; the apps reference it. Host-networked Plex is not on it.
