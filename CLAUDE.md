@@ -151,6 +151,8 @@ disappear. Confirm before anything destructive:
     profile, or changing the defaults, upgrades or size caps, means updating `profiles.yml`
     too: `task site:check` fails until they agree. A failed build leaves the published site
     as it was. Mount `site/`, never `site/dist`: the build swaps `dist` for a new folder.
+    Its look comes from `DESIGN.md` (implemented in `site/src/styles/pacman.css`): change
+    both together, and keep text at 4.5:1 or better — the brand blue is for borders only.
 18. **The box's LAN addresses come from DHCP and change** (wired `.86` ↔ `.87`, Wi‑Fi
     `.66` ↔ `.67`, so far on reboots). The router can't reserve one, and a static address
     collides with what DHCP hands out next. qBittorrent, Prowlarr, Radarr and Sonarr list

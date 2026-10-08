@@ -67,32 +67,53 @@ const formats = p.formats.kind === 'guide'
 </article>
 
 <style>
+  /* A maze cell: the double blue wall, the role's colour on the badge, the
+     rungs and the rule under the header. */
   .card {
     --tone-low: var(--sl-color-gray-6);
+    --tone: var(--sl-color-gray-4);
     --tone-high: var(--sl-color-text);
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding: 1rem 1.1rem;
-    border: 1px solid var(--sl-color-hairline);
-    border-top: 4px solid var(--tone-high);
-    border-radius: 0.5rem;
-    background: var(--sl-color-bg);
+    gap: 0.9rem;
+    padding: 1.1rem 1.15rem 1.25rem;
+    border: 5px double var(--pac-blue);
+    border-radius: var(--pac-radius-md);
+    background: var(--sl-color-gray-7);
     scroll-margin-top: calc(var(--sl-nav-height) + 1rem);
   }
-  .card[data-tone='green'] { --tone-low: var(--sl-color-green-low); --tone-high: var(--sl-color-green-high); }
-  .card[data-tone='blue'] { --tone-low: var(--sl-color-blue-low); --tone-high: var(--sl-color-blue-high); }
-  .card[data-tone='orange'] { --tone-low: var(--sl-color-orange-low); --tone-high: var(--sl-color-orange-high); }
-  .card:target { outline: 2px solid var(--tone-high); outline-offset: 3px; }
+  .card[data-tone='green'] { --tone-low: var(--sl-color-green-low); --tone: var(--sl-color-green); --tone-high: var(--sl-color-green-high); }
+  .card[data-tone='blue'] { --tone-low: var(--sl-color-blue-low); --tone: var(--sl-color-blue); --tone-high: var(--sl-color-blue-high); }
+  .card[data-tone='orange'] { --tone-low: var(--sl-color-orange-low); --tone: var(--sl-color-orange); --tone-high: var(--sl-color-orange-high); }
+  /* Arrived from the "which profile" flow. */
+  .card:target { outline: 2px dashed var(--pac-pink); outline-offset: 4px; }
 
-  header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-  h3 { margin: 0; font-size: var(--sl-text-xl); color: var(--sl-color-white); }
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 3px dotted var(--tone);
+  }
+  h3 {
+    margin: 0;
+    font-family: var(--pac-font-pixel);
+    font-weight: 400;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--sl-color-white);
+  }
   .badge {
     flex: none;
-    padding: 0.1rem 0.55rem;
-    border-radius: 999px;
-    font-size: var(--sl-text-xs);
-    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border: 1px solid var(--tone);
+    border-radius: var(--pac-radius-sm);
+    font-family: var(--sl-font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     background: var(--tone-low);
     color: var(--tone-high);
   }
@@ -105,35 +126,53 @@ const formats = p.formats.kind === 'guide'
     display: grid;
     grid-template-columns: 1.5rem auto 1fr;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.5rem;
-    border-radius: 0.35rem;
+    gap: 0.55rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: var(--pac-radius-sm);
     background: var(--sl-color-gray-6);
   }
+  /* The rank is a power pellet. */
   .rank {
     display: grid;
     place-items: center;
     width: 1.5rem;
     height: 1.5rem;
     border-radius: 50%;
+    font-family: var(--sl-font-mono);
     font-size: var(--sl-text-xs);
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
     background: var(--tone-low);
     color: var(--tone-high);
+    box-shadow: inset 0 0 0 1px var(--tone);
   }
   .group { font-weight: 600; color: var(--sl-color-white); white-space: nowrap; }
   .chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
-  .chips code { font-size: var(--sl-text-code-sm); padding: 0.05rem 0.35rem; border-radius: 0.25rem; background: var(--sl-color-bg); }
+  .chips code {
+    font-size: var(--sl-text-code-sm);
+    padding: 0.05rem 0.35rem;
+    border: 1px dotted var(--sl-color-gray-4);
+    border-radius: var(--pac-radius-sm);
+    background: var(--sl-color-black);
+  }
   .source { font-size: var(--sl-text-xs); color: var(--sl-color-gray-3); }
+  .source a { color: var(--sl-color-accent-high); text-decoration-style: dotted; }
 
   dl {
     display: grid;
     grid-template-columns: max-content 1fr;
-    gap: 0.3rem 0.9rem;
+    gap: 0.4rem 0.9rem;
     margin: 0;
     font-size: var(--sl-text-sm);
   }
-  dt { color: var(--sl-color-gray-3); }
-  dd { margin: 0; color: var(--sl-color-gray-1); }
+  dt {
+    padding-top: 0.15em;
+    font-family: var(--sl-font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-3);
+  }
+  dd { margin: 0; color: var(--sl-color-gray-1); font-variant-numeric: tabular-nums; }
   .cap { display: block; }
 </style>

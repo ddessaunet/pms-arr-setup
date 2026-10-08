@@ -55,17 +55,20 @@ const answers = [
 </div>
 
 <style>
+  /* The question boxes are maze walls; the lines between them are a trail of
+     pellets leading to each answer. */
   .flow { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
   .node {
-    padding: 0.6rem 0.9rem;
-    border: 1px solid var(--sl-color-hairline);
-    border-radius: 0.5rem;
-    background: var(--sl-color-gray-6);
+    padding: 0.7rem 1rem;
+    border: 5px double var(--pac-blue);
+    border-radius: var(--pac-radius-md);
+    background: var(--sl-color-gray-7);
     color: var(--sl-color-white);
     font-weight: 600;
     text-align: center;
+    text-wrap: balance;
   }
-  .start { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .start { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.75rem; flex-wrap: wrap; }
   .start .node { flex: none; }
   .start .leaf { flex: 1 1 16rem; }
   .question { align-self: center; max-width: 32rem; }
@@ -73,7 +76,7 @@ const answers = [
   .branches {
     list-style: none;
     margin: 0;
-    padding: 1.25rem 0 0;
+    padding: 1.5rem 0 0;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
     gap: 1rem;
@@ -85,35 +88,44 @@ const answers = [
     position: absolute;
     top: 0;
     left: 50%;
-    height: 1.25rem;
-    border-left: 2px solid var(--sl-color-gray-4);
+    height: 1.5rem;
+    border-left: 4px dotted var(--pac-pink);
   }
   .branches li {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    padding-top: 0.75rem;
-    border-top: 2px solid var(--sl-color-gray-4);
+    gap: 0.6rem;
+    padding-top: 0.85rem;
+    border-top: 4px dotted var(--pac-pink);
   }
   .when { font-size: var(--sl-text-sm); color: var(--sl-color-gray-2); font-style: italic; }
 
   .leaf {
     --tone-low: var(--sl-color-gray-6);
+    --tone: var(--sl-color-gray-4);
     --tone-high: var(--sl-color-text);
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    padding: 0.7rem 0.9rem;
-    border-radius: 0.5rem;
-    border-left: 4px solid var(--tone-high);
+    gap: 0.3rem;
+    padding: 0.75rem 0.95rem;
+    border: 1px solid var(--tone);
+    border-left-width: 5px;
+    border-radius: var(--pac-radius-sm);
     background: var(--tone-low);
     text-decoration: none;
     color: var(--sl-color-gray-1);
+    transition: transform 200ms ease, box-shadow 200ms ease;
   }
-  .leaf[data-role='default'] { --tone-low: var(--sl-color-green-low); --tone-high: var(--sl-color-green-high); }
-  .leaf[data-role='opt-in'] { --tone-low: var(--sl-color-blue-low); --tone-high: var(--sl-color-blue-high); }
-  .leaf[data-role='by-hand'] { --tone-low: var(--sl-color-orange-low); --tone-high: var(--sl-color-orange-high); }
-  .leaf:hover .name { text-decoration: underline; }
+  .leaf[data-role='default'] { --tone-low: var(--sl-color-green-low); --tone: var(--sl-color-green); --tone-high: var(--sl-color-green-high); }
+  .leaf[data-role='opt-in'] { --tone-low: var(--sl-color-blue-low); --tone: var(--sl-color-blue); --tone-high: var(--sl-color-blue-high); }
+  .leaf[data-role='by-hand'] { --tone-low: var(--sl-color-orange-low); --tone: var(--sl-color-orange); --tone-high: var(--sl-color-orange-high); }
+  .leaf:hover { transform: translateY(-2px); box-shadow: 0 4px 0 var(--tone); }
+  .leaf:active { transform: translateY(1px); box-shadow: none; }
+  .leaf:hover .name { text-decoration: underline dotted 2px; text-underline-offset: 0.2em; }
+  @media (prefers-reduced-motion: reduce) {
+    .leaf { transition: none; }
+    .leaf:hover, .leaf:active { transform: none; }
+  }
   .name { font-weight: 700; color: var(--tone-high); }
   .how { font-size: var(--sl-text-sm); }
 </style>
