@@ -26,6 +26,12 @@ None.
 [`nginx.conf`](nginx.conf), mounted read-only. The content is the main clone's `site/dist`,
 which `task site:build` replaces.
 
+The site's look is [`DESIGN.md`](../../DESIGN.md) (Pacman: pixel headings, a plain sans for
+prose, maze-blue walls and pellet-dotted lines on one dark theme), implemented in
+[`site/src/styles/pacman.css`](../../site/src/styles/pacman.css). Starlight's theme picker is
+replaced (`site/src/components/overrides/`), and the fonts are self-hosted. The design skills
+used on it are committed in `.agents/skills/` (listed in `skills-lock.json`).
+
 ## Tasks
 
 | task | does |

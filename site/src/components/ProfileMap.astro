@@ -27,13 +27,26 @@ const APPS = [
 </style>
 
 <style>
-  .map { display: flex; flex-direction: column; gap: 2rem; }
-  .app { margin: 0 0 0.75rem; font-size: var(--sl-text-h4); color: var(--sl-color-white); }
-  .app span { color: var(--sl-color-gray-3); font-weight: 400; }
+  .map { display: flex; flex-direction: column; gap: 2.5rem; }
+  .app {
+    margin: 0 0 1rem;
+    font-family: var(--pac-font-pixel);
+    font-weight: 400;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--sl-color-white);
+  }
+  .app span {
+    font-family: var(--sl-font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-3);
+  }
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
-    gap: 1rem;
+    gap: 1.25rem;
     align-items: start;
   }
 </style>

@@ -14,6 +14,21 @@ export default defineConfig({
     starlight({
       title: 'pms',
       sidebar: [{ label: 'Quality profiles', link: '/quality-profiles/' }],
+      // The Pacman theme (DESIGN.md at the repo root): self-hosted fonts, so the
+      // LAN site needs no font CDN, then the theme itself. Latin only: every page
+      // is English.
+      customCss: [
+        '@fontsource/press-start-2p/latin-400.css',
+        '@fontsource/space-mono/latin-400.css',
+        '@fontsource/space-mono/latin-700.css',
+        '@fontsource-variable/space-grotesk',
+        './src/styles/pacman.css',
+      ],
+      // One dark theme: no picker, and no stored or system preference.
+      components: {
+        ThemeProvider: './src/components/overrides/ThemeProvider.astro',
+        ThemeSelect: './src/components/overrides/ThemeSelect.astro',
+      },
       pagefind: false, // one page: nothing to search yet
       lastUpdated: false,
     }),

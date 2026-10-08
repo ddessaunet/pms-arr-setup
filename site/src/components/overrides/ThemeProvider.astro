@@ -1,0 +1,10 @@
+---
+// Replaces Starlight's ThemeProvider: the site has one theme (Pacman, dark),
+// so data-theme is always "dark" and no stored or system choice applies.
+// Inline, like the original, so the first paint is already dark.
+---
+
+<script is:inline>
+  document.documentElement.dataset.theme = 'dark';
+  window.StarlightThemeProvider = { updatePickers() {} };
+</script>

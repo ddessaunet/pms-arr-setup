@@ -1,0 +1,148 @@
+/* The site's theme: Pacman, from /DESIGN.md, made readable.
+ *
+ * Press Start 2P only for headings and the site title; Space Grotesk for prose,
+ * Space Mono for labels, numbers and code. One dark theme (ThemeProvider.astro
+ * pins it), so these are Starlight's variables for both [data-theme]s.
+ *
+ * Contrast (WCAG, on --sl-color-black): white 18.4, gray-2 body 12.0, gray-3
+ * muted 6.9, accent-high links 10.0, pink 11.6, green-high 12.7, orange-high
+ * 11.9. The brand blue #2a3fe5 is 2.75, so it only draws walls, borders and
+ * fills, never text.
+ */
+
+:root,
+:root[data-theme='light'],
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* The maze at night: navy-tinted, never pure black. */
+  --sl-color-white: #f7f7fb;
+  --sl-color-gray-1: #e4e6f3;
+  --sl-color-gray-2: #c5c9e2;
+  --sl-color-gray-3: #9097c0;
+  --sl-color-gray-4: #5a6194;
+  --sl-color-gray-5: #1f2550;
+  --sl-color-gray-6: #10142e;
+  --sl-color-gray-7: #0c0f24;
+  --sl-color-black: #080a1c;
+
+  /* DESIGN.md primary: the maze walls. */
+  --pac-blue: #2a3fe5;
+  /* DESIGN.md secondary: Pinky. Highlights, focus, the pellet trail. */
+  --pac-pink: #f4b9b0;
+
+  --sl-color-accent-low: #141c5c;
+  --sl-color-accent: var(--pac-blue);
+  --sl-color-accent-high: #aab4ff;
+
+  /* Role tones, from DESIGN.md's success/primary/warning: the token draws the
+     border, -high (light) is the text, -low (dark) the fill. */
+  --sl-color-green-low: #0b2a17;
+  --sl-color-green: #16a34a;
+  --sl-color-green-high: #6ee79a;
+  --sl-color-blue-low: #141c5c;
+  --sl-color-blue: var(--pac-blue);
+  --sl-color-blue-high: #aab4ff;
+  --sl-color-orange-low: #2e1b05;
+  --sl-color-orange: #d97706;
+  --sl-color-orange-high: #fbbf5a;
+  --sl-color-red-low: #3a0e0e;
+  --sl-color-red: #dc2626;
+  --sl-color-red-high: #fca5a5;
+
+  --sl-color-text: var(--sl-color-gray-2);
+  --sl-color-text-accent: var(--sl-color-accent-high);
+  --sl-color-text-invert: var(--sl-color-black);
+  --sl-color-bg: var(--sl-color-black);
+  --sl-color-bg-nav: var(--sl-color-gray-7);
+  --sl-color-bg-sidebar: var(--sl-color-gray-7);
+  --sl-color-bg-inline-code: var(--sl-color-gray-5);
+  --sl-color-bg-accent: var(--sl-color-accent-high);
+  --sl-color-hairline-light: var(--sl-color-gray-5);
+  --sl-color-hairline: var(--sl-color-gray-5);
+  --sl-color-hairline-shade: var(--sl-color-black);
+  --sl-color-backdrop-overlay: rgb(8 10 28 / 0.75);
+
+  --sl-font: 'Space Grotesk Variable', system-ui, sans-serif;
+  --sl-font-mono: 'Space Mono', ui-monospace, monospace;
+  --pac-font-pixel: 'Press Start 2P', var(--sl-font-mono);
+
+  /* DESIGN.md's rounded sm/md. */
+  --pac-radius-sm: 4px;
+  --pac-radius-md: 8px;
+
+  /* The pixel font is wide and tall: smaller steps than Starlight's, more air. */
+  --sl-text-h1: clamp(1.35rem, 1rem + 1.6vw, 2.1rem);
+  --sl-text-h2: clamp(1rem, 0.85rem + 0.6vw, 1.25rem);
+  --sl-text-h3: 1rem;
+  --sl-line-height-headings: 1.5;
+}
+
+/* A faint grid of pellets behind everything. */
+body {
+  background-color: var(--sl-color-black);
+  background-image: radial-gradient(circle, rgb(244 185 176 / 0.07) 1px, transparent 1.6px);
+  background-size: 24px 24px;
+}
+
+/* ── type ─────────────────────────────────────────────────────────────────── */
+h1,
+.sl-markdown-content :is(h2, h3) {
+  font-family: var(--pac-font-pixel);
+  font-weight: 400; /* the pixel font has one weight */
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+h1#_top { color: var(--sl-color-white); text-shadow: 3px 3px 0 var(--pac-blue); }
+.sl-markdown-content h2 { color: var(--pac-pink); }
+/* A row of pellets under each section heading. On the wrapper: Starlight makes
+   the h2 itself inline (for the anchor link), and an inline background breaks
+   up when the heading wraps. */
+.sl-markdown-content .sl-heading-wrapper.level-h2 {
+  margin-top: 3rem;
+  padding-bottom: 0.75rem;
+  background: radial-gradient(circle, var(--sl-color-gray-4) 2px, transparent 2.5px) left bottom / 14px 6px repeat-x;
+}
+.sl-markdown-content p { max-width: 68ch; text-wrap: pretty; }
+.sl-markdown-content code:not(pre code) { border-radius: var(--pac-radius-sm); }
+
+/* ── header ───────────────────────────────────────────────────────────────── */
+/* Starlight puts .header on the <header> and on the <div> inside it. */
+header.header { border-bottom: 3px solid var(--pac-blue); }
+.site-title {
+  gap: 0.6rem;
+  font-family: var(--pac-font-pixel);
+  font-size: 1rem;
+  color: var(--sl-color-white);
+}
+/* Pac-Man, in CSS: a circle with a wedge cut out. */
+.site-title::before {
+  content: '';
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  /* The mouth is the 60° wedge facing right. */
+  background: conic-gradient(from 60deg, transparent 0 60deg, var(--sl-color-orange-high) 60deg 360deg);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .site-title:hover::before { animation: pac-chomp 0.3s steps(2) infinite; }
+}
+@keyframes pac-chomp {
+  50% { background: var(--sl-color-orange-high); }
+}
+
+/* ── links and focus ──────────────────────────────────────────────────────── */
+.sl-markdown-content a:not(.not-content a) {
+  text-decoration-style: dotted;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+:focus-visible {
+  outline: 2px dashed var(--pac-pink);
+  outline-offset: 3px;
+}
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
