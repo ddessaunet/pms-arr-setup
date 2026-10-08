@@ -54,7 +54,9 @@ disappear. Confirm before anything destructive:
    Radarr/Sonarr import over its API. Its settings come from `apps/qbittorrent/configure.sh`;
    change them there, not in the WebUI, or `task qbittorrent:check` reports drift. Torrents added by
    hand go in its `manual` category: no app looks there, so they are never imported,
-   replaced or removed, only stopped at the share limits.
+   replaced or removed, only stopped at the share limits. It never downloads executables
+   (`*.exe` and others, `EXCLUDED_EXTS`): an exe-only fake finishes empty, and Decluttarr
+   (trap 14) clears it.
 7. **Prowlarr's settings come from `apps/prowlarr/configure.sh`**, and its API key from
    `.env` (`PROWLARR__AUTH__APIKEY`), which Phase 4 wires into Radarr and Sonarr. Changing
    the key means changing it everywhere. Indexers that go through FlareSolverr are listed
@@ -117,15 +119,17 @@ disappear. Confirm before anything destructive:
     names a script that doesn't exist. Moving the clone, or a script, means editing those
     lines and running `task deploy` right after pulling.
 
-14. **Decluttarr replaces queued downloads only, and only three jobs are on.**
-    `apps/decluttarr/config.yaml` lists `remove_stalled`, `remove_slow` and
-    `remove_metadata_missing`; listing any job turns it on, and `remove_orphans` /
-    `remove_unmonitored` would delete seeding torrents or upgrades, so
-    `apps/decluttarr/config.test.sh` pins the list. What it removes was never imported, so
-    it never meets `arr-reclaim` (trap 9). `remove_slow` pauses while qBittorrent runs above
-    80% of its `dl_limit` (64 MiB/s, just under the 600 Mbit/s line); a limit of 0 means
-    it never pauses. Its `detect_deletions` watcher starts even when unlisted, so give it
-    no media mounts. The image is pinned, so it has no `update` task.
+14. **Decluttarr replaces queued downloads only, and only four jobs are on.**
+    `apps/decluttarr/config.yaml` lists `remove_stalled`, `remove_slow`,
+    `remove_metadata_missing` and `remove_failed_imports`; listing any job turns it on, and
+    `remove_orphans` / `remove_unmonitored` would delete seeding torrents or upgrades, so
+    `apps/decluttarr/config.test.sh` pins the list. `remove_failed_imports` defaults to
+    matching every message; its `message_patterns` are pinned to executable fakes only (one
+    per qBittorrent excluded name), and must never widen to `*`. What it removes was never
+    imported, so it never meets `arr-reclaim` (trap 9). `remove_slow` pauses while
+    qBittorrent runs above 80% of its `dl_limit` (64 MiB/s, just under the 600 Mbit/s line);
+    a limit of 0 means it never pauses. Its `detect_deletions` watcher starts even when
+    unlisted, so give it no media mounts. The image is pinned, so it has no `update` task.
 
 15. **Plex's own subtitle download is not a permissions problem.** Plex stores downloaded
     subtitles in its database, not the library; `Got a subtitle of 99 bytes` in its log is

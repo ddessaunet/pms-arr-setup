@@ -8,14 +8,14 @@
 # removed download never reaches its import history.
 #
 # A job is ON as soon as its key is listed under `jobs:`, even with no value. So
-# list only the three wanted ones — apps/decluttarr/config.test.sh fails on any
+# list only the four wanted ones — apps/decluttarr/config.test.sh fails on any
 # other. Deliberately absent:
 #   remove_orphans         removes torrents whose media left the arr; one deleted in
 #                          Plex is arr-reclaim's to judge, not this
 #   remove_unmonitored     media is unmonitored after its first import
 #                          (autoUnmonitorPreviouslyDownloaded*), so upgrades would go
-#   remove_missing_files, remove_failed_imports, remove_failed_downloads,
-#   remove_bad_files, remove_done_seeding
+#   remove_missing_files, remove_failed_downloads, remove_bad_files,
+#   remove_done_seeding
 #                          file and seeding decisions stay with the arrs, qBittorrent's
 #                          share limits and arr-reclaim
 #   search_missing, search_unmet_cutoff, detect_deletions
@@ -40,6 +40,29 @@ jobs:
     min_speed: 500
   # A magnet that never finds anyone to send its metadata.
   remove_metadata_missing:
+  # A download the app refuses to import because it is an executable. Only these
+  # messages, never the default "*": that would remove, with its data, every
+  # download stuck for any reason, path problems included. The first is the
+  # app's own warning for an executable it finds. The rest are what an exe-only
+  # fake becomes once qBittorrent has skipped the file (excluded_file_names in
+  # apps/qbittorrent/configure.sh, one pattern per entry there): "No files found
+  # are eligible for import in" ending in that excluded name. A folder that held
+  # an .exe and an .nfo ends in the folder's name instead, so it is not matched
+  # and stays in the queue for a person. fnmatch is case-sensitive here, hence
+  # [eE][xX][eE]. Acts on the first check (no strikes), and like the others only
+  # on the queue: removed with its data, blocklisted, and searched again.
+  remove_failed_imports:
+    message_patterns:
+      - "Caution: Found executable file*"
+      - "No files found are eligible for import in *.[eE][xX][eE]"
+      - "No files found are eligible for import in *.[sS][cC][rR]"
+      - "No files found are eligible for import in *.[bB][aA][tT]"
+      - "No files found are eligible for import in *.[cC][mM][dD]"
+      - "No files found are eligible for import in *.[cC][oO][mM]"
+      - "No files found are eligible for import in *.[pP][iI][fF]"
+      - "No files found are eligible for import in *.[lL][nN][kK]"
+      - "No files found are eligible for import in *.[mM][sS][iI]"
+      - "No files found are eligible for import in *.[vV][bB][sS]"
 
 instances:
   radarr:

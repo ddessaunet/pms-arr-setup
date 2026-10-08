@@ -77,8 +77,17 @@ domain_list() {
     printf '%s' "${d[*]}"
 }
 
+# File types qBittorrent never downloads: they are set to "do not download" when
+# a torrent is added, so they are never stored or seeded. No media release needs
+# one. apps/decluttarr/config.yaml has one failed-import pattern per entry here,
+# and its test checks the two lists match.
+EXCLUDED_EXTS=(exe scr bat cmd com pif lnk msi vbs)
+
+# "*.exe" one per line, as qBittorrent's excluded_file_names wants them.
+excluded_names() { local IFS=$'\n'; printf '%s' "${EXCLUDED_EXTS[*]/#/*.}"; }
+
 want_prefs() {
-    jq -cn --arg torrents "$TORRENTS" --arg domains "$(domain_list)" '{
+    jq -cn --arg torrents "$TORRENTS" --arg domains "$(domain_list)" --arg excluded "$(excluded_names)" '{
         save_path:                             $torrents,
         temp_path_enabled:                     true,
         temp_path:                             ($torrents + "/.incomplete-arr"),
@@ -94,7 +103,9 @@ want_prefs() {
         dl_limit:                              67108864,
         dont_count_slow_torrents:              true,
         web_ui_host_header_validation_enabled: true,
-        web_ui_domain_list:                    $domains
+        web_ui_domain_list:                    $domains,
+        excluded_file_names_enabled:           true,
+        excluded_file_names:                   $excluded
     }'
 }
 # Seeding: ratio 2.0 or 14 days (20160 min), whichever comes first, then the
@@ -115,6 +126,16 @@ want_prefs() {
 # above what the line delivers and that pause never comes.
 # dont_count_slow_torrents: a download stuck under 2 KiB/s stops holding one of
 # the 3 active slots, so the queue behind it keeps moving until it is replaced.
+#
+# Excluded file names: on 2026-10-08 "Scrubs 2026 S02E04 … H264-CAKES" was one
+# 886 MB Windows .exe, a week before the episode aired. Sonarr refused the
+# import, but qBittorrent had already seeded 763 MB of it. Matching ignores
+# case (*.exe skips X.EXE), and a release with a video beside an .exe (RARBG's
+# marker) still imports, minus the .exe. A fake that is ONLY an executable now
+# finishes empty, and Sonarr/Radarr report "No files found are eligible for
+# import in …/X.exe". Decluttarr's remove_failed_imports removes and blocklists
+# that, and the app searches again. All checked on a throwaway qBittorrent 5.2.4
+# and Sonarr 4.0.20.
 
 # ─── API ──────────────────────────────────────────────────────────────────────
 JAR=""

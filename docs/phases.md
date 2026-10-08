@@ -684,15 +684,17 @@ Why that release was picked (a `/release` search, 2026-09-29):
 | seeder floor | **minimum 5 seeders** on every Radarr/Sonarr indexer, pushed from Prowlarr's sync profile | `prowlarr-configure.sh` (`MIN_SEEDERS`) |
 | 4K ranking | Bluray-2160p, WEB-DL-2160p and WEBRip-2160p in **one group**, so score (TRaSH's release-group tiers) decides; tiered groups are the well-seeded ones | `apps/recyclarr/recyclarr.yml` |
 | replacement | **Decluttarr**: a queued download stalled (no connections), under **500 KB/s**, or stuck on metadata for 3 checks in a row, 10 min apart, is removed, blocklisted, and searched again (~30–40 min) | `apps/decluttarr/config.yaml` |
+| executable fakes | **qBittorrent never downloads** `*.exe` and other executables. An exe-only fake (2026-10-08: "Scrubs … S02E04 … CAKES", 886 MB of Windows program) then finishes empty, and **Decluttarr's `remove_failed_imports`** removes and blocklists it on its next check, so the app searches again. Narrow patterns only: a folder that held an `.exe` and an `.nfo` stays queued for a person | `apps/qbittorrent/configure.sh` (`EXCLUDED_EXTS`), `apps/decluttarr/config.yaml` |
 | qBittorrent | global download limit **64 MiB/s** (~537 Mbit/s, just under the 600 Mbit/s line; first set at 5 MiB/s from a wrong ~50 Mbit/s estimate, corrected 2026-09-30), so Decluttarr's slow check pauses while the line is busy rather than blaming a swarm; a stalled download no longer holds one of the 3 active slots | `qbt-configure.sh` |
 
 **What Decluttarr never does.** It works on the Radarr/Sonarr **queue** only, i.e. downloads
 not yet imported, so an imported torrent that is seeding is never touched. A removed
 download was never imported, so it never reaches `arr-reclaim`'s import history
 (CLAUDE.md trap 9). A replaced *upgrade* leaves the old library file where it is. Only
-three jobs are listed, because listing a job turns it on; `remove_orphans` and
-`remove_unmonitored` would delete seeding torrents or upgrades. `apps/decluttarr/config.test.sh`
-pins that list.
+four jobs are listed, because listing a job turns it on; `remove_orphans` and
+`remove_unmonitored` would delete seeding torrents or upgrades. `remove_failed_imports` acts
+only on the executable-fake messages, never its default `*`. `apps/decluttarr/config.test.sh`
+pins the list and those patterns.
 
 **Do**
 
@@ -761,6 +763,9 @@ pins that list.
 - On a replacement: Decluttarr's log has the strikes and the removal; Radarr's history
   shows `downloadFailed`, the release is on its blocklist, and a new grab follows.
   `journalctl -u arr-reclaim` shows nothing for it.
+- `task qbittorrent:check` reports `excluded_file_names_enabled` and `excluded_file_names`
+  ok. On an exe-only fake, Decluttarr's log has `remove_failed_imports triggered removal`
+  with "No files found are eligible for import in …/X.exe", and the release is blocklisted.
 
 **Rollback**
 

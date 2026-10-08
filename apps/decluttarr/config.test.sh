@@ -13,7 +13,10 @@
 # through the arr queue as blocklist + downloadFailed + a new search, !ENV for
 # secrets and test_run, remove_slow reading qBittorrent's dl_rate_limit, and the
 # detect_deletions watcher starting even when unlisted — was checked against a
-# throwaway Decluttarr v2.1.0 with a throwaway Radarr and qBittorrent 5.2.
+# throwaway Decluttarr v2.1.0 with a throwaway Radarr and qBittorrent 5.2. The
+# remove_failed_imports patterns were checked the same way (2026-10-08, Sonarr
+# 4.0.20, qBittorrent 5.2.4): exe-only torrents removed on the first pass, a
+# folder of .exe + .nfo and a video beside an .exe left alone.
 
 cd "$(dirname "$0")/../.." || exit 1
 
@@ -55,9 +58,9 @@ compose_block() {
 
 # ─── jobs ─────────────────────────────────────────────────────────────────────
 echo "jobs"
-ok_eq "exactly stalled, slow and missing metadata — nothing else" \
-    "remove_metadata_missing remove_slow remove_stalled" "$(section_keys jobs | sort | paste -sd' ')"
-for j in remove_orphans remove_unmonitored remove_missing_files remove_failed_imports \
+ok_eq "exactly stalled, slow, missing metadata and executables — nothing else" \
+    "remove_failed_imports remove_metadata_missing remove_slow remove_stalled" "$(section_keys jobs | sort | paste -sd' ')"
+for j in remove_orphans remove_unmonitored remove_missing_files \
          remove_failed_downloads remove_bad_files remove_done_seeding \
          search_missing search_unmet_cutoff detect_deletions; do
     ok_eq "$j is not listed (listed = on)" "0" "$(grep -cE "^[[:space:]]+$j:" "$CONF")"
@@ -65,6 +68,29 @@ done
 ok_eq "slow means under 500 KB/s"        "500" \
     "$(awk '/^  remove_slow:/ {on=1; next} on && /^  [a-z]/ {exit} on && $1 == "min_speed:" {print $2}' "$CONF")"
 ok_eq "three strikes before a removal"   "3"   "$(section_value job_defaults max_strikes)"
+
+# remove_failed_imports with no message_patterns defaults to "*": it would then
+# remove (with its data) and blocklist every download stuck for any reason. So
+# the patterns are pinned: the executable warning, plus one "No files found …
+# in *.<ext>" per name qBittorrent excludes, and nothing that matches anything.
+echo
+echo "remove_failed_imports patterns"
+PATS="$(awk '/^  remove_failed_imports:/ {on=1; next} on && /^  [a-z]/ {exit}
+             on && /^      - / {sub(/^      - "/, ""); sub(/"$/, ""); print}' "$CONF")"
+ok_eq "message_patterns is set"          "1" "$(awk '/^  remove_failed_imports:/ {on=1; next} on && /^  [a-z]/ {exit} on && /message_patterns:/ {n++} END {print n+0}' "$CONF")"
+ok_eq "no catch-all pattern"             "0" "$(grep -cxE '\*|\*\*|No files found are eligible for import in \*' <<<"$PATS")"
+ok_eq "the app's executable warning"     "1" "$(grep -cxF 'Caution: Found executable file*' <<<"$PATS")"
+# Each pattern for a name qBittorrent skips, in either case: *.[eE][xX][eE].
+want_pats() {
+    QBT_CONFIGURE_LIB=1 bash -c '. ./apps/qbittorrent/configure.sh && printf "%s\n" "${EXCLUDED_EXTS[@]}"' |
+        while read -r e; do
+            printf 'No files found are eligible for import in *.'
+            for ((i = 0; i < ${#e}; i++)); do c="${e:i:1}"; printf '[%s%s]' "${c,,}" "${c^^}"; done
+            printf '\n'
+        done
+}
+ok_eq "one pattern per qBittorrent excluded name, nothing else" "$(want_pats)" "$(grep '^No files found' <<<"$PATS")"
+ok_eq "and no other kind of pattern"     "0" "$(grep -cvE '^(Caution: Found executable file\*|No files found are eligible for import in \*\.(\[[a-z][A-Z]\])+)$' <<<"$PATS")"
 
 # ─── general ──────────────────────────────────────────────────────────────────
 echo
