@@ -24,6 +24,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 7b — remove native Plex and pms-local's leftovers (2026-09-29, same day as 7a by choice: DB archived to /root, packages, units, files and user removed)
 - [x] Phase 8 — library cleanup (2026-09-30; one-off for this box, so not kept in the repo)
 - [x] Phase 9 — Bazarr: Spanish + English subtitles beside the media (2026-10-01: Days of Thunder `.es.srt` beside the video, Plex lists it, hardlink kept, reclaim audit removes nothing)
+- [ ] Address check — `lan-address.timer` re-applies the apps' address settings when DHCP moves the box
 
 Run `stack/preflight.sh` before each of Phases 0–1b. It is read-only.
 
@@ -1056,3 +1057,43 @@ Then take `bazarr` out of `UPDATE_SERVICES`. The `.srt` files it wrote can stay;
 using them. To remove them too, take the list from Bazarr's *History* before removing its
 appdata (Radarr's imports may have brought `.srt` files of their own), and confirm before
 deleting anything under `/mnt/data`.
+
+---
+
+## Address check — follow the box when DHCP moves it
+
+The router assigns the box's addresses by DHCP and can't reserve one. Since 2026-10-04 they
+have flipped on reboots: wired `.86` ↔ `.87`, Wi‑Fi `.66` ↔ `.67`. Static addresses
+collided (`.2` is the printer; `.3` dropped in and out), so the box stays on DHCP and
+[`jobs/lan-address`](../jobs/lan-address/README.md) keeps the apps in step: after boot and
+every 5 minutes it re-runs the configure scripts of qBittorrent, Prowlarr, Radarr, Sonarr
+and Seerr, for each one whose recorded addresses are not the box's now.
+
+**Do**
+
+From the main clone, after the merge. It needs sudo, so it's yours to run:
+
+```bash
+task deploy
+```
+
+**Verify**
+
+- `task deploy:check`: `lan-address.timer armed`; `task status` shows its next run.
+- `task lan-address:logs`: the first run applied all five apps and ended
+  `Stack now at <addresses>`. Within 5 minutes, `/opt/appdata/.lan-address` has five lines.
+- `task check`: no drift.
+- **A change:** set one app's line in `/opt/appdata/.lan-address` to an old address. Within
+  5 minutes (or with `task lan-address:run`), only that app is applied again.
+- **A reboot:** about 2 minutes after boot, `journalctl -u lan-address -b` has a run, and
+  `task check` is clean with nothing run by hand.
+
+**Rollback**
+
+```bash
+sudo systemctl disable --now lan-address.timer
+```
+
+Then take its two lines out of `MANIFEST` and `EXECS` in `stack/deploy.sh`. After an
+address change, apply the apps by hand:
+`task qbittorrent:configure prowlarr:configure arr:configure seerr:configure`.
