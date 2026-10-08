@@ -24,7 +24,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 7b — remove native Plex and pms-local's leftovers (2026-09-29, same day as 7a by choice: DB archived to /root, packages, units, files and user removed)
 - [x] Phase 8 — library cleanup (2026-09-30; one-off for this box, so not kept in the repo)
 - [x] Phase 9 — Bazarr: Spanish + English subtitles beside the media (2026-10-01: Days of Thunder `.es.srt` beside the video, Plex lists it, hardlink kept, reclaim audit removes nothing)
-- [x] Address check — `lan-address.timer` re-applies the apps' address settings when DHCP moves the box (2026-10-08: first run applied all five at .66/.86; a stale Seerr entry re-applied only Seerr; a reboot not yet seen)
+- [x] Address check — `lan-address.timer` re-applies the apps' address settings when DHCP moves the box (2026-10-08: first run applied all five at .66/.86; a stale Seerr entry re-applied only Seerr; after the 18:29 reboot it ran at +2 min, addresses unchanged, nothing applied)
 
 Run `stack/preflight.sh` before each of Phases 0–1b. It is read-only.
 
