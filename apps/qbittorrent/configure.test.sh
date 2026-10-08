@@ -67,7 +67,8 @@ echo "want_prefs"
 W="$(want_prefs)"
 for k in save_path temp_path_enabled temp_path auto_tmm_enabled autorun_enabled listen_port \
          upnp max_ratio_enabled max_ratio max_seeding_time_enabled max_seeding_time max_ratio_act \
-         dl_limit dont_count_slow_torrents web_ui_host_header_validation_enabled web_ui_domain_list; do
+         dl_limit dont_count_slow_torrents web_ui_host_header_validation_enabled web_ui_domain_list \
+         excluded_file_names_enabled excluded_file_names; do
     ok_eq "sets $k" "true" "$(jq --arg k "$k" 'has($k)' <<<"$W")"
 done
 ok_eq "never the hook"           "false" "$(jq '.autorun_enabled' <<<"$W")"
@@ -83,6 +84,14 @@ ok_eq "then STOP, never remove"            "0"     "$(jq '.max_ratio_act' <<<"$W
 # unlimited and would make it count a shared line as a slow swarm.
 ok_eq "download limit 64 MiB/s, never 0"   "67108864" "$(jq '.dl_limit' <<<"$W")"
 ok_eq "stalled downloads free their slot"  "true"  "$(jq '.dont_count_slow_torrents' <<<"$W")"
+# Executables are never downloaded or seeded (the 2026-10-08 .exe fake).
+ok_eq "executables excluded"               "true"  "$(jq '.excluded_file_names_enabled' <<<"$W")"
+ok_eq "one pattern per line, in this order" \
+    $'*.exe\n*.scr\n*.bat\n*.cmd\n*.com\n*.pif\n*.lnk\n*.msi\n*.vbs' "$(jq -r '.excluded_file_names' <<<"$W")"
+# A media, subtitle or info file in that list would silently stop imports.
+for e in mkv mp4 avi m4v ts srt ass sub idx nfo; do
+    ok_eq "never excludes .$e" "0" "$(jq -r '.excluded_file_names' <<<"$W" | grep -ciFx "*.$e")"
+done
 
 # ─── temporary password ───────────────────────────────────────────────────────
 echo
@@ -147,9 +156,9 @@ echo
 echo "prefs_report / categories_report"
 GOT="$(jq -c '.listen_port = 6881 | .extra = 1' <<<"$W")"
 R="$(prefs_report "$GOT" "$W")"
-ok_eq "one line per wanted key"     "16" "$(wc -l <<<"$R" | tr -d ' ')"
+ok_eq "one line per wanted key"     "18" "$(wc -l <<<"$R" | tr -d ' ')"
 ok_eq "changed key is DRIFT"        "listen_port	DRIFT	6881	13762" "$(grep '^listen_port' <<<"$R")"
-ok_eq "unchanged keys are ok"       "15" "$(grep -c '	ok	' <<<"$R")"
+ok_eq "unchanged keys are ok"       "17" "$(grep -c '	ok	' <<<"$R")"
 ok_eq "all ok when equal"           "0"  "$(prefs_report "$W" "$W" | grep -c DRIFT)"
 C='{"radarr":{"savePath":"/mnt/data/torrents/radarr"},"sonarr":{"savePath":"/wrong"}}'
 ok_eq "category ok"      "category radarr	ok"    "$(categories_report "$C" | grep radarr | cut -f1,2)"

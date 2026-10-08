@@ -41,6 +41,12 @@ reading its release notes.
 
 - **Listing a job turns it on.** `remove_orphans` and `remove_unmonitored` would delete
   seeding torrents or upgrades.
+- **`remove_failed_imports` must keep its narrow patterns.** Without `message_patterns` it
+  matches `*`, and would remove (with its data) and blocklist every download stuck for any
+  reason, path problems included. It only clears executable fakes: the app's "Found
+  executable file" warning, and "No files found are eligible for import in" a path ending
+  in a name qBittorrent excludes. A folder that held an `.exe` and an `.nfo` is left for a
+  person, since its message ends in the folder's name.
 - **Its `detect_deletions` watcher starts even when it isn't listed**, so it gets no media
   mounts at all: it removes torrents through the qBittorrent API.
 - **`remove_slow` pauses** while qBittorrent runs above 80% of its download limit.
