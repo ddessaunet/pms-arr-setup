@@ -1,0 +1,25 @@
+version: '3'
+
+# lan-address — see README.md. Run after every boot and every 5 minutes by
+# lan-address.timer; `task deploy` installs and arms it.
+
+tasks:
+  run:
+    desc: Apply the settings of the apps whose recorded LAN addresses are not the box's now
+    cmds:
+      - ./lan-address.sh
+
+  dry:
+    desc: Say which apps are behind the box's LAN addresses (changes nothing)
+    cmds:
+      - ./lan-address.sh --dry-run
+
+  force:
+    desc: Apply the address settings of every app, changed or not
+    cmds:
+      - ./lan-address.sh --force
+
+  logs:
+    desc: The last runs' journal, with each address change
+    cmds:
+      - journalctl -u lan-address.service -n 100 --no-pager

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# stack/deploy.sh — install the systemd units (the updater's, arr-reclaim's and the
-# fallback search's), arm or disarm the updater's timer, arm the fallback
-# search's, and (re)start the arr-reclaim watcher.
+# stack/deploy.sh — install the systemd units (the updater's, arr-reclaim's, the
+# fallback search's and lan-address's), arm or disarm the updater's timer, arm
+# the fallback search's and lan-address's, and (re)start the arr-reclaim watcher.
 #
 #   stack/deploy.sh            install, reload, arm/disarm, verify
 #   stack/deploy.sh --check    report drift only; changes nothing
@@ -39,6 +39,8 @@ MANIFEST=(
     "jobs/arr-reclaim/arr-reclaim.service:/etc/systemd/system/arr-reclaim.service:644"
     "jobs/arr-fallback-search/arr-fallback-search.service:/etc/systemd/system/arr-fallback-search.service:644"
     "jobs/arr-fallback-search/arr-fallback-search.timer:/etc/systemd/system/arr-fallback-search.timer:644"
+    "jobs/lan-address/lan-address.service:/etc/systemd/system/lan-address.service:644"
+    "jobs/lan-address/lan-address.timer:/etc/systemd/system/lan-address.timer:644"
 )
 TIMER="pms-update.timer"
 NATIVE_PLEX_UNIT="plexmediaserver.service"
@@ -52,6 +54,11 @@ WATCHER="arr-reclaim.service"
 # updater it does not depend on where Plex runs: always armed.
 SEARCH_TIMER="arr-fallback-search.timer"
 
+# The address check (jobs/lan-address/lan-address.sh): after boot and every 5
+# minutes, re-applies the apps that list the box's addresses when DHCP moves it.
+# Always armed.
+ADDRESS_TIMER="lan-address.timer"
+
 # What each unit's ExecStart must say, as unit|command. A unit cannot use a
 # relative path, so it names this clone; a moved clone would leave it running
 # a file that is gone.
@@ -59,10 +66,12 @@ EXECS=(
     "jobs/pms-update/pms-update.service|$REPO/jobs/pms-update/update-stack.sh"
     "jobs/arr-reclaim/arr-reclaim.service|$REPO/jobs/arr-reclaim/arr-reclaim.sh watch"
     "jobs/arr-fallback-search/arr-fallback-search.service|$REPO/jobs/arr-fallback-search/arr-fallback-search.sh"
+    "jobs/lan-address/lan-address.service|$REPO/jobs/lan-address/lan-address.sh"
 )
 
 TIMER_CHANGED=0
 SEARCH_TIMER_CHANGED=0
+ADDRESS_TIMER_CHANGED=0
 ANY_CHANGED=0
 
 # entry → MF_SRC / MF_DST / MF_MODE
@@ -145,6 +154,11 @@ check() {
         else
             echo "TIMER DISARMED: $SEARCH_TIMER should be armed — task deploy"; rc=1
         fi
+        if systemctl is-enabled --quiet "$ADDRESS_TIMER" 2>/dev/null; then
+            echo "ok: $ADDRESS_TIMER armed"
+        else
+            echo "TIMER DISARMED: $ADDRESS_TIMER should be armed — task deploy"; rc=1
+        fi
     fi
     return "$rc"
 }
@@ -189,6 +203,7 @@ install_all() {
         ANY_CHANGED=1
         if [[ "$MF_DST" == *"$TIMER" ]]; then TIMER_CHANGED=1; fi
         if [[ "$MF_DST" == *"$SEARCH_TIMER" ]]; then SEARCH_TIMER_CHANGED=1; fi
+        if [[ "$MF_DST" == *"$ADDRESS_TIMER" ]]; then ADDRESS_TIMER_CHANGED=1; fi
     done
 
     # Explicit, and load-bearing under `set -e`: without it this function
@@ -230,6 +245,13 @@ arm() {
         echo "restarted $SEARCH_TIMER (unit file changed)"
     fi
 
+    sudo systemctl enable --now "$ADDRESS_TIMER"
+    echo "enabled $ADDRESS_TIMER"
+    if [[ "$ADDRESS_TIMER_CHANGED" == 1 ]]; then
+        sudo systemctl restart "$ADDRESS_TIMER"
+        echo "restarted $ADDRESS_TIMER (unit file changed)"
+    fi
+
     sudo systemctl enable "$WATCHER"
     sudo systemctl restart "$WATCHER"
     echo "enabled and restarted $WATCHER"
@@ -245,12 +267,13 @@ verify() {
     # Catches a typo'd or removed directive before it costs you a Sunday.
     systemd-analyze verify "/etc/systemd/system/$TIMER" \
         /etc/systemd/system/pms-update.service "/etc/systemd/system/$WATCHER" \
-        "/etc/systemd/system/$SEARCH_TIMER" /etc/systemd/system/arr-fallback-search.service 2>&1 \
-        | grep -E 'pms-update|arr-reclaim|arr-fallback' || true
+        "/etc/systemd/system/$SEARCH_TIMER" /etc/systemd/system/arr-fallback-search.service \
+        "/etc/systemd/system/$ADDRESS_TIMER" /etc/systemd/system/lan-address.service 2>&1 \
+        | grep -E 'pms-update|arr-reclaim|arr-fallback|lan-address' || true
     check || rc=1
 
     echo
-    systemctl list-timers "$TIMER" "$SEARCH_TIMER" --all --no-pager
+    systemctl list-timers "$TIMER" "$SEARCH_TIMER" "$ADDRESS_TIMER" --all --no-pager
 
     if [[ "$rc" == 0 ]]; then echo "checked"; else echo "checked, with problems above"; fi
     return "$rc"

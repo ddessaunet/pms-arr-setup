@@ -1,0 +1,40 @@
+# lan-address.service — one run of jobs/lan-address/lan-address.sh.
+#
+# Source of truth is this file; `task deploy` installs it with its timer.
+#
+#   journalctl -u lan-address
+#
+# ExecStart points into the clone because the script reads .env and the apps'
+# configure.sh beside it. Move the clone, edit this path.
+
+[Unit]
+Description=Apply the apps' settings again when the box's LAN addresses change
+Documentation=https://github.com/ddessaunet/pms-arr-setup/blob/main/jobs/lan-address/README.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/dario/repositories/pms-arr-setup/jobs/lan-address/lan-address.sh
+
+# Not root: the configure scripts only talk to the apps' APIs, with the keys from
+# the clone's .env (Seerr's from /opt/appdata/seerr, which dario owns).
+User=dario
+Group=dario
+
+# Usually seconds. After an address change it runs five configure scripts, and
+# Prowlarr's waits up to 90 s for its indexer sync and restarts the app.
+TimeoutStartSec=15min
+
+NoNewPrivileges=yes
+ProtectSystem=full
+PrivateTmp=yes
+ProtectClock=yes
+ProtectHostname=yes
+LockPersonality=yes
+# AF_NETLINK: `hostname -I` reads the addresses through netlink. Without it the
+# script sees no address and does nothing, every time.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+Nice=10
+IOSchedulingClass=idle

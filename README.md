@@ -78,6 +78,7 @@ serves the built website.
 | [arr-reclaim](jobs/arr-reclaim/README.md) | always (watcher) | Frees a torrent once the media it imported is deleted. |
 | [arr-fallback-search](jobs/arr-fallback-search/README.md) | daily 04:00 | Re-searches the `4K HDR or 1080p` movies without a 4K file. |
 | [pms-update](jobs/pms-update/README.md) | Sunday 05:00 | Updates the containers, with a streaming check and a rollback. |
+| [lan-address](jobs/lan-address/README.md) | after boot, every 5 min | Re-applies the apps that list the box's addresses when DHCP moves it. |
 
 ## The app contract
 
@@ -133,7 +134,7 @@ enforces this.
 | `task --list` | Every task, with a line on what it does. |
 | `task start` | Preflight, then start every service the current phase has enabled. |
 | `task stop` | Stop them. Containers and config are kept; nothing here runs `down -v`. |
-| `task status` | `docker compose ps`, and when the updater and the fallback search run next. |
+| `task status` | `docker compose ps`, and when the updater, the fallback search and the address check run next. |
 | `task logs` | Follow the logs. `task logs -- plex` or `task plex:logs` for one service. |
 | `task preflight` | Read-only checks before a phase: docker, `.env`, same-filesystem hardlinks, ports, native service state. |
 | `task lint` | `shellcheck` on every script, and check that `compose.yaml` renders. |
@@ -147,6 +148,7 @@ enforces this.
 | `task recyclarr:preview` / `recyclarr:sync` | What a Recyclarr sync would change / apply it. Then `arr:configure` and `seerr:configure`. |
 | `task arr-reclaim:audit` | What `arr-reclaim` would remove right now. Changes nothing. |
 | `task arr-fallback-search:run` / `:dry` | Search Radarr again now for the `4K HDR or 1080p` movies without a 4K file / list them. |
+| `task lan-address:dry` / `:run` / `:logs` | Which apps are behind the box's addresses / apply them now / each change, with the new address. |
 | `task site:build` | Build the docs website and swap it in; in the main clone this publishes it on `:8088`. |
 | `task site:check` / `site:test` / `site:dev` | Prove it builds / its unit tests / a live preview on `:4321`. These need node (nvm) and pnpm (Homebrew). |
 

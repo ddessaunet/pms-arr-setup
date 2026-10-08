@@ -1,0 +1,23 @@
+# lan-address.timer — after every boot, then every 5 minutes.
+#
+# Source of truth is this file.
+#   sudo systemctl enable --now lan-address.timer
+#   systemctl list-timers lan-address.timer
+#
+# The router hands out the box's addresses by DHCP and has moved them on reboots
+# (.86 ↔ .87 wired, .66 ↔ .67 Wi-Fi), and could on a lease renewal. A run with
+# no change reads the addresses, compares them with /opt/appdata/.lan-address
+# and stops, so every 5 minutes costs nothing.
+
+[Unit]
+Description=Check the box's LAN addresses after boot and every 5 minutes
+
+[Timer]
+# Two minutes gives DHCP and the containers time to come up; an app that is
+# still starting fails its configure and is retried on the next run.
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target

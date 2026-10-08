@@ -29,6 +29,7 @@ includes:
   arr-reclaim:         { taskfile: jobs/arr-reclaim,         dir: jobs/arr-reclaim }
   arr-fallback-search: { taskfile: jobs/arr-fallback-search, dir: jobs/arr-fallback-search }
   pms-update:          { taskfile: jobs/pms-update,          dir: jobs/pms-update }
+  lan-address:         { taskfile: jobs/lan-address,         dir: jobs/lan-address }
   # Not an app: the docs website's source. apps/docs serves what `site:build` writes.
   site:                { taskfile: site,                     dir: site }
 
@@ -54,11 +55,11 @@ tasks:
       - docker compose stop
 
   status:
-    desc: The containers, and when the updater and the fallback search run next
+    desc: The containers, and when the updater, the fallback search and the address check run next
     cmds:
       - docker compose ps
       - echo
-      - systemctl list-timers pms-update.timer arr-fallback-search.timer --all --no-pager
+      - systemctl list-timers pms-update.timer arr-fallback-search.timer lan-address.timer --all --no-pager
 
   logs:
     desc: Follow the logs (task logs -- plex for one service)

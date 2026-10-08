@@ -111,7 +111,7 @@ disappear. Confirm before anything destructive:
     so the script only ever sends the fields it owns. Its requests are ordinary Radarr/Sonarr
     adds; nothing in Seerr touches files.
 13. **The units in `jobs/` (`pms-update.service`, `arr-reclaim.service`,
-    `arr-fallback-search.service`) hardcode this clone's path** in `ExecStart`, because the
+    `arr-fallback-search.service`, `lan-address.service`) hardcode this clone's path** in `ExecStart`, because the
     scripts need `compose.yaml` and `.env` at the repo root. `task deploy` refuses to install
     a unit whose path doesn't match the clone, and `stack/layout.test.sh` fails if the path
     names a script that doesn't exist. Moving the clone, or a script, means editing those
@@ -151,6 +151,13 @@ disappear. Confirm before anything destructive:
     profile, or changing the defaults, upgrades or size caps, means updating `profiles.yml`
     too: `task site:check` fails until they agree. A failed build leaves the published site
     as it was. Mount `site/`, never `site/dist`: the build swaps `dist` for a new folder.
+18. **The box's LAN addresses come from DHCP and change** (wired `.86` ↔ `.87`, Wi‑Fi
+    `.66` ↔ `.67`, so far on reboots). The router can't reserve one, and a static address
+    collides with what DHCP hands out next. qBittorrent, Prowlarr, Radarr and Sonarr list
+    the addresses (an unlisted one gets "Unauthorized" / "Invalid Hostname"), and Seerr
+    links by the first. **`lan-address.timer`** re-runs those configure scripts after
+    boot and every 5 minutes, but only for apps whose addresses in
+    `/opt/appdata/.lan-address` are out of date. `task lan-address:logs` shows the current one.
 
 ## Conventions
 
