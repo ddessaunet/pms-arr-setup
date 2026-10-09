@@ -19,7 +19,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 5 — Seerr (requests) (2026-09-29: two requests auto-approved → HD-1080p grab → hardlink import → Available)
 - [x] Phase 6 — Recyclarr: 4K HDR as the default for movies (2026-10-01: Air grabbed 2160p HDR10+ in the cap, hardlinked, Available; Dune's 1080p torrent reclaimed when 4K replaced it)
 - [x] Phase 6b — opt-in `4K HDR or 1080p` profile for films with no 4K HDR release, re-searched daily (2026-10-02: Cosmic Sin grabbed 1080p WEBRip, hardlinked, Available; a dead first grab replaced by Decluttarr)
-- [ ] Download health — seeder floor, 4K ranked by release tier, Decluttarr replaces stalled/slow grabs
+- [x] Download health — seeder floor, 4K ranked by release tier, Decluttarr replaces stalled/slow grabs (2026-10-08: checks clean, minimum seeders 5 on both apps; a Tenet search refused 97 of 256 releases for seeders and ranked the Tier 03 UHD Bluray (3950) above untiered encodes with more seeders; Cosmic Sin's dead grab was failed, blocklisted and replaced in the same minute on 2026-10-02, then imported; executables excluded, the exe-only path rehearsed)
 - [x] Phase 7a — retire native qBittorrent and `plex-watch` (2026-09-29: 9 native torrents dropped, all 10 library files kept at 1 link; both services disabled)
 - [x] Phase 7b — remove native Plex and pms-local's leftovers (2026-09-29, same day as 7a by choice: DB archived to /root, packages, units, files and user removed)
 - [x] Phase 8 — library cleanup (2026-09-30; one-off for this box, so not kept in the repo)
