@@ -1,0 +1,40 @@
+---
+title: Stack
+description: Every service of the media stack with a link and its status, the host's jobs, and the logs worth checking.
+template: splash
+tableOfContents: false
+---
+
+import StatusBar from '../../components/StatusBar.astro';
+import ServiceGrid from '../../components/ServiceGrid.astro';
+import HostStatus from '../../components/HostStatus.astro';
+import LogsPanel from '../../components/LogsPanel.astro';
+
+<div class="not-content">
+  <StatusBar />
+</div>
+
+## Services
+
+Each link uses the address you opened this page on, so it still works after the router moves
+the box.
+
+<div class="not-content">
+  <ServiceGrid />
+</div>
+
+## Host
+
+<div class="not-content">
+  <HostStatus />
+</div>
+
+## Logs
+
+<div class="not-content">
+  <LogsPanel />
+</div>
+
+The status comes from `jobs/stack-status` every 2 minutes, and the settings check hourly.
+Also here: the [quality-profiles map](/quality-profiles/), which profile a movie or series
+gets and what each one accepts.

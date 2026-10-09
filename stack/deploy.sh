@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# stack/deploy.sh — install the systemd units (the updater's, arr-reclaim's, the
-# fallback search's and lan-address's), arm or disarm the updater's timer, arm
-# the fallback search's and lan-address's, and (re)start the arr-reclaim watcher.
+# stack/deploy.sh — install the systemd units of jobs/, arm or disarm the updater's
+# timer, arm the others (ALWAYS_TIMERS), and (re)start the arr-reclaim watcher.
 #
 #   stack/deploy.sh            install, reload, arm/disarm, verify
 #   stack/deploy.sh --check    report drift only; changes nothing
@@ -41,6 +40,10 @@ MANIFEST=(
     "jobs/arr-fallback-search/arr-fallback-search.timer:/etc/systemd/system/arr-fallback-search.timer:644"
     "jobs/lan-address/lan-address.service:/etc/systemd/system/lan-address.service:644"
     "jobs/lan-address/lan-address.timer:/etc/systemd/system/lan-address.timer:644"
+    "jobs/stack-status/stack-status.service:/etc/systemd/system/stack-status.service:644"
+    "jobs/stack-status/stack-status.timer:/etc/systemd/system/stack-status.timer:644"
+    "jobs/stack-status/stack-status-drift.service:/etc/systemd/system/stack-status-drift.service:644"
+    "jobs/stack-status/stack-status-drift.timer:/etc/systemd/system/stack-status-drift.timer:644"
 )
 TIMER="pms-update.timer"
 NATIVE_PLEX_UNIT="plexmediaserver.service"
@@ -50,14 +53,15 @@ NATIVE_PLEX_UNIT="plexmediaserver.service"
 # which no unit file shows. (The same reasoning as pms-local's plex-watch.)
 WATCHER="arr-reclaim.service"
 
-# The daily Radarr re-search (jobs/arr-fallback-search/arr-fallback-search.sh). Unlike the
-# updater it does not depend on where Plex runs: always armed.
-SEARCH_TIMER="arr-fallback-search.timer"
-
-# The address check (jobs/lan-address/lan-address.sh): after boot and every 5
-# minutes, re-applies the apps that list the box's addresses when DHCP moves it.
-# Always armed.
-ADDRESS_TIMER="lan-address.timer"
+# Timers armed on every deploy. Unlike the updater's, they do not depend on
+# where Plex runs. stack/deploy.test.sh fails if a MANIFEST timer other than the
+# updater's is missing here.
+#   arr-fallback-search  the daily Radarr re-search
+#   lan-address          after boot and every 5 min: re-applies the apps' address
+#                        settings when DHCP moves the box
+#   stack-status         every 2 min: the docs site's dashboard data
+#   stack-status-drift   hourly: the dashboard's settings check
+ALWAYS_TIMERS=(arr-fallback-search.timer lan-address.timer stack-status.timer stack-status-drift.timer)
 
 # What each unit's ExecStart must say, as unit|command. A unit cannot use a
 # relative path, so it names this clone; a moved clone would leave it running
@@ -67,11 +71,12 @@ EXECS=(
     "jobs/arr-reclaim/arr-reclaim.service|$REPO/jobs/arr-reclaim/arr-reclaim.sh watch"
     "jobs/arr-fallback-search/arr-fallback-search.service|$REPO/jobs/arr-fallback-search/arr-fallback-search.sh"
     "jobs/lan-address/lan-address.service|$REPO/jobs/lan-address/lan-address.sh"
+    "jobs/stack-status/stack-status.service|$REPO/jobs/stack-status/stack-status.sh"
+    "jobs/stack-status/stack-status-drift.service|$REPO/jobs/stack-status/stack-status.sh --drift"
 )
 
 TIMER_CHANGED=0
-SEARCH_TIMER_CHANGED=0
-ADDRESS_TIMER_CHANGED=0
+CHANGED_TIMERS=" "   # the ALWAYS_TIMERS whose unit file this run installed
 ANY_CHANGED=0
 
 # entry → MF_SRC / MF_DST / MF_MODE
@@ -149,16 +154,14 @@ check() {
         else
             echo "WATCHER DOWN: $WATCHER is not enabled and running — task deploy"; rc=1
         fi
-        if systemctl is-enabled --quiet "$SEARCH_TIMER" 2>/dev/null; then
-            echo "ok: $SEARCH_TIMER armed"
-        else
-            echo "TIMER DISARMED: $SEARCH_TIMER should be armed — task deploy"; rc=1
-        fi
-        if systemctl is-enabled --quiet "$ADDRESS_TIMER" 2>/dev/null; then
-            echo "ok: $ADDRESS_TIMER armed"
-        else
-            echo "TIMER DISARMED: $ADDRESS_TIMER should be armed — task deploy"; rc=1
-        fi
+        local t
+        for t in "${ALWAYS_TIMERS[@]}"; do
+            if systemctl is-enabled --quiet "$t" 2>/dev/null; then
+                echo "ok: $t armed"
+            else
+                echo "TIMER DISARMED: $t should be armed — task deploy"; rc=1
+            fi
+        done
     fi
     return "$rc"
 }
@@ -185,7 +188,7 @@ preflight() {
 }
 
 install_all() {
-    local entry
+    local entry t
     for entry in "${MANIFEST[@]}"; do
         manifest_parse "$entry"
 
@@ -202,8 +205,9 @@ install_all() {
         printf 'installed %s %s\n' "$MF_MODE" "$MF_DST"
         ANY_CHANGED=1
         if [[ "$MF_DST" == *"$TIMER" ]]; then TIMER_CHANGED=1; fi
-        if [[ "$MF_DST" == *"$SEARCH_TIMER" ]]; then SEARCH_TIMER_CHANGED=1; fi
-        if [[ "$MF_DST" == *"$ADDRESS_TIMER" ]]; then ADDRESS_TIMER_CHANGED=1; fi
+        for t in "${ALWAYS_TIMERS[@]}"; do
+            if [[ "$MF_DST" == */"$t" ]]; then CHANGED_TIMERS+="$t "; fi
+        done
     done
 
     # Explicit, and load-bearing under `set -e`: without it this function
@@ -238,19 +242,15 @@ arm() {
         echo "disabled $TIMER — Plex is native, and pms-local's plex-update.timer updates it"
     fi
 
-    sudo systemctl enable --now "$SEARCH_TIMER"
-    echo "enabled $SEARCH_TIMER"
-    if [[ "$SEARCH_TIMER_CHANGED" == 1 ]]; then
-        sudo systemctl restart "$SEARCH_TIMER"
-        echo "restarted $SEARCH_TIMER (unit file changed)"
-    fi
-
-    sudo systemctl enable --now "$ADDRESS_TIMER"
-    echo "enabled $ADDRESS_TIMER"
-    if [[ "$ADDRESS_TIMER_CHANGED" == 1 ]]; then
-        sudo systemctl restart "$ADDRESS_TIMER"
-        echo "restarted $ADDRESS_TIMER (unit file changed)"
-    fi
+    local t
+    for t in "${ALWAYS_TIMERS[@]}"; do
+        sudo systemctl enable --now "$t"
+        echo "enabled $t"
+        if [[ "$CHANGED_TIMERS" == *" $t "* ]]; then
+            sudo systemctl restart "$t"
+            echo "restarted $t (unit file changed)"
+        fi
+    done
 
     sudo systemctl enable "$WATCHER"
     sudo systemctl restart "$WATCHER"
@@ -263,17 +263,19 @@ verify() {
         return
     fi
 
-    local rc=0
-    # Catches a typo'd or removed directive before it costs you a Sunday.
-    systemd-analyze verify "/etc/systemd/system/$TIMER" \
-        /etc/systemd/system/pms-update.service "/etc/systemd/system/$WATCHER" \
-        "/etc/systemd/system/$SEARCH_TIMER" /etc/systemd/system/arr-fallback-search.service \
-        "/etc/systemd/system/$ADDRESS_TIMER" /etc/systemd/system/lan-address.service 2>&1 \
-        | grep -E 'pms-update|arr-reclaim|arr-fallback|lan-address' || true
+    local rc=0 entry units=() names=()
+    for entry in "${MANIFEST[@]}"; do
+        manifest_parse "$entry"
+        units+=("$MF_DST"); names+=("$(basename "$MF_DST" | sed 's/\.[a-z]*$//')")
+    done
+    # Catches a typo'd or removed directive before it costs you a Sunday. Only
+    # this repo's units are shown; systemd also comments on unrelated ones.
+    systemd-analyze verify "${units[@]}" 2>&1 \
+        | grep -E "$(printf '%s\n' "${names[@]}" | sort -u | paste -sd'|')" || true
     check || rc=1
 
     echo
-    systemctl list-timers "$TIMER" "$SEARCH_TIMER" "$ADDRESS_TIMER" --all --no-pager
+    systemctl list-timers "$TIMER" "${ALWAYS_TIMERS[@]}" --all --no-pager
 
     if [[ "$rc" == 0 ]]; then echo "checked"; else echo "checked, with problems above"; fi
     return "$rc"

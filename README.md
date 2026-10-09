@@ -71,7 +71,7 @@ serves the built website.
 | [recyclarr](apps/recyclarr/README.md) | — | TRaSH quality profiles, on demand. |
 | [decluttarr](apps/decluttarr/README.md) | — | Replaces stalled or crawling downloads. |
 | [bazarr](apps/bazarr/README.md) | 6767 | Spanish and English subtitles. |
-| [docs](apps/docs/README.md) | 8088 | This repo's docs website: for now, the quality-profiles map. |
+| [docs](apps/docs/README.md) | 8088 | This repo's docs website: the stack dashboard (links, status, logs) and the quality-profiles map. |
 
 | job | runs | role |
 |---|---|---|
@@ -79,6 +79,7 @@ serves the built website.
 | [arr-fallback-search](jobs/arr-fallback-search/README.md) | daily 04:00 | Re-searches the `4K HDR or 1080p` movies without a 4K file. |
 | [pms-update](jobs/pms-update/README.md) | Sunday 05:00 | Updates the containers, with a streaming check and a rollback. |
 | [lan-address](jobs/lan-address/README.md) | after boot, every 5 min | Re-applies the apps that list the box's addresses when DHCP moves it. |
+| [stack-status](jobs/stack-status/README.md) | every 2 min; drift hourly | Writes the dashboard's status, redacted logs and settings drift for the docs site. |
 
 ## The app contract
 
@@ -134,7 +135,7 @@ enforces this.
 | `task --list` | Every task, with a line on what it does. |
 | `task start` | Preflight, then start every service the current phase has enabled. |
 | `task stop` | Stop them. Containers and config are kept; nothing here runs `down -v`. |
-| `task status` | `docker compose ps`, and when the updater, the fallback search and the address check run next. |
+| `task status` | `docker compose ps`, and when each job's timer runs next. |
 | `task logs` | Follow the logs. `task logs -- plex` or `task plex:logs` for one service. |
 | `task preflight` | Read-only checks before a phase: docker, `.env`, same-filesystem hardlinks, ports, native service state. |
 | `task lint` | `shellcheck` on every script, and check that `compose.yaml` renders. |
@@ -149,6 +150,7 @@ enforces this.
 | `task arr-reclaim:audit` | What `arr-reclaim` would remove right now. Changes nothing. |
 | `task arr-fallback-search:run` / `:dry` | Search Radarr again now for the `4K HDR or 1080p` movies without a 4K file / list them. |
 | `task lan-address:dry` / `:run` / `:logs` | Which apps are behind the box's addresses / apply them now / each change, with the new address. |
+| `task stack-status:dry` / `:run` / `:audit` | The dashboard's data: print it / write it now / count what it masks, and confirm no secret is left. |
 | `task site:build` | Build the docs website and swap it in; in the main clone this publishes it on `:8088`. |
 | `task site:check` / `site:test` / `site:dev` | Prove it builds / its unit tests / a live preview on `:4321`. These need node (nvm) and pnpm (Homebrew). |
 

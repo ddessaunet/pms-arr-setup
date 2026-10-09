@@ -1,0 +1,19 @@
+# stack-status-drift.timer — the settings check, 10 minutes after boot and hourly.
+#
+# Source of truth is this file.
+#   sudo systemctl enable --now stack-status-drift.timer
+#
+# Hourly means Prowlarr tests every indexer (some through FlareSolverr's
+# Chromium) 24 times a day. If that is too much, raise the interval here; the
+# page calls a result older than 3 h stale (DRIFT_STALE in stack-status.sh).
+
+[Unit]
+Description=Check the apps' settings against the repo hourly, for the docs site
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

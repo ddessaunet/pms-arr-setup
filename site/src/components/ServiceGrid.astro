@@ -1,0 +1,35 @@
+---
+// One card per app, from apps/*/compose.yaml and src/data/services.yml
+// (src/lib/services.ts). The links get their href in the browser, from the
+// address the page was opened on: the box's address changes with DHCP.
+import { services } from '../lib/services.ts';
+---
+
+<div class="dash-grid">
+  {
+    services.map((s) => (
+      <article class="dash-card" data-app={s.id}>
+        <header>
+          <h3>
+            {s.port ? (
+              <a class="dash-link" data-port={s.port} data-path={s.path}>
+                {s.label}
+              </a>
+            ) : (
+              s.label
+            )}
+          </h3>
+          <span class="lvl" data-level="unknown" data-level-for={s.id}>
+            ? Unknown
+          </span>
+        </header>
+        <p class="dash-role">{s.role}</p>
+        <p class="dash-where">
+          {s.port ? <code data-url-for={s.id}>:{s.port}{s.path === '/' ? '' : s.path}</code> : 'Internal: no web page'}
+        </p>
+        <p class="dash-summary" data-summary-for={s.id} />
+        <ul class="dash-reasons" data-reasons-for={s.id} hidden />
+      </article>
+    ))
+  }
+</div>

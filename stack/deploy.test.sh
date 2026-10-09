@@ -28,6 +28,17 @@ ok_rc() { # label want-rc cmd...
     fi
 }
 
+# ─── always-armed timers ──────────────────────────────────────────────────────
+# Every timer the MANIFEST installs is armed on every deploy, except the
+# updater's, which follows where Plex runs. A timer missing from ALWAYS_TIMERS
+# would be installed and never started.
+echo "ALWAYS_TIMERS"
+want="$(for e in "${MANIFEST[@]}"; do d="${e#*:}"; d="${d%:*}"; [[ "$d" == *.timer ]] && basename "$d"; done | grep -vx "$TIMER" | sort | paste -sd' ')"
+got="$(printf '%s\n' "${ALWAYS_TIMERS[@]}" | sort | paste -sd' ')"
+if [[ "$want" == "$got" ]]; then PASS=$((PASS + 1)); echo "  ok    every MANIFEST timer but $TIMER is always armed"
+else FAIL=$((FAIL + 1)); printf '  FAIL  ALWAYS_TIMERS\n          want: %s\n          got:  %s\n' "$want" "$got"; fi
+echo
+
 # ─── plex_runs_here ───────────────────────────────────────────────────────────
 # systemctl is stubbed: STUB_OUT is what `is-enabled` prints, STUB_RC its exit
 # status (non-zero for everything but enabled-like states, as the real one).

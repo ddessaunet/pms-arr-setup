@@ -1,0 +1,20 @@
+# stack-status.timer — the dashboard's data, after boot and every 2 minutes.
+#
+# Source of truth is this file.
+#   sudo systemctl enable --now stack-status.timer
+#   systemctl list-timers stack-status.timer
+#
+# The page polls /live/status.json every 30 s and calls it stale after 6 min
+# (staleAfterSeconds), i.e. three missed runs.
+
+[Unit]
+Description=Write the stack's status for the docs site every 2 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+# The default (1 min) would let a 2-minute timer wander by half its interval.
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

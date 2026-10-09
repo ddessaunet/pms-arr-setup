@@ -5,15 +5,23 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
 export default defineConfig({
-  // One page for now; the root goes to it, so its URL stays put as pages arrive.
-  redirects: { '/': '/quality-profiles/' },
-  // The page reads ../apps/recyclarr/recyclarr.yml and stack/lib/arr-configure.sh
-  // (src/lib/profiles.ts); the dev server only serves inside site/ unless told.
-  vite: { server: { fs: { allow: ['..'] } } },
+  // The pages read files outside site/ (src/lib/profiles.ts, src/lib/services.ts);
+  // the dev server only serves inside site/ unless told. /live is the
+  // dashboard's data, which nginx serves on the box: `task site:dev` proxies to
+  // it, so the preview shows the live status too.
+  vite: {
+    server: {
+      fs: { allow: ['..'] },
+      proxy: { '/live': 'http://127.0.0.1:8088' },
+    },
+  },
   integrations: [
     starlight({
       title: 'pms',
-      sidebar: [{ label: 'Quality profiles', link: '/quality-profiles/' }],
+      sidebar: [
+        { label: 'Stack', link: '/' },
+        { label: 'Quality profiles', link: '/quality-profiles/' },
+      ],
       // The Pacman theme (DESIGN.md at the repo root): self-hosted fonts, so the
       // LAN site needs no font CDN, then the theme itself. Latin only: every page
       // is English.

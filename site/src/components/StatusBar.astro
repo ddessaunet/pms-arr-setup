@@ -1,0 +1,24 @@
+---
+// The dashboard's top bar: the stack's overall level, how old the data is and
+// the box's LAN addresses. Filled in by status-client.ts from /live/status.json
+// (jobs/stack-status); without it the bar says the status is unavailable.
+---
+
+<section class="dash-bar" aria-label="Stack status">
+  <p class="dash-overall">
+    <span class="dash-overall-label">Stack</span>
+    <span class="lvl lvl-big" data-level="unknown" data-overall>? Unknown</span>
+  </p>
+  <p class="dash-meta">
+    <span data-age>Waiting for the status job…</span>
+    <span data-lan></span>
+  </p>
+  <ul class="dash-attention" data-attention hidden></ul>
+  <p class="dash-stale" data-stale hidden></p>
+  <ul class="dash-notes" data-notes hidden></ul>
+  <p class="dash-sr" aria-live="polite" data-announce></p>
+</section>
+
+<script>
+  import '../lib/status-client.ts';
+</script>
