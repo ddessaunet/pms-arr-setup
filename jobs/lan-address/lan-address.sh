@@ -27,8 +27,8 @@ REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." && pwd)"
 . "$REPO/stack/lib/servarr.sh" || { echo "cannot load stack/lib/servarr.sh" >&2; exit 3; }
 
 # The apps whose settings hold the box's addresses, in the order Taskfile.yml's
-# CONFIGURED applies them. Bazarr reaches Plex as host.docker.internal, so it is
-# not one of them.
+# CONFIGURED applies them. Bazarr reaches Plex as host.docker.internal, and Plex
+# is pinned to an interface by name, so neither is one of them.
 LAN_ADDRESS_APPS="${LAN_ADDRESS_APPS:-qbittorrent prowlarr radarr sonarr seerr}"
 
 # ─── pure helpers (jobs/lan-address/lan-address.test.sh) ──────────────────────

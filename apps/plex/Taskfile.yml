@@ -6,3 +6,4 @@ version: '3'
 includes:
   service:  { taskfile: ../../stack/taskfiles/service.yml, flatten: true, vars: { SERVICE: plex } }
   update:   { taskfile: ../../stack/taskfiles/update.yml, flatten: true, vars: { SERVICE: plex } }
+  configure: { taskfile: ../../stack/taskfiles/configure.yml, flatten: true, vars: { SERVICE: plex } }

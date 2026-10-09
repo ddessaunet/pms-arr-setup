@@ -23,7 +23,11 @@ and its unit stays masked. Its database is archived in `/root/plexmediaserver-na
 
 ## Settings
 
-Set in Plex's own UI; this repo owns none of them. Its config is `/opt/appdata/plex`.
+Set in Plex's own UI, except one: [`configure.sh`](configure.sh) pins **Preferred network
+interface** to `eno1`, the wired NIC. The box also has Wi‑Fi on the same subnet, and on
+*Any* Plex offered clients both addresses, so some connected to the Wi‑Fi one. The setting
+names the interface, not an address, so it holds across the DHCP moves. Its config is
+`/opt/appdata/plex`.
 
 ## Tasks
 
@@ -31,6 +35,7 @@ Set in Plex's own UI; this repo owns none of them. Its config is `/opt/appdata/p
 |---|---|
 | `task plex:logs` / `plex:ps` | Follow its logs / show its container. |
 | `task plex:up` | Recreate it from `compose.yaml`, to apply a compose edit. |
+| `task plex:configure` / `plex:check` | Pin it to `eno1` / report drift. |
 | `task plex:update` / `plex:update:dry` | Update now through the weekly updater, which waits while anyone streams. |
 
 ## Traps
@@ -44,6 +49,9 @@ Set in Plex's own UI; this repo owns none of them. Its config is `/opt/appdata/p
 - **The library is read-write** on purpose: "Allow media deletion" needs it, and
   [`arr-reclaim`](../../jobs/arr-reclaim/README.md) frees the torrent behind what is
   deleted here.
+- **Change the network interface here, not in Plex's UI**: `configure.sh` owns it, and
+  `task plex:check` (and the dashboard's hourly drift) reports any other value. It refuses
+  to apply if Plex doesn't list `eno1` (`PLEX_IFACE` overrides the name).
 - **Don't unmask `plexmediaserver`.** A reinstall would fight the container for `:32400`.
 - **No GPU**: the GTX 560 is too old for NVENC, so transcoding runs on the CPU.
 - **Downloading subtitles inside Plex is not a permissions problem.** It stores them in its

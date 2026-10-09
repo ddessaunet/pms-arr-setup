@@ -108,9 +108,10 @@ ok_eq "the unit allows netlink, which hostname -I needs" "1" \
     "$(grep -c '^RestrictAddressFamilies=.*AF_NETLINK' jobs/lan-address/lan-address.service)"
 ok_eq "the timer fires after boot and every 5 minutes" $'OnBootSec=2min\nOnUnitActiveSec=5min' \
     "$(grep -E '^On(Boot|UnitActive)Sec=' jobs/lan-address/lan-address.timer)"
-# Every app with a configure.sh, in Taskfile.yml's order, except Bazarr (no address).
-ok_eq "the apps are CONFIGURED minus bazarr" \
-    "$(sed -n 's/^  CONFIGURED: //p' Taskfile.yml | tr ' ' '\n' | grep -vx bazarr | paste -sd' ')" \
+# Every app with a configure.sh, in Taskfile.yml's order, except Bazarr (no
+# address) and Plex (pinned to an interface name, not an address).
+ok_eq "the apps are CONFIGURED minus bazarr and plex" \
+    "$(sed -n 's/^  CONFIGURED: //p' Taskfile.yml | tr ' ' '\n' | grep -vxE 'bazarr|plex' | paste -sd' ')" \
     "$(LAN_ADDRESS_LIB=1 bash -c '. ./jobs/lan-address/lan-address.sh && echo "$LAN_ADDRESS_APPS"')"
 for app in $(LAN_ADDRESS_LIB=1 bash -c '. ./jobs/lan-address/lan-address.sh && echo "$LAN_ADDRESS_APPS"'); do
     ok_eq "apps/$app/configure.sh is executable" "yes" "$([[ -x "apps/$app/configure.sh" ]] && echo yes)"

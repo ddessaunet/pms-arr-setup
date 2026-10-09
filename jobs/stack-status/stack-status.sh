@@ -41,7 +41,7 @@ PLEX_IDENTITY=f3860770aca2ec05cf2566b02ff81a83d4dbb157
 LOG_UNITS=(lan-address arr-reclaim pms-update arr-fallback-search stack-status stack-status-drift)
 TIMERS=(pms-update arr-fallback-search lan-address stack-status stack-status-drift)
 # The apps with a configure.sh, as Taskfile.yml's CONFIGURED.
-DRIFT_APPS=(qbittorrent prowlarr radarr sonarr seerr bazarr)
+DRIFT_APPS=(qbittorrent prowlarr radarr sonarr seerr bazarr plex)
 # .env keys that are never secret. User names are listed here on purpose: the
 # box's user is one of them, and masking it would blank every /home path. Any
 # other key is masked: by name when it matches SECRET_KEY_RE, and, fail-safe,
