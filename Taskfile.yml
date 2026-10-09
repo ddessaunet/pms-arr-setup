@@ -36,7 +36,7 @@ includes:
 
 vars:
   # The apps with a configure.sh, in the order trap 11 applies them.
-  CONFIGURED: qbittorrent prowlarr radarr sonarr seerr bazarr
+  CONFIGURED: qbittorrent prowlarr radarr sonarr seerr bazarr plex
 
 tasks:
   start:

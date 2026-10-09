@@ -168,6 +168,8 @@ disappear. Confirm before anything destructive:
     links by the first. **`lan-address.timer`** re-runs those configure scripts after
     boot and every 5 minutes, but only for apps whose addresses in
     `/opt/appdata/.lan-address` are out of date. `task lan-address:logs` shows the current one.
+    Plex needs none of that: `apps/plex/configure.sh` pins it to `eno1` **by name**, so it
+    offers clients only the wired address, whatever it is, and never the Wi‑Fi one.
 19. **The dashboard's data is public on the LAN.** `jobs/stack-status` writes
     `/opt/appdata/docs-status/{status,logs,drift}.json` (every 2 min; drift hourly), served
     at `/live/` with no login. Every string goes through its `publish` (redact, then a leak
