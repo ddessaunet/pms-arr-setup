@@ -25,7 +25,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 8 — library cleanup (2026-09-30; one-off for this box, so not kept in the repo)
 - [x] Phase 9 — Bazarr: Spanish + English subtitles beside the media (2026-10-01: Days of Thunder `.es.srt` beside the video, Plex lists it, hardlink kept, reclaim audit removes nothing)
 - [x] Address check — `lan-address.timer` re-applies the apps' address settings when DHCP moves the box (2026-10-08: first run applied all five at .66/.86; a stale Seerr entry re-applied only Seerr; after the 18:29 reboot it ran at +2 min, addresses unchanged, nothing applied)
-- [ ] Stack dashboard — the docs site's front page: every service's link and status, the host's jobs, redacted logs (`jobs/stack-status`)
+- [x] Stack dashboard — the docs site's front page: every service's link and status, the host's jobs, redacted logs (`jobs/stack-status`) (2026-10-08: both timers armed; runs every 2 min in ~3 s, overall OK, 16 log sources read, 0 secrets in the output; the first settings check found all six apps matching)
 
 Run `stack/preflight.sh` before each of Phases 0–1b. It is read-only.
 

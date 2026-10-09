@@ -1,7 +1,8 @@
 ---
 // One card per app, from apps/*/compose.yaml and src/data/services.yml
 // (src/lib/services.ts). The links get their href in the browser, from the
-// address the page was opened on: the box's address changes with DHCP.
+// address the page was opened on: the box's address changes with DHCP. They
+// open in a new tab, so the dashboard stays open behind the app.
 import { services } from '../lib/services.ts';
 ---
 
@@ -12,8 +13,10 @@ import { services } from '../lib/services.ts';
         <header>
           <h3>
             {s.port ? (
-              <a class="dash-link" data-port={s.port} data-path={s.path}>
+              <a class="dash-link" data-port={s.port} data-path={s.path} target="_blank" rel="noopener noreferrer">
                 {s.label}
+                <span class="dash-newtab" aria-hidden="true">↗</span>
+                <span class="dash-sr"> (opens in a new tab)</span>
               </a>
             ) : (
               s.label

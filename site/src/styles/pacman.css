@@ -232,6 +232,7 @@ html { scroll-behavior: smooth; }
 .dash-card p { margin: 0; }
 .dash-link { color: var(--sl-color-accent-high); text-decoration: underline dotted 2px; text-underline-offset: 0.25em; }
 .dash-link:hover { color: var(--pac-pink); }
+.dash-newtab { font-family: var(--sl-font-mono); font-size: 0.7rem; margin-left: 0.3em; text-decoration: none; display: inline-block; }
 .dash-role { color: var(--sl-color-gray-2); font-size: var(--sl-text-sm); }
 .dash-where { font-size: var(--sl-text-xs); color: var(--sl-color-gray-3); }
 .dash-where code { background: none; padding: 0; color: var(--sl-color-gray-2); }
