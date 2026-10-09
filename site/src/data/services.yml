@@ -1,0 +1,20 @@
+# The dashboard's services: what each app is and where its web page is, in the
+# order the page shows them. One entry per apps/<app>; the build fails when the
+# two disagree (src/lib/services-core.ts).
+#
+# The port comes from apps/<app>/compose.yaml: the host side of its first TCP
+# mapping. Give `port` here only for an app on the host network, which publishes
+# none (Plex). The page builds each link from the address it was opened on, so
+# links follow the box when DHCP moves it.
+apps:
+  plex:         { label: Plex, role: Watch the library., path: /web, port: 32400 }
+  seerr:        { label: Seerr, role: Request movies and series. }
+  radarr:       { label: Radarr, role: "Movies: finds, grabs and imports." }
+  sonarr:       { label: Sonarr, role: "Series: finds, grabs and imports." }
+  qbittorrent:  { label: qBittorrent, role: Downloads and seeds. }
+  prowlarr:     { label: Prowlarr, role: The indexers Radarr and Sonarr search. }
+  bazarr:       { label: Bazarr, role: Spanish and English subtitles. }
+  docs:         { label: Docs, role: This site. }
+  flaresolverr: { label: FlareSolverr, role: Opens Cloudflare-protected indexers for Prowlarr. }
+  decluttarr:   { label: Decluttarr, role: "Replaces stalled, slow or fake downloads." }
+  recyclarr:    { label: Recyclarr, role: Quality profiles from the TRaSH guides; runs on demand. }

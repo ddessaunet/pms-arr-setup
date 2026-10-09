@@ -9,6 +9,7 @@ colors:
   warning: "#D97706"
   warning-text: "#FBBF5A"
   danger: "#DC2626"
+  danger-text: "#FCA5A5"
   surface: "#080A1C"
   surface-raised: "#0C0F24"
   text: "#C5C9E2"
@@ -67,7 +68,8 @@ Contrast is WCAG, against `surface`.
 - **Secondary (#F4B9B0):** Pinky. Section headings, the pellet trail, focus rings. 11.6:1.
 - **Success (#16A34A) / text (#6EE79A):** the default profile's role colour. 12.7:1 as text.
 - **Warning (#D97706) / text (#FBBF5A):** the by-hand profile's role colour, and Pac-Man. 11.9:1.
-- **Danger (#DC2626):** errors.
+- **Danger (#DC2626) / text (#FCA5A5):** errors and the dashboard's DOWN. The token itself is
+  4.1:1 on the surface, under 4.5:1, so it draws borders only; text uses danger-text, 10.3:1.
 - **Surface (#080A1C):** the maze at night, navy-tinted rather than pure black, with a faint
   pellet grid.
 - **Text (#C5C9E2):** body, 12:1. **Text strong (#F7F7FB):** headings, 18.4:1.
@@ -76,3 +78,16 @@ Contrast is WCAG, against `surface`.
 
 The first draft had text #111827 on surface #000000, which is 1.18:1 and unreadable; the
 text and surface tokens above replace it.
+
+## Status levels
+
+The dashboard (`/`) shows each service and host item at one of these levels. **The level is
+always a word and a mark**; colour only reinforces it. Badge text on its fill:
+
+| level | mark | text on fill | contrast |
+|---|---|---|---|
+| OK | ● | success-text on success-low | 10:1 |
+| Degraded | ◐ | warning-text on warning-low | 10:1 |
+| Down | ✕ | danger-text on danger-low | 8.9:1 |
+| Unknown, N/A | ?, – | text on the raised surface | 11:1 |
+| Stale (was …) | as before | text-muted on the raised surface, dashed border | 6.4:1 |

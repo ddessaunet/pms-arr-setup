@@ -1,0 +1,35 @@
+version: '3'
+
+# stack-status — see README.md. Run every 2 minutes by stack-status.timer and
+# hourly (--drift) by stack-status-drift.timer; `task deploy` installs both.
+
+tasks:
+  run:
+    desc: Write the dashboard's status and logs now (/opt/appdata/docs-status)
+    cmds:
+      - ./stack-status.sh
+
+  dry:
+    desc: Print the status and logs it would write (writes nothing)
+    cmds:
+      - ./stack-status.sh --stdout
+
+  drift:
+    desc: Run the settings check now and write drift.json (takes a minute or more)
+    cmds:
+      - ./stack-status.sh --drift
+
+  drift:dry:
+    desc: Print the settings check it would write (writes nothing)
+    cmds:
+      - ./stack-status.sh --drift --stdout
+
+  audit:
+    desc: Count the secrets it masks, and confirm none is left (prints no secret)
+    cmds:
+      - ./stack-status.sh --audit
+
+  logs:
+    desc: The last runs' journal (it logs only when a level changes)
+    cmds:
+      - journalctl -u stack-status.service -u stack-status-drift.service -n 100 --no-pager

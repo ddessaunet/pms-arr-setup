@@ -14,17 +14,24 @@ website's source, and `apps/docs` is the container that serves the built website
 
 ## Access
 
-- `http://<box>:8088/`, which redirects to `/quality-profiles/`. No login, like the other
-  apps; nothing secret is on it.
+- `http://<box>:8088/` is the **stack dashboard**: a link to every service (built from the
+  address you opened it on, so it follows DHCP), each one's status, the host's jobs, and the
+  logs worth checking. `/quality-profiles/` is the profile map.
+- No login, like the other apps. The live data is written by `jobs/stack-status` with every
+  secret masked before it reaches the page.
 
 ## Secrets
 
-None.
+None. The dashboard's files hold no secret: `jobs/stack-status` masks them and refuses to
+publish a document that still has one. They do show container logs, torrent names and
+addresses to anyone on the LAN, as the apps themselves do.
 
 ## Settings
 
 [`nginx.conf`](nginx.conf), mounted read-only. The content is the main clone's `site/dist`,
-which `task site:build` replaces.
+which `task site:build` replaces. `/live/` is `/opt/appdata/docs-status`, mounted read-only:
+the dashboard's `status.json`, `logs.json` and `drift.json`, never cached and never in the
+access log (the page polls every 30 s).
 
 The site's look is [`DESIGN.md`](../../DESIGN.md) (Pacman: pixel headings, a plain sans for
 prose, maze-blue walls and pellet-dotted lines on one dark theme), implemented in
@@ -53,3 +60,8 @@ used on it are committed in `.agents/skills/` (listed in `skills-lock.json`).
   of the old one would keep serving it.
 - **Node comes from nvm, which `~/.profile` loads.** In a shell without it, the `site:*`
   tasks stop and say how to load it.
+- **Create `/opt/appdata/docs-status` as yourself before the first `up` with the `/live`
+  mount**, or Docker creates it root-owned and `jobs/stack-status` cannot write:
+  `install -d -m 755 /opt/appdata/docs-status`.
+- **After editing `nginx.conf`, recreate the container** (`task docs:up`): a single-file bind
+  keeps the old file after `git pull` replaces it.

@@ -1,0 +1,463 @@
+{
+  "schema": 1,
+  "generatedAt": "2026-10-08T22:53:20+0000",
+  "generatedAtEpoch": 1791500000,
+  "runSeconds": 0,
+  "staleAfterSeconds": 360,
+  "overall": "down",
+  "counts": {
+    "degraded": 2,
+    "down": 3,
+    "n/a": 1,
+    "ok": 14
+  },
+  "notes": [],
+  "lan": [
+    {
+      "iface": "eno1",
+      "addr": "192.168.0.86"
+    },
+    {
+      "iface": "wlp2s0",
+      "addr": "192.168.0.66"
+    }
+  ],
+  "apps": [
+    {
+      "id": "bazarr",
+      "level": "down",
+      "summary": "restarting (Docker restart loop)",
+      "reasons": [
+        {
+          "level": "down",
+          "text": "restarting (Docker restart loop)"
+        },
+        {
+          "level": "degraded",
+          "text": "restarted by Docker 5 time(s); up 20 s"
+        },
+        {
+          "level": "down",
+          "text": "not answering on :6767"
+        }
+      ],
+      "facts": {
+        "container": {
+          "state": "restarting",
+          "running": true,
+          "restarting": true,
+          "restartCount": 5,
+          "startedAt": "2026-10-08T22:53:00Z",
+          "health": null,
+          "exitCode": 1
+        },
+        "http": {
+          "code": 0,
+          "ms": 0
+        },
+        "version": null,
+        "drift": null
+      }
+    },
+    {
+      "id": "decluttarr",
+      "level": "down",
+      "summary": "health check: unhealthy",
+      "reasons": [
+        {
+          "level": "down",
+          "text": "health check: unhealthy"
+        }
+      ],
+      "facts": {
+        "container": {
+          "state": "running",
+          "running": true,
+          "restarting": false,
+          "restartCount": 0,
+          "startedAt": "2026-10-08T18:00:00Z",
+          "health": "unhealthy",
+          "exitCode": 0
+        },
+        "http": null,
+        "version": null,
+        "drift": null
+      }
+    },
+    {
+      "id": "docs",
+      "level": "ok",
+      "summary": "up 4 h",
+      "reasons": [],
+      "facts": {
+        "container": {
+          "state": "running",
+          "running": true,
+          "restarting": false,
+          "restartCount": 0,
+          "startedAt": "2026-10-08T18:00:00Z",
+          "health": null,
+          "exitCode": 0
+        },
+        "http": {
+          "code": 200,
+          "ms": 2
+        },
+        "version": null,
+        "drift": null
+      }
+    },
+    {
+      "id": "flaresolverr",
+      "level": "ok",
+      "summary": "up 4 h · 3.5.2",
+      "reasons": [],
+      "facts": {
+        "container": {
+          "state": "running",
+          "running": true,
+          "restarting": false,
+          "restartCount": 0,
+          "startedAt": "2026-10-08T18:00:00Z",
+          "health": null,
+          "exitCode": 0
+        },
+        "http": {
+          "code": 200,
+          "ms": 3
+        },
+        "version": "3.5.2",
+        "drift": null
+      }
+    },
+    {
+      "id": "plex",
+      "level": "ok",
+      "summary": "up 4 h · 1.43.4",
+      "reasons": [],
+      "facts": {
+        "container": {
+          "state": "running",
+          "running": true,
+          "restarting": false,
+          "restartCount": 0,
+          "startedAt": "2026-10-08T18:00:00Z",
+          "health": null,
+          "exitCode": 0
+        },
+        "http": {
+          "code": 200,
+          "ms": 5
+        },
+        "version": "1.43.4",
+        "drift": null,
+        "identity": "f3860770aca2ec05cf2566b02ff81a83d4dbb157"
+      }
+    },
+    {
+      "id": "prowlarr",
+      "level": "ok",
+      "summary": "up 4 h · 2.6.5 · 1 notice(s)",
+      "reasons": [
+        {
+          "level": "notice",
+          "text": "settings check warning: FAILING  1337x (flare)"
+        }
+      ],
+      "facts": {
+        "container": {
+          "state": "running",
+          "running": true,
+          "restarting": false,
+          "restartCount": 0,
+          "startedAt": "2026-10-08T18:00:00Z",
+          "health": null,
+          "exitCode": 0
+        },
+        "http": {
+          "code": 200,
+          "ms": 10
+        },
+        "version": "2.6.5",
+        "drift": {
+          "result": "warn",
+          "checkedAt": 1791498200,
+          "lines": [
+            "FAILING  1337x (flare)"
+          ]
+        }
+      }
+    },
+    {
+      "id": "qbittorrent",
+      "level": "ok",
+      "summary": "up 4 h · v5.2.4",
+      "reasons": [],
+      "facts": {
+        "container": {
+          "state": "running",
+          "running": true,
+          "restarting": false,
+          "restartCount": 0,
+          "startedAt": "2026-10-08T18:00:00Z",
+          "health": null,
+          "exitCode": 0
+        },
+        "http": {
+          "code": 200,
+          "ms": null
+        },
+        "version": "v5.2.4",
+        "drift": null,
+        "connection": "connected",
+        "dhtNodes": 300
+      }
+    },
+    {
+      "id": "radarr",
+      "level": "ok",
+      "summary": "up 4 h · 6.4.4",
+      "reasons": [],
+      "facts": {
+        "container": {
+          "state": "running",
+          "running": true,
+          "restarting": false,
+          "restartCount": 0,
+          "startedAt": "2026-10-08T18:00:00.123456789Z",
+          "health": null,
+          "exitCode": 0
+        },
+        "http": {
+          "code": 200,
+          "ms": 10
+        },
+        "version": "6.4.4",
+        "drift": {
+          "result": "ok",
+          "checkedAt": 1791498200,
+          "lines": []
+        }
+      }
+    },
+    {
+      "id": "recyclarr",
+      "level": "n/a",
+      "summary": "runs on demand (task recyclarr:sync)",
+      "reasons": [],
+      "facts": {}
+    },
+    {
+      "id": "seerr",
+      "level": "down",
+      "summary": "not running (exited, exit 137)",
+      "reasons": [
+        {
+          "level": "down",
+          "text": "not running (exited, exit 137)"
+        }
+      ],
+      "facts": {
+        "container": {
+          "state": "exited",
+          "running": false,
+          "restarting": false,
+          "restartCount": 0,
+          "startedAt": "2026-10-08T18:00:00Z",
+          "health": null,
+          "exitCode": 137
+        },
+        "http": {
+          "code": 0,
+          "ms": 0
+        },
+        "version": null,
+        "drift": null
+      }
+    },
+    {
+      "id": "sonarr",
+      "level": "degraded",
+      "summary": "restarted by Docker 2 time(s); up 3 min",
+      "reasons": [
+        {
+          "level": "degraded",
+          "text": "restarted by Docker 2 time(s); up 3 min"
+        },
+        {
+          "level": "degraded",
+          "text": "IndexerStatusCheck: Indexers unavailable: 1337x"
+        },
+        {
+          "level": "notice",
+          "text": "UpdateCheck: New update"
+        }
+      ],
+      "facts": {
+        "container": {
+          "state": "running",
+          "running": true,
+          "restarting": false,
+          "restartCount": 2,
+          "startedAt": "2026-10-08T22:50:00Z",
+          "health": null,
+          "exitCode": 0
+        },
+        "http": {
+          "code": 200,
+          "ms": 20
+        },
+        "version": "4.0.20",
+        "drift": null
+      }
+    }
+  ],
+  "host": [
+    {
+      "id": "service:arr-reclaim",
+      "kind": "service",
+      "label": "arr-reclaim",
+      "level": "ok",
+      "summary": "watching the library, up 3 h",
+      "reasons": [],
+      "facts": {
+        "active": true,
+        "since": 1791489200
+      }
+    },
+    {
+      "id": "timer:pms-update",
+      "kind": "timer",
+      "label": "pms-update",
+      "level": "degraded",
+      "summary": "last run failed: exit-code (an update was rolled back; the old image is serving)",
+      "reasons": [
+        {
+          "level": "degraded",
+          "text": "last run failed: exit-code (an update was rolled back; the old image is serving)"
+        }
+      ],
+      "facts": {
+        "armed": true,
+        "running": false,
+        "lastRun": null,
+        "nextRun": null,
+        "lastResult": "exit-code",
+        "lastExit": 9
+      }
+    },
+    {
+      "id": "timer:arr-fallback-search",
+      "kind": "timer",
+      "label": "arr-fallback-search",
+      "level": "ok",
+      "summary": "not run yet",
+      "reasons": [],
+      "facts": {
+        "armed": true,
+        "running": false,
+        "lastRun": null,
+        "nextRun": null,
+        "lastResult": "success",
+        "lastExit": 0
+      }
+    },
+    {
+      "id": "timer:lan-address",
+      "kind": "timer",
+      "label": "lan-address",
+      "level": "ok",
+      "summary": "last Thu 22:53 · next Thu 22:58",
+      "reasons": [],
+      "facts": {
+        "armed": true,
+        "running": false,
+        "lastRun": 1791500000,
+        "nextRun": 1791500300,
+        "lastResult": "success",
+        "lastExit": 0
+      }
+    },
+    {
+      "id": "timer:stack-status",
+      "kind": "timer",
+      "label": "stack-status",
+      "level": "ok",
+      "summary": "running now",
+      "reasons": [],
+      "facts": {
+        "armed": true,
+        "running": true,
+        "lastRun": null,
+        "nextRun": null,
+        "lastResult": "success",
+        "lastExit": 0
+      }
+    },
+    {
+      "id": "timer:stack-status-drift",
+      "kind": "timer",
+      "label": "stack-status-drift",
+      "level": "ok",
+      "summary": "not run yet",
+      "reasons": [],
+      "facts": {
+        "armed": true,
+        "running": false,
+        "lastRun": null,
+        "nextRun": null,
+        "lastResult": "success",
+        "lastExit": 0
+      }
+    },
+    {
+      "id": "disk:/mnt/data",
+      "kind": "disk",
+      "label": "/mnt/data",
+      "level": "ok",
+      "summary": "90% used, 76 GB free",
+      "reasons": [],
+      "facts": {
+        "usedPercent": 90,
+        "availBytes": 76393869312,
+        "warnAt": 95
+      }
+    },
+    {
+      "id": "lan",
+      "kind": "lan",
+      "label": "LAN addresses",
+      "level": "ok",
+      "summary": "192.168.0.86 (eno1), 192.168.0.66 (wlp2s0)",
+      "reasons": [],
+      "facts": {
+        "addresses": [
+          {
+            "iface": "eno1",
+            "addr": "192.168.0.86"
+          },
+          {
+            "iface": "wlp2s0",
+            "addr": "192.168.0.66"
+          }
+        ],
+        "pending": []
+      }
+    },
+    {
+      "id": "drift",
+      "kind": "drift",
+      "label": "settings check",
+      "level": "ok",
+      "summary": "checked 30 min ago: 2/2 apps match the repo",
+      "reasons": [],
+      "facts": {
+        "checkedAt": 1791498200,
+        "deploy": {
+          "result": "ok",
+          "lines": []
+        }
+      }
+    }
+  ]
+}

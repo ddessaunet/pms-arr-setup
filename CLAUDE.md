@@ -113,7 +113,8 @@ disappear. Confirm before anything destructive:
     so the script only ever sends the fields it owns. Its requests are ordinary Radarr/Sonarr
     adds; nothing in Seerr touches files.
 13. **The units in `jobs/` (`pms-update.service`, `arr-reclaim.service`,
-    `arr-fallback-search.service`, `lan-address.service`) hardcode this clone's path** in `ExecStart`, because the
+    `arr-fallback-search.service`, `lan-address.service`, `stack-status.service`,
+    `stack-status-drift.service`) hardcode this clone's path** in `ExecStart`, because the
     scripts need `compose.yaml` and `.env` at the repo root. `task deploy` refuses to install
     a unit whose path doesn't match the clone, and `stack/layout.test.sh` fails if the path
     names a script that doesn't exist. Moving the clone, or a script, means editing those
@@ -157,6 +158,9 @@ disappear. Confirm before anything destructive:
     as it was. Mount `site/`, never `site/dist`: the build swaps `dist` for a new folder.
     Its look comes from `DESIGN.md` (implemented in `site/src/styles/pacman.css`): change
     both together, and keep text at 4.5:1 or better — the brand blue is for borders only.
+    `/` is the **stack dashboard**: its service list comes from `apps/*/compose.yaml` (ports)
+    and `site/src/data/services.yml`, and the build fails when they disagree. Its live part
+    is `/live/`, the files `jobs/stack-status` writes (trap 19).
 18. **The box's LAN addresses come from DHCP and change** (wired `.86` ↔ `.87`, Wi‑Fi
     `.66` ↔ `.67`, so far on reboots). The router can't reserve one, and a static address
     collides with what DHCP hands out next. qBittorrent, Prowlarr, Radarr and Sonarr list
@@ -164,6 +168,15 @@ disappear. Confirm before anything destructive:
     links by the first. **`lan-address.timer`** re-runs those configure scripts after
     boot and every 5 minutes, but only for apps whose addresses in
     `/opt/appdata/.lan-address` are out of date. `task lan-address:logs` shows the current one.
+19. **The dashboard's data is public on the LAN.** `jobs/stack-status` writes
+    `/opt/appdata/docs-status/{status,logs,drift}.json` (every 2 min; drift hourly), served
+    at `/live/` with no login. Every string goes through its `publish` (redact, then a leak
+    guard that refuses to write a document still holding a known secret); nothing may
+    bypass it. A new `.env` key must be classified: secret by name (`*_KEY`, `*_PASS`,
+    `*_TOKEN`, …) or listed in `PUBLIC_ENV_KEYS`; the test fails otherwise. A failed run
+    means the checker broke, never that the stack is down: a down stack is a successful run.
+    Its qBittorrent login backs off for an hour after one refusal, so it never gets the
+    docker bridge banned (which would lock out `arr-reclaim` too).
 
 ## Conventions
 

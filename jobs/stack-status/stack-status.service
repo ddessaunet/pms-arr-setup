@@ -1,0 +1,39 @@
+# stack-status.service — one fast run of jobs/stack-status/stack-status.sh.
+#
+# Source of truth is this file; `task deploy` installs it with its timer.
+#
+#   journalctl -u stack-status
+#
+# ExecStart points into the clone because the script reads .env and the apps'
+# configure helpers beside it. Move the clone, edit this path.
+
+[Unit]
+Description=Write the stack's status and recent logs for the docs site's front page
+Documentation=https://github.com/ddessaunet/pms-arr-setup/blob/main/jobs/stack-status/README.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/dario/repositories/pms-arr-setup/jobs/stack-status/stack-status.sh
+
+# Not root: it reads the apps' APIs with the keys from the clone's .env, docker
+# (dario is in the docker group) and the journal (adm group).
+User=dario
+Group=dario
+
+# Usually a few seconds: the probes run in parallel, each request is capped at
+# 5 s and each docker/systemctl/journalctl call at 10 s.
+TimeoutStartSec=2min
+
+NoNewPrivileges=yes
+ProtectSystem=full
+PrivateTmp=yes
+ProtectClock=yes
+ProtectHostname=yes
+LockPersonality=yes
+# AF_NETLINK: `ip -j addr` reads the LAN addresses through netlink.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+Nice=10
+IOSchedulingClass=idle

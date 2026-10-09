@@ -1,0 +1,37 @@
+# stack-status-drift.service — the hourly settings check of jobs/stack-status/stack-status.sh.
+#
+# Source of truth is this file; `task deploy` installs it with its timer.
+#
+#   journalctl -u stack-status-drift
+#
+# A unit of its own: a oneshot's leftover processes die with it, so the slow
+# check cannot run in the background of the fast one.
+
+[Unit]
+Description=Check every app's settings against the repo for the docs site
+Documentation=https://github.com/ddessaunet/pms-arr-setup/blob/main/jobs/stack-status/README.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/dario/repositories/pms-arr-setup/jobs/stack-status/stack-status.sh --drift
+
+User=dario
+Group=dario
+
+# Runs each apps/<app>/configure.sh --check (up to 10 min each; Prowlarr tests
+# every indexer over the internet) and stack/deploy.sh --check.
+TimeoutStartSec=30min
+
+NoNewPrivileges=yes
+ProtectSystem=full
+PrivateTmp=yes
+ProtectClock=yes
+ProtectHostname=yes
+LockPersonality=yes
+# AF_NETLINK: the configure scripts list the box's addresses with hostname -I.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+Nice=10
+IOSchedulingClass=idle

@@ -25,6 +25,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 8 — library cleanup (2026-09-30; one-off for this box, so not kept in the repo)
 - [x] Phase 9 — Bazarr: Spanish + English subtitles beside the media (2026-10-01: Days of Thunder `.es.srt` beside the video, Plex lists it, hardlink kept, reclaim audit removes nothing)
 - [x] Address check — `lan-address.timer` re-applies the apps' address settings when DHCP moves the box (2026-10-08: first run applied all five at .66/.86; a stale Seerr entry re-applied only Seerr; after the 18:29 reboot it ran at +2 min, addresses unchanged, nothing applied)
+- [ ] Stack dashboard — the docs site's front page: every service's link and status, the host's jobs, redacted logs (`jobs/stack-status`)
 
 Run `stack/preflight.sh` before each of Phases 0–1b. It is read-only.
 
@@ -1102,3 +1103,73 @@ sudo systemctl disable --now lan-address.timer
 Then take its two lines out of `MANIFEST` and `EXECS` in `stack/deploy.sh`. After an
 address change, apply the apps by hand:
 `task qbittorrent:configure prowlarr:configure arr:configure seerr:configure`.
+
+---
+
+## Stack dashboard — links, status and logs on the docs site's front page
+
+What this session's address changes kept needing by hand: which address the box is on,
+whether every app answers, whether the jobs ran, and what the logs say. `/` on the docs site
+now shows it:
+- **a link to every service**, built from the address the page was opened on;
+- **each one's level** (OK, Degraded, Down), and why;
+- **the host:** `arr-reclaim`, every timer, disk space, the LAN addresses and the hourly
+  settings check;
+- **the logs:** the last 50 lines and the last 50 warnings and errors of each job and
+  container.
+
+[`jobs/stack-status`](../jobs/stack-status/README.md) writes the data every 2 minutes (drift
+hourly) into `/opt/appdata/docs-status`, which the docs container serves at `/live/`.
+Secrets are masked, and a leak guard refuses to publish a document that still holds one (CLAUDE.md trap 19).
+
+**Do**
+
+From the main clone, after the merge.
+
+1. Create the data directory as yourself, **before** the container mounts it:
+
+   ```bash
+   install -d -m 755 /opt/appdata/docs-status
+   ```
+
+2. Write the first data, then publish the site and recreate the container with its new mount:
+
+   ```bash
+   task stack-status:run
+   ```
+
+   ```bash
+   task site:build
+   ```
+
+   ```bash
+   task docs:up
+   ```
+
+3. Install and arm the two timers. It needs sudo, so it's yours to run:
+
+   ```bash
+   task deploy
+   ```
+
+**Verify**
+
+- `task stack-status:audit`: 0 leaks.
+- `curl -sI http://127.0.0.1:8088/live/status.json`: 200, `Cache-Control: no-store`.
+- `task deploy:check`: `stack-status.timer` and `stack-status-drift.timer` armed. Within 2
+  minutes the page reads "Updated N s ago", and within 10 minutes the settings check has a
+  time.
+- In a browser at `http://<box>:8088/`, through either address:
+  - every link uses the address you came in on, and Plex opens `/web`;
+  - the bar names whatever is not OK.
+- With the page open, `docker logs docs` shows no `/live/` lines.
+
+**Rollback**
+
+```bash
+sudo systemctl disable --now stack-status.timer stack-status-drift.timer
+```
+
+Then take the stack-status entries out of `stack/deploy.sh` and remove their units from
+`/etc/systemd/system`. Revert the site and `apps/docs` changes, then `task site:build` and
+`task docs:up`, and `rm -rf /opt/appdata/docs-status /opt/appdata/.stack-status*`.

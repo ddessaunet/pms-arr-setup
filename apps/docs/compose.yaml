@@ -10,6 +10,11 @@
 #
 # Unprivileged nginx (uid 101, port 8080 inside), read-only root filesystem.
 # Not on the arr network: it talks to nothing.
+#
+# /live is the dashboard's data, written every 2 minutes by jobs/stack-status
+# (redacted: it is readable by anyone on the LAN). Create the directory as
+# yourself before the first `up`, or Docker creates it root-owned and the job
+# cannot write: install -d -m 755 /opt/appdata/docs-status
 
 services:
   docs:
@@ -20,6 +25,7 @@ services:
     volumes:
       - ../../site:/site:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${APPDATA:?set APPDATA in .env}/docs-status:/live:ro
     read_only: true
     tmpfs:
       - /tmp
