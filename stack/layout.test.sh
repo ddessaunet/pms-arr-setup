@@ -120,7 +120,7 @@ for job in "${JOBS[@]}"; do
     done
     for u in "$d"/*.service; do
         exe="$(sed -n 's/^ExecStart=//p' "$u" | awk '{print $1}')"
-        rel="${exe#/home/dario/repositories/pms-arr-setup/}"
+        rel="${exe#/home/dario/repositories/personal/pms-arr-setup/}"
         ok "$(basename "$u") runs an executable in this repo ($rel)" test -x "$rel"
     done
 done

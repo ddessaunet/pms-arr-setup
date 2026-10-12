@@ -362,9 +362,9 @@ ok_eq "the script writes there by default" "1" "$(grep -cF 'OUT="${STACK_STATUS_
 for u in stack-status stack-status-drift; do
     ok_eq "$u.service allows netlink" "1" "$(grep -c '^RestrictAddressFamilies=.*AF_NETLINK' "jobs/stack-status/$u.service")"
 done
-ok_eq "fast unit runs the script"  "/home/dario/repositories/pms-arr-setup/jobs/stack-status/stack-status.sh" \
+ok_eq "fast unit runs the script"  "/home/dario/repositories/personal/pms-arr-setup/jobs/stack-status/stack-status.sh" \
     "$(sed -n 's/^ExecStart=//p' jobs/stack-status/stack-status.service)"
-ok_eq "drift unit runs it with --drift" "/home/dario/repositories/pms-arr-setup/jobs/stack-status/stack-status.sh --drift" \
+ok_eq "drift unit runs it with --drift" "/home/dario/repositories/personal/pms-arr-setup/jobs/stack-status/stack-status.sh --drift" \
     "$(sed -n 's/^ExecStart=//p' jobs/stack-status/stack-status-drift.service)"
 ok_eq "every 2 minutes after a minute"  $'OnBootSec=1min\nOnUnitActiveSec=2min' "$(grep -E '^On(Boot|UnitActive)Sec=' jobs/stack-status/stack-status.timer)"
 ok_eq "drift hourly"                    "OnUnitActiveSec=1h" "$(grep -E '^OnUnitActiveSec=' jobs/stack-status/stack-status-drift.timer)"

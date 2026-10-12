@@ -15,7 +15,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/dario/repositories/pms-arr-setup/jobs/stack-status/stack-status.sh
+ExecStart=/home/dario/repositories/personal/pms-arr-setup/jobs/stack-status/stack-status.sh
 
 # Not root: it reads the apps' APIs with the keys from the clone's .env, docker
 # (dario is in the docker group) and the journal (adm group).

@@ -60,7 +60,7 @@ ok_eq "recyclarr.yml creates it" "1" \
     "$(grep -cxF "        name: $FALLBACK_PROFILE" apps/recyclarr/recyclarr.yml)"
 ok_eq "arr-configure.sh lets it upgrade" "$FALLBACK_PROFILE" \
     "$(ARR_CONFIGURE_LIB=1 bash -c '. ./stack/lib/arr-configure.sh && upgrade_profiles radarr' | grep -xF "$FALLBACK_PROFILE")"
-ok_eq "the timer runs this script" "/home/dario/repositories/pms-arr-setup/jobs/arr-fallback-search/arr-fallback-search.sh" \
+ok_eq "the timer runs this script" "/home/dario/repositories/personal/pms-arr-setup/jobs/arr-fallback-search/arr-fallback-search.sh" \
     "$(sed -n 's/^ExecStart=//p' jobs/arr-fallback-search/arr-fallback-search.service)"
 
 echo
