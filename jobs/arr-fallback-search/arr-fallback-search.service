@@ -15,7 +15,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/dario/repositories/pms-arr-setup/jobs/arr-fallback-search/arr-fallback-search.sh
+ExecStart=/home/dario/repositories/personal/pms-arr-setup/jobs/arr-fallback-search/arr-fallback-search.sh
 
 # Not root: it only talks to Radarr's API, with the key from the clone's .env.
 User=dario

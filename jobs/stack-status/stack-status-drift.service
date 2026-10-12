@@ -15,7 +15,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/dario/repositories/pms-arr-setup/jobs/stack-status/stack-status.sh --drift
+ExecStart=/home/dario/repositories/personal/pms-arr-setup/jobs/stack-status/stack-status.sh --drift
 
 User=dario
 Group=dario

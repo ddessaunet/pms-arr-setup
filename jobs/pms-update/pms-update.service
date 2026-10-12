@@ -17,7 +17,7 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/home/dario/repositories/pms-arr-setup/jobs/pms-update/update-stack.sh
+ExecStart=/home/dario/repositories/personal/pms-arr-setup/jobs/pms-update/update-stack.sh
 
 # Not root. dario is in the docker group, owns /opt/appdata (the lock, and
 # Plex's Preferences.xml for the token) and owns the clone.
