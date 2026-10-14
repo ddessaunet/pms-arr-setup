@@ -38,7 +38,7 @@ One folder per app and per job, every one the same shape:
 ```
 compose.yaml          name: pms, the arr network, and an include for every apps/*/compose.yaml
 Taskfile.yml          every task (task --list); includes every app and job under its own name
-.env.example          copy to .env (gitignored): UID/GID, timezone, appdata, API keys, logins
+.env.example          the install's .env starts from it: UID/GID, timezone, appdata, API keys, logins
 apps/<app>/           one compose service
   compose.yaml        that service alone, with its comments
   Taskfile.yml        which standard tasks it gets (from stack/taskfiles/), plus its own
@@ -50,8 +50,10 @@ jobs/<job>/           a host-side systemd job that spans apps: script, unit(s), 
 site/                 the docs website's source (Starlight); apps/docs serves what it builds
 stack/                what the whole stack shares
   taskfiles/          the per-app task templates: service, update, configure
-  lib/                servarr.sh (Servarr API plumbing), arr-configure.sh (Radarr + Sonarr)
-  start.sh  preflight.sh  deploy.sh  run-tests.sh  main-clone.sh
+  lib/                servarr.sh (Servarr API plumbing), arr-configure.sh (Radarr + Sonarr),
+                      pms-home.sh (where the stack is installed)
+  install.sh          copy this tree into the install directory, then run its deploy.sh
+  start.sh  preflight.sh  deploy.sh  run-tests.sh  installed.sh
   layout.test.sh      the app contract, below
 docs/                 the runbook and the updater (Markdown, read in the repo)
 ```
@@ -101,13 +103,57 @@ serves the built website.
   (`preview` and `sync` only). Decluttarr is pinned, so it has no `update`.
 - Every job has a script, a test, a unit in `stack/deploy.sh`'s manifest whose `ExecStart`
   exists, a `README.md` (**Role, Schedule, Tasks**) and a `Taskfile.yml`.
-- Every script resolves the repo root correctly from where it lives.
+- Every script resolves the repo root correctly from where it lives (and, in
+  `stack/install.test.sh`, the install's root from an install).
+- Every unit's `ExecStart` starts with `@PMS_HOME@/` and it runs as `@PMS_USER@`, which
+  the installer fills in.
 
 Adding an app:
 
 1. Create `apps/<app>/` with those files.
 2. Add one `include` line to `compose.yaml` and one to `Taskfile.yml`.
 3. Add it to `UPDATE_SERVICES` in `.env` if the weekly updater should cover it.
+
+## Installing
+
+The repo is the source. The stack runs from an **install directory**: `/opt/arr-setup` by
+default, or wherever you choose. Compose, the systemd units, the docs site and `.env` all
+live there, so the source tree (a clone, a worktree, a downloaded ZIP) can move, switch
+branches or be deleted without the services noticing. Nothing in the install needs git.
+
+You need docker with the compose plugin, [Task](https://taskfile.dev) (below), `rsync`,
+`jq`, `curl` and `inotify-tools`. To build the docs site you also need node and pnpm (see
+`site/`); without them the install has no docs site until a later deploy builds one.
+
+From the source tree:
+
+```bash
+task deploy
+```
+
+That lints, tests, builds the docs site, then runs `stack/install.sh`, which:
+
+1. creates the install directory (asking for sudo once if its parent isn't yours) and copies
+   the tree into it, without tests, `docs/`, the site's source or git. Files the source no
+   longer has are removed; `.env` is never touched.
+2. fills the install's path and your user into the units in `jobs/*/` (the source keeps
+   them as `@PMS_HOME@` / `@PMS_USER@` templates).
+3. the first time only, creates the install's `.env`: a copy of the source's `.env` if it
+   has one, otherwise `.env.example`. In the second case it stops so you can fill it in.
+   Then run `task deploy` again.
+4. runs the install's `stack/deploy.sh`, which installs the units, arms the timers and
+   restarts `arr-reclaim` (asking for sudo).
+
+Then start the stack **from the install**: `cd /opt/arr-setup && task start`.
+
+To install elsewhere, name the directory once: `task deploy -- /srv/arr-setup` (or
+`PMS_HOME=/srv/arr-setup task deploy`). Later deploys find it on their own, from where the
+units run. Moving an existing install takes `--move`, e.g.
+`task deploy -- --move /srv/arr-setup`; after that, recreate the containers from the new
+place (`task start` there).
+
+Updating is the same command: change the source, then `task deploy`. `task deploy:check`
+in the source reports what the install is missing; in the install it reports unit drift.
 
 ## Running it
 
@@ -121,14 +167,15 @@ brew install go-task
 
 Run tasks as yourself, never `sudo task`: sudo's `PATH` has no Homebrew in it. The scripts
 ask for sudo themselves where they need it. The systemd units never call `task`, so the
-timers don't depend on it. Compose runs from the main clone, and state lives in
+timers don't depend on it. Compose runs from the install, and state lives in
 `/opt/appdata`.
 
-**Tasks that change containers or units run from the main clone only.** These are `start`,
-`stop`, `<app>:up`, `<app>:update`, `update` and `deploy`. `compose.yaml` fixes the project
-name, so compose run from a worktree acts on the live stack, and a relative bind (decluttarr's
-config) would then point into a checkout that is deleted later. `stack/main-clone.sh`
-enforces this.
+**Tasks that change containers run from the install only.** These are `start`, `stop`,
+`<app>:up`, `<app>:update` and `update`. `compose.yaml` fixes the project name, so compose
+run from any source tree acts on the live stack, and a relative bind (decluttarr's config,
+the docs site) would then point into a tree that moves or is deleted later.
+`stack/installed.sh` enforces this. The read-only tasks and `<app>:configure` work in
+both.
 
 | command | does |
 |---|---|
@@ -141,8 +188,8 @@ enforces this.
 | `task lint` | `shellcheck` on every script, and check that `compose.yaml` renders. |
 | `task test` | The offline test suites, the app contract included. |
 | `task check` | Deploy drift and every app's settings drift, in one report. Changes nothing. |
-| `task deploy:check` | Deploy drift only: units missing, changed or with the wrong mode, or a timer armed wrongly. |
-| `task deploy` | Lint and test, then install the units and arm or disarm the timers. |
+| `task deploy:check` | Deploy drift only. In a source: what the install is missing. In the install: units missing, changed or with the wrong mode, or a timer armed wrongly. |
+| `task deploy` | In a source: lint, test, build the site, install, deploy (see Installing). In the install: install the units again and arm or disarm the timers. |
 | `task update` / `update:dry` | Update now, outside the Sunday schedule / rehearse: pull, recreate nothing. |
 | `task <app>:configure` / `<app>:check` | Apply an app's settings / report its drift. `task arr:configure` covers Radarr and Sonarr. |
 | `task <app>:logs` / `ps` / `up` / `update` | One app's logs, container, recreate (to apply a compose edit), update. |
@@ -151,7 +198,7 @@ enforces this.
 | `task arr-fallback-search:run` / `:dry` | Search Radarr again now for the `4K HDR or 1080p` movies without a 4K file / list them. |
 | `task lan-address:dry` / `:run` / `:logs` | Which apps are behind the box's addresses / apply them now / each change, with the new address. |
 | `task stack-status:dry` / `:run` / `:audit` | The dashboard's data: print it / write it now / count what it masks, and confirm no secret is left. |
-| `task site:build` | Build the docs website and swap it in; in the main clone this publishes it on `:8088`. |
+| `task site:build` | Build the docs website into the source's `site/dist`; `task deploy` publishes it on `:8088`. |
 | `task site:check` / `site:test` / `site:dev` | Prove it builds / its unit tests / a live preview on `:4321`. These need node (nvm) and pnpm (Homebrew). |
 
 `qbt:` is an alias for `qbittorrent:`.

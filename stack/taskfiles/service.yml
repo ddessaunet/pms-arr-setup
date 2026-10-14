@@ -23,11 +23,11 @@ tasks:
       - docker compose ps {{.SERVICE}}
 
   up:
-    desc: Create or recreate {{.SERVICE}} from its compose.yaml (applies compose edits; main clone only)
+    desc: Create or recreate {{.SERVICE}} from its compose.yaml (applies compose edits; install only)
     dir: '{{.ROOT_DIR}}'
     requires: { vars: [SERVICE] }
     preconditions:
-      - sh: stack/main-clone.sh
-        msg: Run it from the main clone.
+      - sh: stack/installed.sh
+        msg: Run it from the install (default /opt/arr-setup; task deploy makes it), not a source tree.
     cmds:
       - docker compose up -d {{.SERVICE}}

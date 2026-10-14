@@ -44,12 +44,13 @@ and goes straight to the gate.
 task deploy
 ```
 
-This installs `jobs/pms-update/pms-update.{service,timer}` and arms the timer **only while
+From the source, this copies the stack into its install (README → Installing), then
+installs `jobs/pms-update/pms-update.{service,timer}` from there and arms the timer **only while
 `plexmediaserver` is masked**, which is to say only after the Phase 1b cutover. Once Phase 7b
 has removed the package, a missing unit counts as masked too. Otherwise it disarms the
 timer. That's the same signal pms-local's deploy uses to disarm its own
 `plex-update.timer`, so exactly one of the two updaters is armed at any time. The deploy
-refuses to run if the unit's `ExecStart` doesn't point at this clone.
+refuses to run if the unit's `ExecStart` doesn't point at the install it runs from.
 
 ```bash
 task deploy:check
@@ -93,10 +94,10 @@ task update:dry
 Pulling only downloads, and the running container is untouched until something recreates it.
 Everything after the gate is skipped.
 
-To update one service now, outside the schedule:
+To update one service now, outside the schedule, from the install:
 
 ```bash
-jobs/pms-update/update-stack.sh plex
+/opt/arr-setup/jobs/pms-update/update-stack.sh plex
 ```
 
 ## Adding a service

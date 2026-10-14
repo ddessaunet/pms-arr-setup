@@ -2,11 +2,12 @@
 # compose.yaml (project `pms`).
 #
 # Serves site/dist, the static site `task site:build` writes on the host
-# (Starlight; nothing builds in the container). The bind is site/, not
-# site/dist: the build writes a new dist beside the old one and swaps them, and
-# a bind of dist itself would keep serving the folder that was swapped out.
-# It is a relative bind, so create the container from the main clone only
-# (CLAUDE.md trap 16): from a worktree it would serve that worktree's build.
+# (Starlight; nothing builds in the container) and `task deploy` copies into
+# the install. The bind is site/, not site/dist: the build and the install
+# write a new dist beside the old one and swap them, and a bind of dist itself
+# would keep serving the folder that was swapped out. It is a relative bind, so
+# create the container from the install only (CLAUDE.md trap 16): from a clone
+# or worktree it would serve that tree's build.
 #
 # Unprivileged nginx (uid 101, port 8080 inside), read-only root filesystem.
 # Not on the arr network: it talks to nothing.

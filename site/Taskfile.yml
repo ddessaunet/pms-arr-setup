@@ -1,9 +1,9 @@
 version: '3'
 
 # site/ — the docs website (Starlight), the source of what apps/docs serves.
-# Not an app: it has no container. `build` writes site/dist, and apps/docs
-# (nginx) serves the MAIN clone's site/dist, so in the main clone `build`
-# publishes. Built on the host: node from nvm (.nvmrc), pnpm from Homebrew
+# Not an app: it has no container. `build` writes site/dist; `task deploy`
+# builds it and copies it into the install, whose site/dist apps/docs (nginx)
+# serves. Built on the host: node from nvm (.nvmrc), pnpm from Homebrew
 # (package.json pins the version, so nvm's own pnpm switches to it).
 
 env:
@@ -42,7 +42,7 @@ tasks:
       - pnpm exec astro build --outDir .dist-check
 
   build:
-    desc: Build, then swap the result into site/dist (in the main clone this publishes it)
+    desc: Build, then swap the result into site/dist (task deploy publishes it)
     deps: [install]
     cmds:
       # Astro empties its outDir before rendering, so building in place would

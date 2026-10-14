@@ -4,8 +4,8 @@
 #
 #   journalctl -u arr-fallback-search
 #
-# ExecStart points into the clone because the script reads .env beside it. Move
-# the clone, edit this path.
+# @PMS_HOME@ and @PMS_USER@ are filled in by stack/install.sh: ExecStart points
+# into the install, because the script reads .env beside it.
 
 [Unit]
 Description=Search Radarr again for "4K HDR or 1080p" movies without a 4K file
@@ -15,11 +15,11 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/dario/repositories/personal/pms-arr-setup/jobs/arr-fallback-search/arr-fallback-search.sh
+ExecStart=@PMS_HOME@/jobs/arr-fallback-search/arr-fallback-search.sh
 
-# Not root: it only talks to Radarr's API, with the key from the clone's .env.
-User=dario
-Group=dario
+# Not root: it only talks to Radarr's API, with the key from the install's .env.
+User=@PMS_USER@
+Group=@PMS_GROUP@
 
 # It queues one command and returns; Radarr does the searching.
 TimeoutStartSec=5min
