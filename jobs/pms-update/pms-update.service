@@ -5,8 +5,9 @@
 #
 #   journalctl -u pms-update
 #
-# ExecStart points into the clone because compose runs from the clone — the
-# script needs compose.yaml and .env beside it. Move the clone, edit this path.
+# @PMS_HOME@ and @PMS_USER@ are filled in by stack/install.sh: ExecStart points
+# into the install, because compose runs there — the script needs compose.yaml
+# and .env beside it.
 
 [Unit]
 Description=Update the pms containers (pull, wait out streams, recreate, verify, roll back)
@@ -17,12 +18,12 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/home/dario/repositories/personal/pms-arr-setup/jobs/pms-update/update-stack.sh
+ExecStart=@PMS_HOME@/jobs/pms-update/update-stack.sh
 
-# Not root. dario is in the docker group, owns /opt/appdata (the lock, and
-# Plex's Preferences.xml for the token) and owns the clone.
-User=dario
-Group=dario
+# Not root. The installing user is in the docker group, owns /opt/appdata (the
+# lock, and Plex's Preferences.xml for the token) and owns the install.
+User=@PMS_USER@
+Group=@PMS_GROUP@
 
 # Pull (Plex's image is ~350 MB), up to UPDATE_HEALTH_WAIT for the new
 # container, and as long again for a rollback, per service.

@@ -6,10 +6,10 @@ version: '3'
 
 tasks:
   run:
-    desc: Update every service in UPDATE_SERVICES now (main clone only)
+    desc: Update every service in UPDATE_SERVICES now (install only)
     preconditions:
-      - sh: ../../stack/main-clone.sh
-        msg: Run it from the main clone.
+      - sh: ../../stack/installed.sh
+        msg: Run it from the install (default /opt/arr-setup; task deploy makes it), not a source tree.
     cmds:
       - ./update-stack.sh {{.CLI_ARGS}}
 

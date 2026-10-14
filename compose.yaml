@@ -14,9 +14,9 @@
 # Plex database's library paths and qBittorrent's .fastresume paths valid
 # across the move. See docs/phases.md → "Rules that span phases".
 #
-# The project name is fixed: compose run from ANY checkout of this repo,
-# worktrees included, acts on the live containers. Change the stack from the
-# main clone only (the Taskfile refuses elsewhere).
+# The project name is fixed: compose run from ANY copy of this repo — a clone,
+# a worktree, the install — acts on the live containers. Change the stack from
+# the install only (task deploy makes it; the Taskfile refuses elsewhere).
 
 name: pms
 

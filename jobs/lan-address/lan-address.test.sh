@@ -102,7 +102,7 @@ unset LAN_ADDRESS_APPS
 # ─── one name, several owners ─────────────────────────────────────────────────
 echo
 echo "the units and the app list"
-ok_eq "the timer runs this script" "/home/dario/repositories/personal/pms-arr-setup/jobs/lan-address/lan-address.sh" \
+ok_eq "the timer runs this script" "@PMS_HOME@/jobs/lan-address/lan-address.sh" \
     "$(sed -n 's/^ExecStart=//p' jobs/lan-address/lan-address.service)"
 ok_eq "the unit allows netlink, which hostname -I needs" "1" \
     "$(grep -c '^RestrictAddressFamilies=.*AF_NETLINK' jobs/lan-address/lan-address.service)"

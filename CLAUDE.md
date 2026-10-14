@@ -10,7 +10,9 @@ in `../pms-local` phase by phase. [README.md](README.md) has the layout: one fol
 box, and commit the tick, when a phase is done. If the boxes look stale, check the server
 rather than trusting them.
 
-Compose runs from the main clone. State lives in `/opt/appdata`, not in the repo.
+The repo is a source: `task deploy` copies it into the **install** (`/opt/arr-setup`
+unless chosen otherwise, `stack/install.sh`), and compose, the units, the docs site and
+`.env` run from there. State lives in `/opt/appdata`, in neither.
 
 ## This is a live system
 
@@ -112,13 +114,15 @@ disappear. Confirm before anything destructive:
     `/opt/appdata/seerr/settings.json`, not `.env`. Seerr rejects read-only fields in writes,
     so the script only ever sends the fields it owns. Its requests are ordinary Radarr/Sonarr
     adds; nothing in Seerr touches files.
-13. **The units in `jobs/` (`pms-update.service`, `arr-reclaim.service`,
-    `arr-fallback-search.service`, `lan-address.service`, `stack-status.service`,
-    `stack-status-drift.service`) hardcode this clone's path** in `ExecStart`, because the
-    scripts need `compose.yaml` and `.env` at the repo root. `task deploy` refuses to install
-    a unit whose path doesn't match the clone, and `stack/layout.test.sh` fails if the path
-    names a script that doesn't exist. Moving the clone, or a script, means editing those
-    lines and running `task deploy` right after pulling.
+13. **The units in `jobs/` are templates.** `ExecStart` starts with `@PMS_HOME@/` and they
+    run as `@PMS_USER@`/`@PMS_GROUP@`; `stack/install.sh` fills in the install's path and
+    the installing user (comments keep the placeholders). The scripts need `compose.yaml`
+    and `.env` at the install's root. `stack/deploy.sh` refuses to run from a source tree
+    (no `.pms-install` marker) or with a unit whose path doesn't match the install, and
+    `stack/layout.test.sh` fails if a unit names a script that doesn't exist. Moving the
+    source is free. Moving the install is `task deploy -- --move <dir>`, then recreating
+    the containers from there. The install records nothing of its own about where it is:
+    the installed `arr-reclaim.service` is the record (`stack/lib/pms-home.sh`).
 
 14. **Decluttarr replaces queued downloads only, and only four jobs are on.**
     `apps/decluttarr/config.yaml` lists `remove_stalled`, `remove_slow`,
@@ -140,22 +144,25 @@ disappear. Confirm before anything destructive:
     `apps/bazarr/configure.sh` owns **all** its language profiles (Bazarr replaces the
     whole list on a write). A sidecar never counts as media for `arr-reclaim`.
 
-16. **Every checkout is the live stack to compose.** `compose.yaml` fixes the project name
-    (`pms`), so `docker compose up` from a worktree recreates the live containers, and a
-    relative bind (decluttarr's `./config.yaml`) then points into that worktree and breaks
-    once it is deleted. Run read-only compose (`config`, `ps`, `logs`) anywhere; create or
-    recreate containers, and install units, only from the main clone. The Taskfile's
-    `start`, `stop`, `<app>:up`, `<app>:update`, `update` and `deploy` refuse elsewhere
-    (`stack/main-clone.sh`). The configure scripts talk to the apps' APIs, not compose, so
-    they run anywhere.
+16. **Every tree is the live stack to compose.** `compose.yaml` fixes the project name
+    (`pms`), so `docker compose up` from a clone or worktree recreates the live containers,
+    and a relative bind (decluttarr's `./config.yaml`, docs' `site/`) then points into
+    that tree and breaks once it moves or is deleted. Run read-only compose (`config`,
+    `ps`, `logs`) anywhere; create or recreate containers only from the install. The
+    Taskfile's `start`, `stop`, `<app>:up`, `<app>:update` and `update` refuse elsewhere
+    (`stack/installed.sh`), and `deploy` installs from a source instead. The configure
+    scripts talk to the apps' APIs, not compose, so they run anywhere that has a `.env`
+    (the install has the live one).
 
 17. **The docs website is built from the repo and checks it.** `apps/docs` (nginx, `:8088`)
-    serves the main clone's `site/dist`, which `task site:build` writes. The quality-profiles
+    serves the install's `site/dist`: `task site:build` writes the source's, and
+    `task deploy` builds it and swaps it into the install. The quality-profiles
     map reads `apps/recyclarr/recyclarr.yml` and `stack/lib/arr-configure.sh` at build time,
     with explanations in `site/src/data/profiles.yml`. Adding, renaming or removing a
     profile, or changing the defaults, upgrades or size caps, means updating `profiles.yml`
     too: `task site:check` fails until they agree. A failed build leaves the published site
-    as it was. Mount `site/`, never `site/dist`: the build swaps `dist` for a new folder.
+    as it was. Mount `site/`, never `site/dist`: the build and the install swap `dist`
+    for a new folder.
     Its look comes from `DESIGN.md` (implemented in `site/src/styles/pacman.css`): change
     both together, and keep text at 4.5:1 or better — the brand blue is for borders only.
     `/` is the **stack dashboard**: its service list comes from `apps/*/compose.yaml` (ports)
@@ -197,4 +204,6 @@ disappear. Confirm before anything destructive:
   settings), one include line each in `compose.yaml` and `Taskfile.yml`. Tests live beside
   what they test.
 - `task check` (every app's drift plus deploy drift) and `task deploy:check` are read-only.
-  `task deploy` changes init state and needs sudo, so it's the user's to run.
+  `task deploy` writes the install and changes init state, and needs sudo, so it's the
+  user's to run. `stack/install.sh --files` with `SYS_PREFIX` and a scratch directory
+  rehearses the copy without either (`stack/install.test.sh` does that).

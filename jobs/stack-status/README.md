@@ -31,8 +31,8 @@ The files go to `/opt/appdata/docs-status`, which the docs container mounts at `
 
 [`stack-status.timer`](stack-status.timer): 1 minute after boot, then every 2 minutes.
 [`stack-status-drift.timer`](stack-status-drift.timer): 10 minutes after boot, then hourly.
-Each runs its `.service`, which runs [`stack-status.sh`](stack-status.sh) from the main
-clone. `task deploy` installs all four units and always arms both timers.
+Each runs its `.service`, which runs [`stack-status.sh`](stack-status.sh) from the
+install. `task deploy` installs all four units and always arms both timers.
 
 ## Tasks
 

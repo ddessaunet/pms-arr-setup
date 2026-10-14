@@ -22,14 +22,15 @@ RequiresMountsFor=/mnt/data
 
 [Service]
 Type=simple
-# Runs from the clone (.env beside it). deploy.sh refuses a mismatched path.
-ExecStart=/home/dario/repositories/personal/pms-arr-setup/jobs/arr-reclaim/arr-reclaim.sh watch
+# Runs from the install (.env beside it); stack/install.sh fills in @PMS_HOME@
+# and @PMS_USER@, and deploy.sh refuses a mismatched path.
+ExecStart=@PMS_HOME@/jobs/arr-reclaim/arr-reclaim.sh watch
 
 # Not root. It deletes torrent data through qBittorrent's API; the only thing
 # it touches locally is removing empty folders under /mnt/data/streaming,
-# which dario owns.
-User=dario
-Group=dario
+# which the installing user owns.
+User=@PMS_USER@
+Group=@PMS_GROUP@
 
 # inotifywait exiting, or qBittorrent away for a while, should not end the
 # watch. RestartSec keeps a persistent failure from spinning.

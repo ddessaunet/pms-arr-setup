@@ -4,8 +4,9 @@
 #
 #   journalctl -u stack-status
 #
-# ExecStart points into the clone because the script reads .env and the apps'
-# configure helpers beside it. Move the clone, edit this path.
+# @PMS_HOME@ and @PMS_USER@ are filled in by stack/install.sh: ExecStart points
+# into the install, because the script reads .env and the apps' configure
+# helpers beside it.
 
 [Unit]
 Description=Write the stack's status and recent logs for the docs site's front page
@@ -15,12 +16,12 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/dario/repositories/personal/pms-arr-setup/jobs/stack-status/stack-status.sh
+ExecStart=@PMS_HOME@/jobs/stack-status/stack-status.sh
 
-# Not root: it reads the apps' APIs with the keys from the clone's .env, docker
-# (dario is in the docker group) and the journal (adm group).
-User=dario
-Group=dario
+# Not root: it reads the apps' APIs with the keys from the install's .env, docker
+# (the installing user is in the docker group) and the journal (adm group).
+User=@PMS_USER@
+Group=@PMS_GROUP@
 
 # Usually a few seconds: the probes run in parallel, each request is capped at
 # 5 s and each docker/systemctl/journalctl call at 10 s.

@@ -20,7 +20,7 @@ For each service in `UPDATE_SERVICES` (`.env`), [`update-stack.sh`](update-stack
 ## Schedule
 
 Sundays at 05:00 (up to 45 minutes of jitter): [`pms-update.timer`](pms-update.timer) runs
-[`pms-update.service`](pms-update.service) from the main clone. `task deploy` installs both,
+[`pms-update.service`](pms-update.service) from the install. `task deploy` installs both,
 and arms the timer only while native `plexmediaserver` is masked or not installed. Unmasking
 native Plex is the Phase 1b rollback, and then pms-local's own updater takes over again.
 
