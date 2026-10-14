@@ -155,3 +155,6 @@ enforces this.
 | `task site:check` / `site:test` / `site:dev` | Prove it builds / its unit tests / a live preview on `:4321`. These need node (nvm) and pnpm (Homebrew). |
 
 `qbt:` is an alias for `qbittorrent:`.
+
+CI (`.github/workflows/test.yml`) runs `task lint test` and `task site:test site:check` on
+every PR and every push to `main`.
