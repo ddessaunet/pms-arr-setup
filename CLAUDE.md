@@ -189,6 +189,9 @@ disappear. Confirm before anything destructive:
   tools. Run `task lint test` before committing, and never `sudo task` (sudo's `PATH` lacks
   Homebrew). `task --list` shows every task. From a non-login shell, load Homebrew first:
   `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"`.
+- CI (`.github/workflows/test.yml`) runs `task lint test` and `task site:test site:check`
+  on every PR and every push to `main`. It calls the same tasks, so a check added to
+  them runs there too; it pins shellcheck to the box's version (0.11.0).
 - A new app follows the app contract in the README: `apps/<app>/` with `compose.yaml`,
   `Taskfile.yml`, `README.md` (and `configure.sh` plus its test when this repo owns its
   settings), one include line each in `compose.yaml` and `Taskfile.yml`. Tests live beside

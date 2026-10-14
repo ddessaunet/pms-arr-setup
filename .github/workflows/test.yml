@@ -1,0 +1,67 @@
+# Runs the offline checks on every PR, through the same task entry points a
+# person uses: `task lint test` for the stack, `task site:test site:check` for
+# the docs site. Nothing here starts containers or installs units (trap 16):
+# lint only renders compose.yaml, and the suites stub docker, curl and systemctl.
+
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stack:
+    name: task lint test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Without task, layout.test.sh skips the per-app task lists.
+      - uses: go-task/setup-task@v2
+        with:
+          version: 3.x
+
+      # The box runs shellcheck 0.11.0; ubuntu's apt has an older one that
+      # flags different things. jq and docker compose come with the runner.
+      - name: Install shellcheck 0.11.0
+        run: |
+          f=shellcheck-v0.11.0.linux.x86_64.tar.xz
+          curl -fsSLO "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/$f"
+          echo "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198  $f" | sha256sum -c -
+          tar -xJf "$f"
+          sudo install shellcheck-v0.11.0/shellcheck /usr/local/bin/shellcheck
+          rm -rf "$f" shellcheck-v0.11.0
+          shellcheck --version
+
+      - run: task lint test
+
+  site:
+    name: task site:test site:check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The version comes from package.json's packageManager.
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: site/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: site/.nvmrc
+          cache: pnpm
+          cache-dependency-path: site/pnpm-lock.yaml
+
+      - uses: go-task/setup-task@v2
+        with:
+          version: 3.x
+
+      - run: task site:test site:check
