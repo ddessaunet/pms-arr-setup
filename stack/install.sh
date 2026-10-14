@@ -49,7 +49,7 @@ SYS_PREFIX="${SYS_PREFIX:-}"
 # its own (.env, the marker, Task's cache, site/). A leading / anchors at the
 # root. Unit files are rendered, not copied.
 EXCLUDES=(
-    /.git /.gitignore /.claude/ /.agents/ /skills-lock.json /.task/
+    /.git /.gitignore /.github/ /.claude/ /.agents/ /skills-lock.json /.task/
     /CLAUDE.md /DESIGN.md /docs/ /site/
     /.env /"$PMS_MARKER"
     '*.test.sh' testdata/ node_modules/

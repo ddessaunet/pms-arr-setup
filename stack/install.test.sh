@@ -83,6 +83,7 @@ echo
 echo "the install's contents"
 ok_eq "no tests" "" "$(cd "$TDEST" && find . -name '*.test.sh' -o -name testdata | head -3)"
 ok "no docs/" test ! -e "$TDEST/docs"
+ok "no CI workflows" test ! -e "$TDEST/.github"
 ok "no site source" test ! -e "$TDEST/site/src"
 ok "site/dist published" grep -qx v1 "$TDEST/site/dist/index.html"
 ok "compose.yaml" test -f "$TDEST/compose.yaml"
