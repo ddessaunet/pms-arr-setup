@@ -74,7 +74,7 @@ want_server() { # app profile-id
     jq -cn --arg app "$app" --arg key "$key" --argjson port "$port" --arg root "$root" \
         --argjson pid "$pid" --arg pname "$(profile_name "$app")" --arg ext "http://$(lan_ip):$port" '
         {
-            name: ($app | .[0:1] | ascii_upcase) + ($app | .[1:]),
+            name: (($app | .[0:1] | ascii_upcase) + ($app | .[1:])),
             hostname: $app, port: $port, apiKey: $key, useSsl: false, baseUrl: "",
             activeProfileId: $pid, activeProfileName: $pname, activeDirectory: $root,
             is4k: false, isDefault: true, externalUrl: $ext,
