@@ -15,7 +15,7 @@ website's source, and `apps/docs` is the container that serves the built website
 ## Access
 
 - `http://<box>:8088/` is the **stack dashboard**: a link to every service (built from the
-  address you opened it on, so it follows DHCP), each one's status, the host's jobs, and the
+  address you opened it on, so it follows the box), each one's status, the host's jobs, and the
   logs worth checking. `/quality-profiles/` is the profile map.
 - No login, like the other apps. The live data is written by `jobs/stack-status` with every
   secret masked before it reaches the page.

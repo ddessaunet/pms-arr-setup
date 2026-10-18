@@ -4,8 +4,8 @@
 #   sudo systemctl enable --now lan-address.timer
 #   systemctl list-timers lan-address.timer
 #
-# The router hands out the box's addresses by DHCP and has moved them on reboots
-# (.86 ↔ .87 wired, .66 ↔ .67 Wi-Fi), and could on a lease renewal. A run with
+# The box's address is reserved on the router, but the old router's DHCP moved
+# it on reboots, and a lost reservation or a new router would again. A run with
 # no change reads the addresses, compares them with /opt/appdata/.lan-address
 # and stops, so every 5 minutes costs nothing.
 
