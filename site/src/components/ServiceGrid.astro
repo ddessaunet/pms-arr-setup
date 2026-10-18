@@ -1,7 +1,7 @@
 ---
 // One card per app, from apps/*/compose.yaml and src/data/services.yml
 // (src/lib/services.ts). The links get their href in the browser, from the
-// address the page was opened on: the box's address changes with DHCP. They
+// address the page was opened on, so they follow the box if it moves. They
 // open in a new tab, so the dashboard stays open behind the app.
 import { services } from '../lib/services.ts';
 ---

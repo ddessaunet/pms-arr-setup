@@ -1,13 +1,14 @@
 # lan-address
 
-Applies the apps' settings again when the router gives the box new LAN addresses.
+Applies the apps' settings again when the box's LAN addresses change.
 
 ## Role
 
-The box gets its addresses by DHCP, and the router has moved them on reboots: wired
-`.86` ↔ `.87`, Wi‑Fi `.66` ↔ `.67`. It can't reserve one, and a static address collides
-with whatever DHCP hands it to next (`.2` was the printer, `.3` dropped in and out). Four
-apps hold the addresses:
+Since 2026-10-17 the box is wired-only, at `10.0.0.50`, reserved on the mesh router. Before
+that, the old router gave it two addresses by DHCP and moved them on reboots (wired
+`.86` ↔ `.87`, Wi‑Fi `.66` ↔ `.67`), and it couldn't reserve one. This job kept the apps
+in step then. Now it's the safety net for a lost reservation, a new router or a new NIC.
+Four apps hold the addresses:
 
 - **qBittorrent** (`web_ui_domain_list`) and **Prowlarr, Radarr, Sonarr** (`allowedHosts`)
   refuse a request to an address they don't list: "Unauthorized", "Invalid Hostname".
@@ -47,4 +48,5 @@ both units and always arms the timer.
   would. Settings belong in the configure scripts anyway, not the WebUIs.
 - **The unit needs `AF_NETLINK`.** `hostname -I` reads the addresses through netlink.
   Without it the job sees no address and does nothing. The test pins it.
-- **Once the router can reserve an address,** this job has nothing to do and can stay.
+- **With the reservation it has nothing to do,** and a run that finds nothing changed
+  costs nothing. Keep it armed: without it, a moved address locks the apps out silently.

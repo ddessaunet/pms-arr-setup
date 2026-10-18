@@ -24,9 +24,10 @@ and its unit stays masked. Its database is archived in `/root/plexmediaserver-na
 ## Settings
 
 Set in Plex's own UI, except one: [`configure.sh`](configure.sh) pins **Preferred network
-interface** to `eno1`, the wired NIC. The box also has Wi‑Fi on the same subnet, and on
-*Any* Plex offered clients both addresses, so some connected to the Wi‑Fi one. The setting
-names the interface, not an address, so it holds across the DHCP moves. Its config is
+interface** to `eno1`, the wired NIC, now at the reserved `10.0.0.50`. Until 2026-10-17
+the box also had Wi‑Fi on the same subnet, and on *Any* Plex offered clients both
+addresses, so some connected to the Wi‑Fi one. The setting names the interface, not an
+address, so it holds if the address moves or a NIC is added. Its config is
 `/opt/appdata/plex`.
 
 ## Tasks
@@ -52,6 +53,10 @@ names the interface, not an address, so it holds across the DHCP moves. Its conf
 - **Change the network interface here, not in Plex's UI**: `configure.sh` owns it, and
   `task plex:check` (and the dashboard's hourly drift) reports any other value. It refuses
   to apply if Plex doesn't list `eno1` (`PLEX_IFACE` overrides the name).
+- **Remote access needs a port forward on the router:** TCP 32400 → `10.0.0.50:32400`, or
+  UPnP. Without it Plex reports `Mapped - Not Published (Not Reachable)`, and plex.tv
+  offers clients only the local address, so one that can't reach the LAN has nothing to
+  fall back on.
 - **Don't unmask `plexmediaserver`.** A reinstall would fight the container for `:32400`.
 - **No GPU**: the GTX 560 is too old for NVENC, so transcoding runs on the CPU.
 - **Downloading subtitles inside Plex is not a permissions problem.** It stores them in its

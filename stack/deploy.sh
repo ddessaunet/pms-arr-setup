@@ -58,7 +58,7 @@ WATCHER="arr-reclaim.service"
 # updater's is missing here.
 #   arr-fallback-search  the daily Radarr re-search
 #   lan-address          after boot and every 5 min: re-applies the apps' address
-#                        settings when DHCP moves the box
+#                        settings if the box's address moves
 #   stack-status         every 2 min: the docs site's dashboard data
 #   stack-status-drift   hourly: the dashboard's settings check
 ALWAYS_TIMERS=(arr-fallback-search.timer lan-address.timer stack-status.timer stack-status-drift.timer)

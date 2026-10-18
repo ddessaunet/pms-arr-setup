@@ -5,7 +5,7 @@
 # The port comes from apps/<app>/compose.yaml: the host side of its first TCP
 # mapping. Give `port` here only for an app on the host network, which publishes
 # none (Plex). The page builds each link from the address it was opened on, so
-# links follow the box when DHCP moves it.
+# links follow the box if its address moves.
 apps:
   plex:         { label: Plex, role: Watch the library., path: /web, port: 32400 }
   seerr:        { label: Seerr, role: Request movies and series. }

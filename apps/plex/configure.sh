@@ -7,13 +7,12 @@
 #
 # Normally run as `task plex:configure` / `task plex:check`.
 #
-# The box has two NICs on the same /24, both on DHCP: eno1 (wired) and wlp2s0
-# (Wi-Fi). With "Preferred network interface" on Any, Plex advertises both
-# addresses, and clients pick the Wi-Fi one as often as not. Linux answers ARP
-# for either address on either NIC, so that traffic usually still crosses the
-# wire, but only by accident. Pinned to eno1, Plex offers local clients the
-# wired address only. The setting names the interface, not an address, so it
-# survives the DHCP moves (.86 <-> .87).
+# Until 2026-10-17 the box had two NICs on one subnet, both on DHCP: eno1
+# (wired) and wlp2s0 (Wi-Fi). With "Preferred network interface" on Any, Plex
+# advertised both addresses, and clients picked the Wi-Fi one as often as not.
+# The box is wired-only now, at a reserved address (10.0.0.50), and the pin
+# stays: it names the interface, not an address, so a NIC added later or a
+# moved address can't change what Plex offers local clients.
 #
 # This is the only Plex setting the repo owns; everything else stays in Plex's
 # own UI. The token is PLEX_TOKEN from .env, or else the server's own

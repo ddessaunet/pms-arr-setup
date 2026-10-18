@@ -9,8 +9,9 @@
 # Normally run by lan-address.timer beside it (2 min after boot, then every
 # 5 min), or as `task lan-address:run` / `:dry` / `:force`.
 #
-# The router assigns the box's addresses by DHCP, and they change: on a reboot
-# the wired one has gone .86 → .87 and back. qBittorrent, Prowlarr, Radarr and
+# The box's address is reserved on the router (10.0.0.50), but it has moved
+# before: the old router's DHCP took it .86 → .87 and back on reboots. A lost
+# reservation or a new router would move it again. qBittorrent, Prowlarr, Radarr and
 # Sonarr refuse a request to an address they don't list ("Unauthorized",
 # "Invalid Hostname"), and Seerr links to Radarr and Sonarr by address. Their
 # configure.sh scripts list the addresses the box has when they run, so this runs
