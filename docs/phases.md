@@ -438,7 +438,7 @@ upgrades, unmonitor on delete, and `arr-reclaim` freeing the space of a Plex del
    task start
    ```
 
-2. **Sign in with Plex once**, in a browser: open `http://192.168.0.86:5055` and choose
+2. **Sign in with Plex once**, in a browser: open `http://10.0.0.50:5055` and choose
    *Sign in with Plex*. That's Seerr's first-run OAuth and the one step that can't be
    scripted. **Stop after signing in**; don't continue the wizard.
 
@@ -1075,6 +1075,28 @@ collided (`.2` is the printer; `.3` dropped in and out), so the box stays on DHC
 [`jobs/lan-address`](../jobs/lan-address/README.md) keeps the apps in step: after boot and
 every 5 minutes it re-runs the configure scripts of qBittorrent, Prowlarr, Radarr, Sonarr
 and Seerr, for each one whose recorded addresses are not the box's now.
+
+**Since 2026-10-17** the box is on a mesh router (`10.0.0.1`, `10.0.0.0/22`) that reserves
+`10.0.0.50` for `eno1`, and it's wired-only. `/etc/netplan/00-installer-config.yaml` is
+now just:
+
+```yaml
+network:
+  version: 2
+  ethernets:
+    eno1:
+      dhcp4: true
+      match:
+        macaddress: c8:60:00:c6:34:4f
+      set-name: eno1
+```
+
+The Wi‑Fi block came out because each NIC answered ARP for the other's address while
+both were on the same subnet: traffic for `.50` landed on the Wi‑Fi card, and SSH to `.50`
+failed while the Wi‑Fi address worked. Its card is also 2.4 GHz-only Wi‑Fi 4. The old
+router's `nameservers` entry (`192.168.0.1`) came out too, so DNS comes from DHCP. The
+first run after the change recorded all five apps at `10.0.0.50` alone. The job now has
+nothing to do, and stays as the safety net for a lost reservation or a new router.
 
 **Do**
 

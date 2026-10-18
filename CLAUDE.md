@@ -168,15 +168,19 @@ disappear. Confirm before anything destructive:
     `/` is the **stack dashboard**: its service list comes from `apps/*/compose.yaml` (ports)
     and `site/src/data/services.yml`, and the build fails when they disagree. Its live part
     is `/live/`, the files `jobs/stack-status` writes (trap 19).
-18. **The box's LAN addresses come from DHCP and change** (wired `.86` ↔ `.87`, Wi‑Fi
-    `.66` ↔ `.67`, so far on reboots). The router can't reserve one, and a static address
-    collides with what DHCP hands out next. qBittorrent, Prowlarr, Radarr and Sonarr list
-    the addresses (an unlisted one gets "Unauthorized" / "Invalid Hostname"), and Seerr
-    links by the first. **`lan-address.timer`** re-runs those configure scripts after
-    boot and every 5 minutes, but only for apps whose addresses in
-    `/opt/appdata/.lan-address` are out of date. `task lan-address:logs` shows the current one.
-    Plex needs none of that: `apps/plex/configure.sh` pins it to `eno1` **by name**, so it
-    offers clients only the wired address, whatever it is, and never the Wi‑Fi one.
+18. **The box is wired-only, at `10.0.0.50`**, reserved for `eno1` on the mesh router
+    (`10.0.0.1`, `10.0.0.0/22`) since 2026-10-17. Its Wi‑Fi (`wlp2s0`) is out of netplan
+    on purpose; don't add it back. On the same subnet as `eno1`, each NIC answered ARP for
+    the other's address, so traffic for `.50` landed on the Wi‑Fi card and SSH to it
+    failed. The card is also 2.4 GHz-only Wi‑Fi 4, several times slower than the wire.
+    qBittorrent, Prowlarr, Radarr and Sonarr list the address (an unlisted one gets
+    "Unauthorized" / "Invalid Hostname"), and Seerr links by it. **`lan-address.timer`**
+    re-runs those configure scripts after boot and every 5 minutes, but only for apps whose
+    addresses in `/opt/appdata/.lan-address` are out of date. With the reservation it has
+    nothing to do; it stays as the safety net for a lost reservation or a new router.
+    `task lan-address:logs` shows the current address. Plex is pinned to `eno1` **by name**
+    (`apps/plex/configure.sh`). Its remote access needs the router to forward TCP 32400 to
+    `.50`.
 19. **The dashboard's data is public on the LAN.** `jobs/stack-status` writes
     `/opt/appdata/docs-status/{status,logs,drift}.json` (every 2 min; drift hourly), served
     at `/live/` with no login. Every string goes through its `publish` (redact, then a leak

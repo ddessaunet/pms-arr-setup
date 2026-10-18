@@ -80,7 +80,7 @@ serves the built website.
 | [arr-reclaim](jobs/arr-reclaim/README.md) | always (watcher) | Frees a torrent once the media it imported is deleted. |
 | [arr-fallback-search](jobs/arr-fallback-search/README.md) | daily 04:00 | Re-searches the `4K HDR or 1080p` movies without a 4K file. |
 | [pms-update](jobs/pms-update/README.md) | Sunday 05:00 | Updates the containers, with a streaming check and a rollback. |
-| [lan-address](jobs/lan-address/README.md) | after boot, every 5 min | Re-applies the apps that list the box's addresses when DHCP moves it. |
+| [lan-address](jobs/lan-address/README.md) | after boot, every 5 min | Re-applies the apps that list the box's address if it moves (it's reserved now; this is the safety net). |
 | [stack-status](jobs/stack-status/README.md) | every 2 min; drift hourly | Writes the dashboard's status, redacted logs and settings drift for the docs site. |
 
 ## The app contract

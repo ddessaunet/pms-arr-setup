@@ -53,8 +53,9 @@ export function parseLogs(x: unknown): LogsDoc | null {
 }
 
 /**
- * A service's link on the host the page was opened from, so it follows the
- * box when DHCP moves it. Keeps the scheme and IPv6 brackets right.
+ * A service's link on the host the page was opened from, so it works by
+ * address or by name, and follows the box if its address moves. Keeps the
+ * scheme and IPv6 brackets right.
  */
 export function serviceUrl(loc: { protocol: string; hostname: string }, port: number, path: string): string {
   const u = new URL(`${loc.protocol}//${loc.hostname}`);
