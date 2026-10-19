@@ -77,6 +77,9 @@ disappear. Confirm before anything destructive:
    what it has seen in `/opt/appdata/.arr-reclaim.imports` (recorded every minute) and
    decides from both. Don't replace that with a post-import category: Radarr/Sonarr list
    only their own category, so *Remove Completed* would stop seeing imported torrents.
+   It also **removes a movie from Radarr** when its file is deleted (not moved) in the
+   library, and has Sonarr rescan a deleted episode's series (which unmonitors it). It
+   records the history first, so the ledger still has it.
 10. **Servarr reads `allowedHosts` at startup only.** `apply_host` restarts the app after
     changing it; without that, Prowlarr ↔ Radarr/Sonarr calls fail with "Invalid Hostname"
     after the next unrelated restart.
