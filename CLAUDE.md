@@ -79,6 +79,9 @@ disappear. Confirm before anything destructive:
    what it has seen in `/opt/appdata/.arr-reclaim.imports` (recorded every minute) and
    decides from both. Don't replace that with a post-import category: Radarr/Sonarr list
    only their own category, so *Remove Completed* would stop seeing imported torrents.
+   It also **removes a movie from Radarr** when its file is deleted (not moved) in the
+   library, and has Sonarr rescan a deleted episode's series (which unmonitors it). It
+   records the history first, so the ledger still has it.
 10. **Servarr reads `allowedHosts` at startup only.** `apply_host` restarts the app after
     changing it; without that, Prowlarr ↔ Radarr/Sonarr calls fail with "Invalid Hostname"
     after the next unrelated restart.
@@ -113,7 +116,10 @@ disappear. Confirm before anything destructive:
     Plex.** Its API key is refused (403) until that admin exists, and it lives in
     `/opt/appdata/seerr/settings.json`, not `.env`. Seerr rejects read-only fields in writes,
     so the script only ever sends the fields it owns. Its requests are ordinary Radarr/Sonarr
-    adds; nothing in Seerr touches files.
+    adds, and it has no media mounts, but **Manage → *Remove from Radarr/Sonarr* deletes
+    files**: it asks the app to delete the title with its files, and `arr-reclaim` then
+    drops the torrent and its data (trap 9). *Delete Request* and *Clear Data* change only
+    Seerr's own database.
 13. **The units in `jobs/` are templates.** `ExecStart` starts with `@PMS_HOME@/` and they
     run as `@PMS_USER@`/`@PMS_GROUP@`; `stack/install.sh` fills in the install's path and
     the installing user (comments keep the placeholders). The scripts need `compose.yaml`

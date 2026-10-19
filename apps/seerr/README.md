@@ -5,8 +5,9 @@ Jellyseerr and Overseerr.
 
 ## Role
 
-A request becomes an ordinary Radarr or Sonarr add, so their rules apply to it. Nothing in
-Seerr touches files, and it has no media mounts.
+A request becomes an ordinary Radarr or Sonarr add, so their rules apply to it. It has no
+media mounts, but one of its delete actions does delete files, through Radarr/Sonarr (see
+[Delete actions](#delete-actions)).
 
 ## Access
 
@@ -27,6 +28,16 @@ Owned by [`configure.sh`](configure.sh), after **one browser sign-in with Plex**
   are picked per request, never set as the default);
 - admin-only sign-in;
 - then a full Plex scan.
+
+## Delete actions
+
+A title's **Manage** panel has three, from least to most destructive:
+
+| action | removes |
+|---|---|
+| *Delete Request* (trash icon on a request) | That request, in Seerr only. Radarr/Sonarr, the download and the files are untouched, and the title stays *Available* if Plex has it. |
+| *Clear Data* (Advanced) | Seerr's whole record of the title, requests included. Nothing outside Seerr; the next Plex scan recreates it as *Available*. |
+| *Remove from Radarr* / *Remove from Sonarr* | The title from Radarr/Sonarr **with its files** (`deleteFiles=true`, no import exclusion). Then `arr-reclaim` removes the torrent and its data once no other link remains, and Plex drops the title right away (Radarr/Sonarr notify it of the delete). Seerr marks it *Deleted*, so it can be requested again. |
 
 ## Tasks
 

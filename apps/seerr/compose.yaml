@@ -1,8 +1,9 @@
 # seerr — requests (Phase 5). Included by the root compose.yaml (project `pms`).
 #
 # The request UI in front of Radarr and Sonarr (the merged successor of
-# Jellyseerr/Overseerr). It only files requests — no media mounts. A request
-# becomes an ordinary Radarr/Sonarr add, so Phase 4's rules apply to it.
+# Jellyseerr/Overseerr). It files requests and has no media mounts. A request
+# becomes an ordinary Radarr/Sonarr add, so Phase 4's rules apply to it. Its
+# "Remove from Radarr/Sonarr" deletes files through those apps (README.md).
 #
 # Its API key is its own, generated on first start into its settings.json.
 # First run: sign in with Plex in the browser once; apps/seerr/configure.sh

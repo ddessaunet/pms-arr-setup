@@ -313,7 +313,7 @@ which `plex-watch` read as deletions (rule 5) until Phase 7a.
 | quality | **1080p** (`HD-1080p`, **no Remux**), sizes **capped at 40 MB/min** (about 4.8 GB for a 2-hour film; 25 preferred). Sonarr's max was later removed: 880 MB for a 22-minute episode rejected every real 1080p WEB-DL, **no upgrades** on any profile until Phase 6 |
 | downloads | the `:8081` qBittorrent, categories `radarr` / `sonarr`, **hardlinked** into the library |
 | seeding | ratio 2.0 or 14 days, then the torrent **stops**, and *Remove Completed* removes it (the library keeps its hardlink) |
-| deleted in Plex | **unmonitored**, never re-downloaded, and **`arr-reclaim`** removes its torrent **with its data** within about a minute |
+| deleted in Plex | **`arr-reclaim`** removes its torrent **with its data** within about a minute, then **removes the movie from Radarr**, or has Sonarr rescan the series, which **unmonitors** the episode (since 2026-10-19; before, both waited for the daily rescan) |
 | deleted in Radarr/Sonarr, with its files | gone from the app, and `arr-reclaim` removes its torrent the same way (from its ledger, below) |
 | indexers | pushed by Prowlarr (full sync); not configured here |
 | Plex | refreshed on import and delete, through `host.docker.internal:32400` |
@@ -422,9 +422,11 @@ The request UI in front of Radarr and Sonarr. It's **Seerr**, the merged success
 Jellyseerr and Overseerr (Overseerr is archived, and the old Jellyseerr image isn't updated
 any more).
 
-It only files requests and has **no media mounts**. A request becomes an ordinary
-Radarr/Sonarr add, so everything from Phase 4 applies to it: 1080p, hardlinked imports, no
-upgrades, unmonitor on delete, and `arr-reclaim` freeing the space of a Plex delete.
+It files requests and has **no media mounts**. A request becomes an ordinary
+Radarr/Sonarr add, so it gets the same rules as any other: hardlinked imports, the quality
+profiles (Phase 6), and what a Plex delete does (the Phase 4 table). Its
+*Remove from Radarr/Sonarr* deletes the title's files through those apps, and
+`arr-reclaim` then frees the torrent too (see `apps/seerr/README.md`).
 
 - **Only you sign in**, and your requests are approved automatically.
 - **The existing library shows as Available.** Seerr scans Plex, so titles already there

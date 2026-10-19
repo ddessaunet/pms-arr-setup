@@ -55,6 +55,8 @@ It never imports or renames existing media; renaming applies to new imports.
   full volume.
 - **Deleting a title here wipes its history.** `arr-reclaim` keeps its own record of
   imports for that reason.
+- **A movie deleted in Plex is removed from here** by `arr-reclaim`, about a minute later.
+  Its files are already gone; the removal touches nothing on disk.
 - **Recyclarr's `quality_definition` must stay out.** `configure.sh` owns the sizes.
 - **It reports quality sizes a few seconds late after a write.** The read-back re-reads for up
   to about 10 s before it calls the difference drift.

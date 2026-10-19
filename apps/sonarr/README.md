@@ -54,6 +54,8 @@ It never imports or renames existing media; renaming applies to new imports.
   full volume.
 - **Deleting a title here wipes its history.** `arr-reclaim` keeps its own record of
   imports for that reason.
+- **An episode deleted in Plex is unmonitored here**: `arr-reclaim` has Sonarr rescan the
+  series about a minute later. The series stays.
 - **Recyclarr's `quality_definition` must stay out.** `configure.sh` owns the sizes.
 - **It reports quality sizes a few seconds late after a write.** The read-back re-reads for up
   to about 10 s before it calls the difference drift.
