@@ -78,6 +78,17 @@ ok_rc "5.2: 401 refused"          1 qbt_login_ok 401 ""
 ok_rc "an empty 200 is not a login" 1 qbt_login_ok 200 ""
 
 echo
+echo "movie_with_file / series_holding"
+M='[{"id":7,"title":"A","year":2000,"movieFile":{"path":"/lib/movies/A (2000)/A (2000).mkv"}},
+    {"id":8,"title":"B","year":2001,"movieFile":null},{"id":9,"title":"C","year":2002}]'
+ok_eq "the movie whose file it was" "$(printf '7\tA (2000)')" "$(movie_with_file "$M" "/lib/movies/A (2000)/A (2000).mkv")"
+ok_eq "a movie without a file record is nobody's" "" "$(movie_with_file "$M" "/lib/movies/B (2001)/B (2001).mkv")"
+S='[{"id":2,"title":"The Boys","path":"/lib/series/The Boys"},{"id":3,"title":"The Boy","path":"/lib/series/The Boy"}]'
+ok_eq "the series whose folder holds it, not one named like a prefix" "$(printf '2\tThe Boys')" \
+    "$(series_holding "$S" "/lib/series/The Boys/Season 01/The Boys - S01E01.mkv")"
+ok_eq "outside every series folder → nothing" "" "$(series_holding "$S" "/lib/movies/A (2000)/A (2000).mkv")"
+
+echo
 echo "is_media"
 ok_rc "mkv"                 0 is_media "/lib/movies/A (2000)/A (2000).mkv"
 ok_rc "uppercase MP4"       0 is_media "/lib/x.MP4"
@@ -125,6 +136,8 @@ LEDGER="$RECLAIM_LEDGER"
 # curl as qBittorrent and as the two history APIs. Deletions are recorded,
 # and the torrent data really is deleted, as qBittorrent would.
 DELETED="$TMP/deleted"; : > "$DELETED"
+ARR_CALLS="$TMP/arr-calls"; : > "$ARR_CALLS"
+MOVIES='[]'; SERIES='[]'
 # shellcheck disable=SC2329  # stub, called indirectly by the script
 curl() {
     local url="${*: -1}" a out="" code=200 body=""
@@ -142,6 +155,10 @@ curl() {
             rm -f "$T/$(jq -r --arg h "$h" '.[] | select(.hash == $h) | .name' <<<"$INFO").mkv" ;;
         *7878/api/v3/history*)          body="$HIST" ;;
         *8989/api/v3/history*)          if [[ -n "${SONARR_DOWN:-}" ]]; then code=503; else body="$SHIST"; fi ;;
+        *7878/api/v3/movie)             body="$MOVIES" ;;
+        *7878/api/v3/movie/*)           echo "radarr $(printf '%s\n' "$@" | grep -A1 '^-X$' | tail -n1) ${url##*/api/v3/}" >> "$ARR_CALLS" ;;
+        *8989/api/v3/series)            body="$SERIES" ;;
+        *8989/api/v3/command)           echo "sonarr $(printf '%s\n' "$@" | grep '^{')" >> "$ARR_CALLS" ;;
         *)                              code=404 ;;
     esac
     if [[ -n "$out" && "$out" != next ]]; then printf '%s' "$body" > "$out"; printf '%s' "$code"
@@ -261,22 +278,82 @@ ok_eq "Sonarr unreachable: its row is kept" "1" "$(grep -c $'^sonarr\t.*\ts1\t' 
 unset SONARR_DOWN
 SHIST='{"records":[]}'
 
+# ─── telling Radarr and Sonarr, on real files ─────────────────────────────────
+#   Gone (2010)    file deleted in Plex                       → removed from Radarr
+#   Up (2011)      deleted, but an upgrade put a file back     → kept
+#   Twice (2012)   its file named twice in one burst          → removed once
+#   two episodes of one series, one of another                → each series rescanned once
+#   a deleted file Radarr no longer knows (its own delete)    → nothing
+#   a path outside the library                                → nothing
+echo
+echo "forget — rehearsal"
+L="$TMP/lib/movies"; SL="$TMP/lib/series"
+mkdir -p "$L/Up (2011)" "$SL/Show/Season 01" "$SL/Other/Season 02"
+printf 'new' > "$L/Up (2011)/Up (2011).mkv"
+MOVIES="$(jq -cn --arg l "$L" '[
+    {id: 21, title: "Gone",  year: 2010, movieFile: {path: ($l + "/Gone (2010)/Gone (2010).mkv")}},
+    {id: 22, title: "Up",    year: 2011, movieFile: {path: ($l + "/Up (2011)/Up (2011).mkv")}},
+    {id: 23, title: "Twice", year: 2012, movieFile: {path: ($l + "/Twice (2012)/Twice (2012).mkv")}},
+    {id: 24, title: "Kept",  year: 2013, movieFile: null}]')"
+SERIES="$(jq -cn --arg l "$SL" '[{id: 31, title: "Show", path: ($l + "/Show")}, {id: 32, title: "Other", path: ($l + "/Other")}]')"
+GONE=("$L/Gone (2010)/Gone (2010).mkv" "$L/Up (2011)/Up (2011).mkv" "$L/Twice (2012)/Twice (2012).mkv"
+      "$L/Twice (2012)/Twice (2012).mkv" "$L/Kept (2013)/Kept (2013).mkv"
+      "$SL/Show/Season 01/Show - S01E01.mkv" "$SL/Show/Season 01/Show - S01E02.mkv"
+      "$SL/Other/Season 02/Other - S02E01.mkv" "/elsewhere/Gone (2010)/Gone (2010).mkv")
+: > "$ARR_CALLS"
+OUT="$(forget "${GONE[@]}" 2>&1)"; RC=$?
+ok_eq "forget: exits 0" 0 "$RC"
+ok_eq "forget: the deleted movies removed from Radarr, once each, files untouched" \
+    "$(printf 'radarr DELETE movie/%s?deleteFiles=false&addImportExclusion=false\n' 21 23)" \
+    "$(grep '^radarr' "$ARR_CALLS")"
+ok_eq "forget: each series with a deleted episode rescanned once" \
+    "$(printf 'sonarr {"name":"RescanSeries","seriesId":%s}\n' 31 32)" \
+    "$(grep '^sonarr' "$ARR_CALLS" | sort)"
+ok_eq "forget: says what it did" "2 2" \
+    "$(grep -c 'from radarr — its file was deleted' <<<"$OUT") $(grep -c 'Asked sonarr to rescan' <<<"$OUT")"
+
+: > "$ARR_CALLS"
+OUT="$(RECLAIM_MAX_FORGETS=1 forget "${GONE[@]}" 2>&1)"
+ok_eq "forget: the cap leaves the rest to Radarr's rescan" "1 1" \
+    "$(grep -c '^radarr' "$ARR_CALLS") $(grep -c 'RECLAIM_MAX_FORGETS=1 reached' <<<"$OUT")"
+
+: > "$ARR_CALLS"
+OUT="$(forget "$L/Up (2011)/Up (2011).mkv" 2>&1)"
+ok_eq "forget: nothing gone for good → nothing said or done" ":" "$OUT:$(cat "$ARR_CALLS")"
+
+# reclaim_locked records the history before forgetting anything, and forgets
+# nothing when it can't.
+: > "$ARR_CALLS"
+OUT="$(SONARR_DOWN=1 reclaim_locked "$L/Gone (2010)/Gone (2010).mkv" 2>&1)"
+ok_eq "history unreadable → Radarr told nothing" "" "$(cat "$ARR_CALLS")"
+ok_eq "… and it says so" "1" "$(grep -c 'radarr and sonarr are told nothing' <<<"$OUT")"
+: > "$ARR_CALLS"
+reclaim_locked "$L/Gone (2010)/Gone (2010).mkv" >/dev/null 2>&1
+ok_eq "history recorded → Radarr told" "1" "$(grep -c '^radarr' "$ARR_CALLS")"
+: > "$ARR_CALLS"
+reclaim_locked >/dev/null 2>&1
+ok_eq "a run without deletions (task, or manual run) tells nobody" "" "$(cat "$ARR_CALLS")"
+
 # ─── debounce ─────────────────────────────────────────────────────────────────
 echo
 echo "watch_loop"
 RUNS="$TMP/runs"; : > "$RUNS"
-reclaim_locked() { echo run >> "$RUNS"; return 0; }
+reclaim_locked() { echo "run${*:+ $*}" >> "$RUNS"; return 0; }
 RECLAIM_DEBOUNCE=1
-printf '%s\n' "/lib/a.mkv" "/lib/a.srt" "/lib/b.mkv" | watch_loop >/dev/null 2>&1
-ok_eq "one burst → one run" "1" "$(wc -l < "$RUNS" | tr -d ' ')"
+printf 'DELETE\t%s\n' "/lib/a.mkv" "/lib/a.srt" "/lib/b.mkv" | watch_loop >/dev/null 2>&1
+ok_eq "one burst → one run, with its deleted media" "run /lib/a.mkv /lib/b.mkv" "$(cat "$RUNS")"
 : > "$RUNS"
-printf '%s\n' "/lib/poster.jpg" "/lib/movies/Dir (2000)" | watch_loop >/dev/null 2>&1
+printf 'MOVED_FROM\t/lib/old name.mkv\nDELETE\t/lib/d.mkv\n' | watch_loop >/dev/null 2>&1
+ok_eq "a move is reclaimed, never forgotten" "run /lib/d.mkv" "$(cat "$RUNS")"
+: > "$RUNS"
+printf 'DELETE\t%s\n' "/lib/poster.jpg" | watch_loop >/dev/null 2>&1
+printf 'DELETE,ISDIR\t%s\n' "/lib/movies/Dir (2000)" | watch_loop >/dev/null 2>&1
 ok_eq "no media in the burst → no run" "0" "$(wc -l < "$RUNS" | tr -d ' ')"
 : > "$RUNS"
 record_locked() { echo record >> "$RUNS"; return 0; }
 RECLAIM_RECORD_EVERY=1
-{ sleep 1.5; printf '%s\n' "/lib/c.mkv"; } | watch_loop >/dev/null 2>&1
-ok_eq "idle → a record, then the burst → a run" "record run" "$(tr '\n' ' ' < "$RUNS" | sed 's/ $//')"
+{ sleep 1.5; printf 'DELETE\t%s\n' "/lib/c.mkv"; } | watch_loop >/dev/null 2>&1
+ok_eq "idle → a record, then the burst → a run" "record run /lib/c.mkv" "$(tr '\n' ' ' < "$RUNS" | sed 's/ $//')"
 
 echo
 printf '%d passed, %d failed\n' "$PASS" "$FAIL"

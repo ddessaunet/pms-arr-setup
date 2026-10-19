@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # jobs/arr-reclaim/arr-reclaim.sh — when media Radarr or Sonarr imported is deleted (in Plex,
 # or in Radarr/Sonarr with its files), remove its torrent (with its data) from the :8081 qBittorrent, so the space
-# comes back right away instead of after the seeding limit.
+# comes back right away instead of after the seeding limit. And tell Radarr/Sonarr: a movie
+# whose file was deleted is removed from Radarr, an episode's series is rescanned in Sonarr.
 #
 #   jobs/arr-reclaim/arr-reclaim.sh watch      watch the library, reclaim after each burst
 #                                              of deletions, record imports while idle
@@ -34,6 +35,14 @@
 # Some but not all of a torrent's imports gone (one episode of a season pack)
 # is `partial`: reported, kept — the same call plex-reconcile makes.
 #
+# Radarr and Sonarr only notice a file deleted outside them on their daily
+# rescan, and until then a deleted movie still wanting an upgrade can be grabbed
+# again. So after a burst, `watch` tells them (see forget): a movie whose file
+# was deleted is removed from Radarr (nothing on disk is touched), and the
+# series of a deleted episode is rescanned, which unmonitors the episode
+# (Unmonitor Deleted Episodes) and keeps the series. Only deletions count; a
+# file moved or renamed is still in the library.
+#
 # Exit: 0 fine (including nothing to do) · 2 usage · 3 preflight/config ·
 # 4 a login or API key was refused · 5 qBittorrent or an app is unreachable.
 
@@ -61,6 +70,7 @@ RECLAIM_TIMEOUT="${RECLAIM_TIMEOUT:-20}"
 RECLAIM_DEBOUNCE="${RECLAIM_DEBOUNCE:-60}"          # a deleted season is one event per episode
 RECLAIM_FAIL_COOLDOWN="${RECLAIM_FAIL_COOLDOWN:-300}"
 RECLAIM_MAX_REMOVALS="${RECLAIM_MAX_REMOVALS:-3}"   # a bug costs a puzzled look, not the seedbox
+RECLAIM_MAX_FORGETS="${RECLAIM_MAX_FORGETS:-10}"    # movies removed from Radarr per run; data is never touched
 RECLAIM_LOCK="${RECLAIM_LOCK:-$APPDATA/.arr-reclaim.lock}"
 RECLAIM_LEDGER="${RECLAIM_LEDGER:-$APPDATA/.arr-reclaim.imports}"
 RECLAIM_RECORD_EVERY="${RECLAIM_RECORD_EVERY:-60}"  # the window a delete in Radarr/Sonarr can slip through
@@ -116,6 +126,16 @@ decide() { # n-imports n-imports-present n-media n-media-single-link [superseded
     fi
 }
 
+# The movie whose file is at path, as "id<TAB>Title (Year)"; nothing when none.
+movie_with_file() { # movies-json path
+    jq -r --arg p "$2" '.[] | select(.movieFile.path? == $p) | [.id, "\(.title) (\(.year))"] | @tsv' <<<"$1"
+}
+
+# The series whose folder holds path, as "id<TAB>Title"; nothing when none.
+series_holding() { # series-json path
+    jq -r --arg p "$2" '.[] | select(.path as $s | $p | startswith($s + "/")) | [.id, .title] | @tsv' <<<"$1"
+}
+
 # qBittorrent up to 5.1 answers a good login 200 "Ok."; 5.2 answers 204 with
 # an empty body (and a bad one 401). Anything else is a refusal.
 qbt_login_ok() { [[ "$1" == 204 || ( "$1" == 200 && "$2" == "Ok." ) ]]; }
@@ -157,6 +177,12 @@ app_imports() { # url key
         [[ "$n" -eq 250 ]] || return 0
         page=$((page + 1))
     done
+}
+
+arr_api() { # METHOD url key path [json-body]
+    local data=()
+    [[ -n "${5:-}" ]] && data=(-H 'Content-Type: application/json' --data "$5")
+    curl -sf --max-time "$RECLAIM_TIMEOUT" -X "$1" -H "X-Api-Key: $3" "${data[@]}" "$2$4"
 }
 
 # ─── the ledger ───────────────────────────────────────────────────────────────
@@ -316,12 +342,63 @@ prune_dirs() { # newline-separated imported paths
     done <<<"$1"
 }
 
+# ─── telling Radarr and Sonarr ────────────────────────────────────────────────
+# Run after a burst of deletions, with the media files deleted (not moved). A
+# path still gone a debounce later is gone for good: an upgrade has put its new
+# file in place by then, and Radarr's record of the movie points to it. Radarr's
+# own deletes don't match either: by now the movie or its file record is gone.
+forget() { # deleted-paths...
+    local p id title movies="" series="" n=0 rc=0
+    local -A FORGOT=() RESCAN=()
+    if [[ -n "$RADARR_API_KEY" ]]; then
+        movies="$(arr_api GET "$RADARR_URL" "$RADARR_API_KEY" /api/v3/movie)" \
+            || { log "WARN: cannot list radarr's movies — it finds the deletions on its daily rescan"; movies=""; rc=5; }
+    fi
+    if [[ -n "$SONARR_API_KEY" ]]; then
+        series="$(arr_api GET "$SONARR_URL" "$SONARR_API_KEY" /api/v3/series)" \
+            || { log "WARN: cannot list sonarr's series — it finds the deletions on its daily rescan"; series=""; rc=5; }
+    fi
+    for p in "$@"; do
+        [[ "$p" == "$LIBRARY"/* && ! -e "$p" ]] || continue
+        id=""; title=""
+        [[ -n "$movies" ]] && IFS=$'\t' read -r id title < <(movie_with_file "$movies" "$p")
+        if [[ -n "$id" ]]; then
+            [[ -n "${FORGOT[$id]:-}" ]] && continue
+            FORGOT[$id]=1
+            if [[ "$n" -ge "$RECLAIM_MAX_FORGETS" ]]; then
+                log "WARN: RECLAIM_MAX_FORGETS=$RECLAIM_MAX_FORGETS reached — '$title' stays in radarr; its daily rescan unmonitors it"
+            elif arr_api DELETE "$RADARR_URL" "$RADARR_API_KEY" "/api/v3/movie/$id?deleteFiles=false&addImportExclusion=false" >/dev/null; then
+                n=$((n + 1)); log "Removed '$title' from radarr — its file was deleted from the library."
+            else
+                log "ERROR: radarr refused to remove '$title'"; rc=5
+            fi
+            continue
+        fi
+        [[ -n "$series" ]] && IFS=$'\t' read -r id title < <(series_holding "$series" "$p")
+        [[ -n "$id" ]] && RESCAN[$id]="$title"
+    done
+    for id in "${!RESCAN[@]}"; do
+        if arr_api POST "$SONARR_URL" "$SONARR_API_KEY" /api/v3/command "{\"name\":\"RescanSeries\",\"seriesId\":$id}" >/dev/null; then
+            log "Asked sonarr to rescan '${RESCAN[$id]}' — it unmonitors the deleted episode(s)."
+        else
+            log "ERROR: sonarr refused to rescan '${RESCAN[$id]}'"; rc=5
+        fi
+    done
+    return "$rc"
+}
+
 # ─── watching ─────────────────────────────────────────────────────────────────
-reclaim_locked() {
+reclaim_locked() { # [deleted-paths...] — to tell Radarr/Sonarr about, after
     local rc=0
     exec 9>"$RECLAIM_LOCK" || { log "ERROR: cannot open $RECLAIM_LOCK"; return 3; }
     flock -w 60 9 || { log "Another reclaim holds $RECLAIM_LOCK — skipping."; return 0; }
     reclaim run || rc=$?
+    # Removing a movie wipes its history: into the ledger first, or not at all.
+    if [[ "$#" -gt 0 ]]; then
+        if record; then forget "$@" || rc=$?
+        else log "WARN: could not record the import history — radarr and sonarr are told nothing this run"; rc=5
+        fi
+    fi
     exec 9>&-
     return "$rc"
 }
@@ -339,20 +416,24 @@ record_locked() {
 # As plex-watch: one run per burst, after RECLAIM_DEBOUNCE seconds of quiet;
 # after a failure, ignore deletions for RECLAIM_FAIL_COOLDOWN. Every
 # RECLAIM_RECORD_EVERY seconds without an event, record the imports.
+# Reads "EVENT<TAB>path" lines; the deleted ones (not the moved) go to forget.
 watch_loop() {
-    local path more n rc
+    local ev path n rc gone
     while :; do
-        IFS= read -r -t "$RECLAIM_RECORD_EVERY" path; rc=$?
+        IFS=$'\t' read -r -t "$RECLAIM_RECORD_EVERY" ev path; rc=$?
         if [[ "$rc" -gt 128 ]]; then record_locked || true; continue; fi
         [[ "$rc" -eq 0 ]] || break    # EOF: inotifywait is gone
         is_media "$path" || continue
-        n=1
-        log "Gone from the library: $path"
-        while IFS= read -r -t "$RECLAIM_DEBOUNCE" more; do
-            if is_media "$more"; then n=$((n + 1)); log "Gone from the library: $more"; fi
+        n=0; gone=()
+        while :; do
+            if is_media "$path"; then
+                n=$((n + 1)); log "Gone from the library: $path"
+                [[ "$ev" == DELETE ]] && gone+=("$path")
+            fi
+            IFS=$'\t' read -r -t "$RECLAIM_DEBOUNCE" ev path || break
         done
         log "$n media file(s) removed, and ${RECLAIM_DEBOUNCE}s of quiet since."
-        rc=0; reclaim_locked || rc=$?
+        rc=0; reclaim_locked "${gone[@]}" || rc=$?
         if [[ "$rc" -ne 0 ]]; then
             log "WARN: the reclaim exited $rc — ignoring further deletions for ${RECLAIM_FAIL_COOLDOWN}s."
             sleep "$RECLAIM_FAIL_COOLDOWN"
@@ -376,12 +457,12 @@ main() {
             log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             log "Watching $LIBRARY for deletions (debounce ${RECLAIM_DEBOUNCE}s) for $QBT_ARR_URL."
             record_locked || log "WARN: could not record the import history now — retrying every ${RECLAIM_RECORD_EVERY}s."
-            watch_loop < <("$INOTIFYWAIT" -m -r -q -e delete -e moved_from --format '%w%f' -- "$LIBRARY")
+            watch_loop < <("$INOTIFYWAIT" -m -r -q -e delete -e moved_from --format $'%e\t%w%f' -- "$LIBRARY")
             log "ERROR: inotifywait exited — the unit will be restarted."
             exit 5 ;;
         run)      preflight || exit 3; reclaim_locked; exit $? ;;
         --audit)  preflight || exit 3; reclaim audit; exit $? ;;
-        -h|--help) sed -n '2,38p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,48p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *)        echo "usage: ${0##*/} watch|run|--audit" >&2; exit 2 ;;
     esac
 }

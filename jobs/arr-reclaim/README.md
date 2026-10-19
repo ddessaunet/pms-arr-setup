@@ -5,6 +5,9 @@ files, this job removes its torrent and data from [qBittorrent](../../apps/qbitt
 The space comes back right away instead of after the seeding limit. It is pms-local's
 `plex-watch`, ported for the `:8081` instance.
 
+It also tells Radarr and Sonarr about a file deleted in the library. They would only notice
+on their daily rescan, and until then a movie still wanting an upgrade can be grabbed again.
+
 ## Role
 
 It removes a torrent only when all three of these hold:
@@ -20,6 +23,18 @@ If only some of a torrent's imports are gone (one episode of a season pack), it 
 
 Deleting a title in Radarr/Sonarr wipes its history, so the imports it has seen are kept in
 `/opt/appdata/.arr-reclaim.imports`, recorded every minute, and it decides from both.
+
+After the torrents, for each media file **deleted** (not moved) in the burst and still gone:
+
+- **A movie** whose file it was is **removed from Radarr** (`deleteFiles=false`: nothing on
+  disk is touched), so the list only holds what is in the library and Seerr can request it
+  again. At most 10 per run (`RECLAIM_MAX_FORGETS`); the rest are unmonitored by Radarr's
+  daily rescan.
+- **An episode:** its series is **rescanned** in Sonarr, which unmonitors the episode
+  (*Unmonitor Deleted Episodes*). The series stays.
+
+The history is recorded into the ledger first; if it can't be, neither app is told. An
+upgrade isn't a delete here: a minute later its new file is in place and Radarr points to it.
 
 ## Schedule
 

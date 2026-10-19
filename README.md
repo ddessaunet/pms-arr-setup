@@ -75,7 +75,7 @@ serves the built website.
 
 | job | runs | role |
 |---|---|---|
-| [arr-reclaim](jobs/arr-reclaim/README.md) | always (watcher) | Frees a torrent once the media it imported is deleted. |
+| [arr-reclaim](jobs/arr-reclaim/README.md) | always (watcher) | Frees a torrent once the media it imported is deleted, and tells Radarr/Sonarr. |
 | [arr-fallback-search](jobs/arr-fallback-search/README.md) | daily 04:00 | Re-searches the `4K HDR or 1080p` movies without a 4K file. |
 | [pms-update](jobs/pms-update/README.md) | Sunday 05:00 | Updates the containers, with a streaming check and a rollback. |
 | [lan-address](jobs/lan-address/README.md) | after boot, every 5 min | Re-applies the apps that list the box's address if it moves (it's reserved now; this is the safety net). |
