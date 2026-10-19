@@ -204,4 +204,5 @@ both.
 `qbt:` is an alias for `qbittorrent:`.
 
 CI (`.github/workflows/test.yml`) runs `task lint test` and `task site:test site:check` on
-every PR and every push to `main`.
+every PR and every push to `main`, except one that changes only `*.md` files: then both are
+skipped, which still lets the PR merge.
