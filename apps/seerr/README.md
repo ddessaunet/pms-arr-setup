@@ -39,6 +39,11 @@ A title's **Manage** panel has three, from least to most destructive:
 | *Clear Data* (Advanced) | Seerr's whole record of the title, requests included. Nothing outside Seerr; the next Plex scan recreates it as *Available*. |
 | *Remove from Radarr* / *Remove from Sonarr* | The title from Radarr/Sonarr **with its files** (`deleteFiles=true`, no import exclusion). Then `arr-reclaim` removes the torrent and its data once no other link remains, and Plex drops the title right away (Radarr/Sonarr notify it of the delete). Seerr marks it *Deleted*, so it can be requested again. |
 
+**Deleting in Plex instead** ends the same for a movie: `arr-reclaim` frees the torrent and
+removes the movie from Radarr. Seerr notices on its daily *Media Availability Sync* (05:00)
+rather than at once. For a series it does not: deleting episodes in Plex only unmonitors them
+(Sonarr keeps the series), while *Remove from Sonarr* deletes the whole series with its files.
+
 ## Tasks
 
 | task | does |
