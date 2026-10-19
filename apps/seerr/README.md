@@ -37,7 +37,7 @@ A title's **Manage** panel has three, from least to most destructive:
 |---|---|
 | *Delete Request* (trash icon on a request) | That request, in Seerr only. Radarr/Sonarr, the download and the files are untouched, and the title stays *Available* if Plex has it. |
 | *Clear Data* (Advanced) | Seerr's whole record of the title, requests included. Nothing outside Seerr; the next Plex scan recreates it as *Available*. |
-| *Remove from Radarr* / *Remove from Sonarr* | The title from Radarr/Sonarr **with its files** (`deleteFiles=true`, no import exclusion). Then `arr-reclaim` removes the torrent and its data once no other link remains, and Plex drops the title, with its watch history, on the next scan. Seerr marks it *Deleted*, so it can be requested again. |
+| *Remove from Radarr* / *Remove from Sonarr* | The title from Radarr/Sonarr **with its files** (`deleteFiles=true`, no import exclusion). Then `arr-reclaim` removes the torrent and its data once no other link remains, and Plex drops the title right away (Radarr/Sonarr notify it of the delete). Seerr marks it *Deleted*, so it can be requested again. |
 
 ## Tasks
 

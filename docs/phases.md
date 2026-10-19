@@ -422,8 +422,8 @@ Jellyseerr and Overseerr (Overseerr is archived, and the old Jellyseerr image is
 any more).
 
 It files requests and has **no media mounts**. A request becomes an ordinary
-Radarr/Sonarr add, so everything from Phase 4 applies to it: 1080p, hardlinked imports, no
-upgrades, unmonitor on delete, and `arr-reclaim` freeing the space of a Plex delete. Its
+Radarr/Sonarr add, so it gets the same rules as any other: hardlinked imports, the quality
+profiles (Phase 6), and what a Plex delete does (the Phase 4 table). Its
 *Remove from Radarr/Sonarr* deletes the title's files through those apps, and
 `arr-reclaim` then frees the torrent too (see `apps/seerr/README.md`).
 
