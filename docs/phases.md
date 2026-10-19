@@ -26,6 +26,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Phase 9 — Bazarr: Spanish + English subtitles beside the media (2026-10-01: Days of Thunder `.es.srt` beside the video, Plex lists it, hardlink kept, reclaim audit removes nothing)
 - [x] Address check — `lan-address.timer` re-applies the apps' address settings when DHCP moves the box (2026-10-08: first run applied all five at .66/.86; a stale Seerr entry re-applied only Seerr; after the 18:29 reboot it ran at +2 min, addresses unchanged, nothing applied)
 - [x] Stack dashboard — the docs site's front page: every service's link and status, the host's jobs, redacted logs (`jobs/stack-status`) (2026-10-08: both timers armed; runs every 2 min in ~3 s, overall OK, 16 log sources read, 0 secrets in the output; the first settings check found all six apps matching)
+- [ ] Install directory — the stack runs from `/opt/arr-setup`, installed from the repo by `task deploy`; the clone can move freely
 
 Run `stack/preflight.sh` before each of Phases 0–1b. It is read-only.
 
@@ -1197,3 +1198,63 @@ sudo systemctl disable --now stack-status.timer stack-status-drift.timer
 Then take the stack-status entries out of `stack/deploy.sh` and remove their units from
 `/etc/systemd/system`. Revert the site and `apps/docs` changes, then `task site:build` and
 `task docs:up`, and `rm -rf /opt/appdata/docs-status /opt/appdata/.stack-status*`.
+
+---
+
+## Install directory — the stack runs from `/opt/arr-setup`, not the clone
+
+Until now the clone was the deployment. The units named its path, decluttarr and docs bound
+files out of it, and `.env` lived in it, so moving the clone (as on 2026-10-13) stopped
+`arr-reclaim` and the timers until the units were edited. Now the repo is a source, and
+`task deploy` copies it into `/opt/arr-setup` (README → Installing). Compose, the units,
+the docs site and `.env` run from there, and the clone can live anywhere.
+
+**Do**
+
+From the main clone, after the merge. It needs sudo, so it's yours to run:
+
+1. Build the site with node on `PATH`, then install. This creates `/opt/arr-setup`, copies
+   the tree and the clone's `.env` into it, points the units at it and restarts
+   `arr-reclaim`:
+
+   ```bash
+   task deploy
+   ```
+
+2. Recreate the two containers that bind files from the tree, from the install. The other
+   eight bind only absolute paths and are left alone; `pms-update` re-creates them from the
+   install on its next update.
+
+   ```bash
+   cd /opt/arr-setup && task docs:up decluttarr:up
+   ```
+
+**Verify**
+
+- `systemctl cat arr-reclaim | grep ExecStart`: `/opt/arr-setup/jobs/...`.
+- `task check` in `/opt/arr-setup`: clean. `task deploy:check` in the clone: `ok:
+  /opt/arr-setup matches`.
+- `docker inspect -f '{{range .Mounts}}{{.Source}} {{end}}' docs decluttarr`: under
+  `/opt/arr-setup`.
+- `http://<box>:8088/` serves the dashboard, and within the hour the settings check is
+  clean (`systemctl start stack-status-drift` to run it now).
+- **The point of it:** move the clone (`mv` it anywhere), then `sudo systemctl restart
+  arr-reclaim` and `docker restart docs decluttarr`. All stay up, `task check` in
+  `/opt/arr-setup` is still clean. Move it back, or keep it there.
+- After that, the clone's `.env` is a stale copy: remove it, or keep it for running
+  `task <app>:configure` from the clone.
+
+**Rollback**
+
+Check out the commit before this one in the clone, then, from the clone:
+
+```bash
+task deploy
+```
+
+```bash
+task docs:up decluttarr:up
+```
+
+The old deploy points the units back at the clone. `/opt/arr-setup` is then inert and can
+be removed.

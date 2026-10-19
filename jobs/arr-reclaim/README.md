@@ -40,7 +40,7 @@ upgrade isn't a delete here: a minute later its new file is in place and Radarr 
 
 Always running: `arr-reclaim.service` watches the library and reclaims after each burst of
 deletions. [`arr-reclaim.service`](arr-reclaim.service) runs
-[`arr-reclaim.sh`](arr-reclaim.sh) `watch` from the main clone. `task deploy` installs,
+[`arr-reclaim.sh`](arr-reclaim.sh) `watch` from the install. `task deploy` installs,
 enables and restarts it on every run, because a change to the script alone doesn't show in
 the unit file.
 

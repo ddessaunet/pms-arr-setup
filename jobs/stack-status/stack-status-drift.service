@@ -15,10 +15,10 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/dario/repositories/personal/pms-arr-setup/jobs/stack-status/stack-status.sh --drift
+ExecStart=@PMS_HOME@/jobs/stack-status/stack-status.sh --drift
 
-User=dario
-Group=dario
+User=@PMS_USER@
+Group=@PMS_GROUP@
 
 # Runs each apps/<app>/configure.sh --check (up to 10 min each; Prowlarr tests
 # every indexer over the internet) and stack/deploy.sh --check.

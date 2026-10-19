@@ -4,8 +4,9 @@
 #
 #   journalctl -u lan-address
 #
-# ExecStart points into the clone because the script reads .env and the apps'
-# configure.sh beside it. Move the clone, edit this path.
+# @PMS_HOME@ and @PMS_USER@ are filled in by stack/install.sh: ExecStart points
+# into the install, because the script reads .env and the apps' configure.sh
+# beside it.
 
 [Unit]
 Description=Apply the apps' settings again when the box's LAN addresses change
@@ -15,12 +16,12 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/dario/repositories/personal/pms-arr-setup/jobs/lan-address/lan-address.sh
+ExecStart=@PMS_HOME@/jobs/lan-address/lan-address.sh
 
 # Not root: the configure scripts only talk to the apps' APIs, with the keys from
-# the clone's .env (Seerr's from /opt/appdata/seerr, which dario owns).
-User=dario
-Group=dario
+# the install's .env (Seerr's from /opt/appdata/seerr, which that user owns).
+User=@PMS_USER@
+Group=@PMS_GROUP@
 
 # Usually seconds. After an address change it runs five configure scripts, and
 # Prowlarr's waits up to 90 s for its indexer sync and restarts the app.

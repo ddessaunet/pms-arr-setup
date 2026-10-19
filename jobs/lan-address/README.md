@@ -26,7 +26,7 @@ re-syncs its indexers every time. Bazarr and Plex don't depend on the address.
 
 2 minutes after every boot, then every 5 minutes:
 [`lan-address.timer`](lan-address.timer) runs [`lan-address.service`](lan-address.service),
-which runs [`lan-address.sh`](lan-address.sh) from the main clone. `task deploy` installs
+which runs [`lan-address.sh`](lan-address.sh) from the install. `task deploy` installs
 both units and always arms the timer.
 
 ## Tasks

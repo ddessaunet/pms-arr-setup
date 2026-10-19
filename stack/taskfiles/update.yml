@@ -7,12 +7,12 @@ version: '3'
 
 tasks:
   update:
-    desc: Update {{.SERVICE}} now — pull, recreate, verify, roll back if unhealthy (main clone only)
+    desc: Update {{.SERVICE}} now — pull, recreate, verify, roll back if unhealthy (install only)
     dir: '{{.ROOT_DIR}}'
     requires: { vars: [SERVICE] }
     preconditions:
-      - sh: stack/main-clone.sh
-        msg: Run it from the main clone.
+      - sh: stack/installed.sh
+        msg: Run it from the install (default /opt/arr-setup; task deploy makes it), not a source tree.
     cmds:
       - jobs/pms-update/update-stack.sh {{.SERVICE}}
 

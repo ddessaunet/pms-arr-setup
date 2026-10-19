@@ -10,9 +10,11 @@ version: '3'
 # per-app verbs come from stack/taskfiles/ (see README → "The app contract");
 # stack/layout.test.sh fails when an app is missing here or in compose.yaml.
 #
-# Tasks that change containers or units run only from the main clone
-# (stack/main-clone.sh): compose.yaml fixes the project name, so a worktree
-# would act on the live stack.
+# The repo is a source; the stack runs from its install (default
+# /opt/arr-setup), which `task deploy` fills. The same tasks work in both:
+# tasks that change containers run only in the install (stack/installed.sh),
+# because compose.yaml fixes the project name, so any tree would act on the
+# live stack. The install has no site/ source, hence the optional include.
 
 includes:
   plex:                { taskfile: apps/plex,                dir: apps/plex }
@@ -32,7 +34,7 @@ includes:
   lan-address:         { taskfile: jobs/lan-address,         dir: jobs/lan-address }
   stack-status:        { taskfile: jobs/stack-status,        dir: jobs/stack-status }
   # Not an app: the docs website's source. apps/docs serves what `site:build` writes.
-  site:                { taskfile: site,                     dir: site }
+  site:                { taskfile: site,                     dir: site, optional: true }
 
 vars:
   # The apps with a configure.sh, in the order trap 11 applies them.
@@ -40,18 +42,18 @@ vars:
 
 tasks:
   start:
-    desc: Preflight, then start every service the current phase has enabled (main clone only)
+    desc: Preflight, then start every service the current phase has enabled (install only)
     preconditions:
-      - sh: stack/main-clone.sh
-        msg: Run it from the main clone.
+      - sh: stack/installed.sh
+        msg: Run it from the install (default /opt/arr-setup; task deploy makes it), not a source tree.
     cmds:
       - stack/start.sh
 
   stop:
-    desc: Stop the stack; containers and config are kept (main clone only)
+    desc: Stop the stack; containers and config are kept (install only)
     preconditions:
-      - sh: stack/main-clone.sh
-        msg: Run it from the main clone.
+      - sh: stack/installed.sh
+        msg: Run it from the install (default /opt/arr-setup; task deploy makes it), not a source tree.
     cmds:
       - docker compose stop
 
@@ -98,7 +100,7 @@ tasks:
     cmds:
       - cmd: |
           rc=0
-          stack/deploy.sh --check || rc=1
+          if [ -e .pms-install ]; then stack/deploy.sh --check || rc=1; else stack/install.sh --check || rc=1; fi
           for app in {{.CONFIGURED}}; do
             echo; echo "── $app"
             "{{.TASK_EXE}}" "$app:check" || rc=1
@@ -106,19 +108,28 @@ tasks:
           exit $rc
 
   deploy:check:
-    desc: Deploy drift only — units missing or changed, timers armed wrongly (changes nothing)
+    desc: Deploy drift only — install out of date, units missing or changed, timers armed wrongly (changes nothing)
     cmds:
-      - stack/deploy.sh --check
+      - cmd: stack/install.sh --check
+        if: '[ ! -e .pms-install ]'
+      - cmd: stack/deploy.sh --check
+        if: '[ -e .pms-install ]'
 
   deploy:
-    desc: Lint and test, then install the units and arm the timers (asks for sudo; main clone only)
-    preconditions:
-      - sh: stack/main-clone.sh
-        msg: Run it from the main clone.
+    desc: "From a source: lint, test, build the site, install into /opt/arr-setup (or task deploy -- [--move] DIR), deploy. In the install: re-deploy the units (asks for sudo)"
     cmds:
       - task: lint
+        if: '[ ! -e .pms-install ]'
       - task: test
-      - stack/deploy.sh
+        if: '[ ! -e .pms-install ]'
+      - task: site:build
+        if: '[ ! -e .pms-install ] && command -v node >/dev/null && command -v pnpm >/dev/null'
+      - cmd: 'echo "warning: node or pnpm is not on PATH, so the docs site is not rebuilt" >&2'
+        if: '[ ! -e .pms-install ] && ! { command -v node >/dev/null && command -v pnpm >/dev/null; }'
+      - cmd: stack/install.sh {{.CLI_ARGS}}
+        if: '[ ! -e .pms-install ]'
+      - cmd: stack/deploy.sh
+        if: '[ -e .pms-install ]'
 
   update:
     desc: Update every service in UPDATE_SERVICES now (task update -- plex for one)

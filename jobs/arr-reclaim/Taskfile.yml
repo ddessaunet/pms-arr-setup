@@ -1,7 +1,7 @@
 version: '3'
 
 # arr-reclaim — see README.md. The watcher runs as arr-reclaim.service, from
-# the main clone; `task deploy` installs and restarts it.
+# the install; `task deploy` installs and restarts it.
 
 tasks:
   audit:

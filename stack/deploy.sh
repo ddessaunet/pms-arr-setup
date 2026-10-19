@@ -5,10 +5,11 @@
 #   stack/deploy.sh            install, reload, arm/disarm, verify
 #   stack/deploy.sh --check    report drift only; changes nothing
 #
-# Normally run as `task deploy` / `task deploy:check`.
-#
-# This repo ships nothing into /opt — compose runs from the clone — so the
-# units are the whole deploy. The structure is pms-local's deploy-system.sh.
+# Runs from the install, never from a source tree: stack/install.sh copies the
+# stack into its install directory (default /opt/arr-setup), fills in the units
+# and then runs the install's copy of this script. `task deploy` does both;
+# `task deploy:check` reports drift. The structure is pms-local's
+# deploy-system.sh.
 #
 # The timer follows the same signal as pms-local's deploy, inverted: while
 # plexmediaserver is masked Plex runs here, so pms-update.timer is armed and
@@ -22,7 +23,7 @@
 # first, which must not run as root.
 #
 # Rehearse anywhere harmless first — SYS_PREFIX relocates every destination:
-#   SYS_PREFIX=/tmp/rehearsal stack/deploy.sh --check
+#   SYS_PREFIX=/tmp/rehearsal <install>/stack/deploy.sh --check
 
 set -euo pipefail
 
@@ -64,8 +65,7 @@ WATCHER="arr-reclaim.service"
 ALWAYS_TIMERS=(arr-fallback-search.timer lan-address.timer stack-status.timer stack-status-drift.timer)
 
 # What each unit's ExecStart must say, as unit|command. A unit cannot use a
-# relative path, so it names this clone; a moved clone would leave it running
-# a file that is gone.
+# relative path, so it names this install; stack/install.sh fills it in.
 EXECS=(
     "jobs/pms-update/pms-update.service|$REPO/jobs/pms-update/update-stack.sh"
     "jobs/arr-reclaim/arr-reclaim.service|$REPO/jobs/arr-reclaim/arr-reclaim.sh watch"
@@ -171,15 +171,26 @@ preflight() {
         echo "Run this as yourself, not as root — it asks for sudo where it needs it." >&2
         exit 1
     fi
+    # The units in a source tree are templates (@PMS_HOME@): installing them
+    # would give systemd a path that does not exist.
+    if [[ ! -e "$REPO/.pms-install" ]]; then
+        echo "$REPO is a source tree, not an install." >&2
+        echo "Install from it instead: stack/install.sh (task deploy)." >&2
+        exit 1
+    fi
     # A unit pointing at a missing script gives you a timer that fails every
     # Sunday, or a watcher that restarts forever, and nothing else.
     local unit have want bad=0 entry
     while IFS='|' read -r unit have want; do
         [[ -n "$unit" ]] || continue
-        echo "$unit runs '$have', but this clone is at $REPO." >&2
-        echo "Edit its ExecStart= to: $want" >&2
+        echo "$unit runs '$have', but this install is at $REPO." >&2
+        echo "Install again to fill it in: stack/install.sh (task deploy)." >&2
         bad=1
     done < <(exec_mismatches)
+    if grep -l '^[^#]*@PMS_' "${EXECS[@]%%|*}" >&2; then
+        echo "^ still templates: install again (stack/install.sh)." >&2
+        exit 1
+    fi
     [[ "$bad" == 0 ]] || exit 1
     for entry in "${EXECS[@]}"; do
         want="${entry#*|}"; want="${want%% *}"

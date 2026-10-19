@@ -28,8 +28,8 @@ addresses to anyone on the LAN, as the apps themselves do.
 
 ## Settings
 
-[`nginx.conf`](nginx.conf), mounted read-only. The content is the main clone's `site/dist`,
-which `task site:build` replaces. `/live/` is `/opt/appdata/docs-status`, mounted read-only:
+[`nginx.conf`](nginx.conf), mounted read-only. The content is the install's `site/dist`,
+which `task deploy` replaces with the source's build. `/live/` is `/opt/appdata/docs-status`, mounted read-only:
 the dashboard's `status.json`, `logs.json` and `drift.json`, never cached and never in the
 access log (the page polls every 30 s).
 
@@ -43,7 +43,7 @@ used on it are committed in `.agents/skills/` (listed in `skills-lock.json`).
 
 | task | does |
 |---|---|
-| `task site:build` | Build the site and swap it into `site/dist`. In the main clone this publishes it; nginx needs no restart. |
+| `task site:build` | Build the site and swap it into the source's `site/dist`. `task deploy` publishes it; nginx needs no restart. |
 | `task site:check` | Build into a scratch folder to prove it builds. Publishes nothing. |
 | `task site:test` | The unit tests of the profile map's data. |
 | `task site:dev` | Live preview on `:4321`, reachable from the LAN. |
@@ -51,17 +51,17 @@ used on it are committed in `.agents/skills/` (listed in `skills-lock.json`).
 
 ## Traps
 
-- **Build before the first `up`.** With no `site/dist` yet, nginx answers 404 until
-  `task site:build` runs.
+- **Deploy a build before the first `up`.** With no `site/dist` in the install yet, nginx
+  answers 404 until `task deploy` runs with node and pnpm on `PATH`.
 - **The build is a check.** It fails if `recyclarr.yml` and `profiles.yml` list different
   profiles, or if they disagree with `arr-configure.sh` on defaults or upgrades. A failed
   build leaves the published site as it was.
-- **Mount `site/`, never `site/dist`.** The build swaps `dist` for a new folder, and a bind
-  of the old one would keep serving it.
+- **Mount `site/`, never `site/dist`.** The build and the install swap `dist` for a new
+  folder, and a bind of the old one would keep serving it.
 - **Node comes from nvm, which `~/.profile` loads.** In a shell without it, the `site:*`
   tasks stop and say how to load it.
 - **Create `/opt/appdata/docs-status` as yourself before the first `up` with the `/live`
   mount**, or Docker creates it root-owned and `jobs/stack-status` cannot write:
   `install -d -m 755 /opt/appdata/docs-status`.
-- **After editing `nginx.conf`, recreate the container** (`task docs:up`): a single-file bind
-  keeps the old file after `git pull` replaces it.
+- **A changed `nginx.conf` needs a restart**: a single-file bind keeps the old file after
+  the install replaces it. `task deploy` restarts `docs` when it changed.

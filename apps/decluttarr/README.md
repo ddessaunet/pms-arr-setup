@@ -50,6 +50,7 @@ reading its release notes.
 - **Its `detect_deletions` watcher starts even when it isn't listed**, so it gets no media
   mounts at all: it removes torrents through the qBittorrent API.
 - **`remove_slow` pauses** while qBittorrent runs above 80% of its download limit.
-- **The config is a relative bind** (`./config.yaml`). A container created from a worktree
-  points into that worktree, and breaks when the worktree is deleted. Recreate it from the
-  main clone (`task decluttarr:up`).
+- **The config is a relative bind** (`./config.yaml`). A container created from a clone or
+  worktree points into it, and breaks when it moves or is deleted. Create it from the
+  install (`task decluttarr:up` there). `task deploy` restarts it when the file changed: a
+  single-file bind keeps the old file until then.

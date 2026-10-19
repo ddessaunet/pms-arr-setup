@@ -14,7 +14,7 @@ This job closes that gap for the opt-in profile (Phase 6b) that
 
 Daily at 04:00 (up to 30 minutes of jitter): [`arr-fallback-search.timer`](arr-fallback-search.timer)
 runs [`arr-fallback-search.service`](arr-fallback-search.service), which runs
-[`arr-fallback-search.sh`](arr-fallback-search.sh) from the main clone. `task deploy`
+[`arr-fallback-search.sh`](arr-fallback-search.sh) from the install. `task deploy`
 installs both units and always arms the timer.
 
 ## Tasks

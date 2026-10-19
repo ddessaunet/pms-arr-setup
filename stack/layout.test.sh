@@ -66,8 +66,8 @@ ok_eq "compose.yaml includes exactly apps/*" "${APPS[*]}" \
     "$(sed -n 's|^  - apps/\([^/]*\)/compose.yaml$|\1|p' compose.yaml | sort | paste -sd' ')"
 ok_eq "Taskfile.yml includes exactly apps/* and jobs/*" "$(printf '%s\n' "${APPS[@]}" "${JOBS[@]}" | sort | paste -sd' ')" \
     "$(sed -nE 's#^  ([a-z-]+): +\{ taskfile: (apps|jobs)/\1, +dir: \2/\1[ ,].*#\1#p' Taskfile.yml | sort | paste -sd' ')"
-ok "Taskfile.yml includes site/ (the website, served by apps/docs)" \
-    grep -qE '^  site: +\{ taskfile: site, +dir: site \}' Taskfile.yml
+ok "Taskfile.yml includes site/ (the website, served by apps/docs; an install has none)" \
+    grep -qE '^  site: +\{ taskfile: site, +dir: site, optional: true \}' Taskfile.yml
 CONFIGURED="$(sed -n 's/^  CONFIGURED: //p' Taskfile.yml)"
 ok_eq "CONFIGURED is every app with a configure.sh" \
     "$(for a in "${APPS[@]}"; do [[ -f "apps/$a/configure.sh" ]] && echo "$a"; done | sort | paste -sd' ')" \
@@ -120,8 +120,12 @@ for job in "${JOBS[@]}"; do
     done
     for u in "$d"/*.service; do
         exe="$(sed -n 's/^ExecStart=//p' "$u" | awk '{print $1}')"
-        rel="${exe#/home/dario/repositories/personal/pms-arr-setup/}"
+        rel="${exe#@PMS_HOME@/}"
+        # Templates: stack/install.sh fills in where it is installed and who runs it.
+        ok "$(basename "$u") ExecStart starts with @PMS_HOME@/" test "$rel" != "$exe"
         ok "$(basename "$u") runs an executable in this repo ($rel)" test -x "$rel"
+        ok "$(basename "$u") runs as @PMS_USER@:@PMS_GROUP@" \
+            test "$(sed -n 's/^\(User\|Group\)=//p' "$u" | paste -sd:)" = "@PMS_USER@:@PMS_GROUP@"
     done
 done
 echo
