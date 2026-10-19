@@ -111,7 +111,10 @@ disappear. Confirm before anything destructive:
     Plex.** Its API key is refused (403) until that admin exists, and it lives in
     `/opt/appdata/seerr/settings.json`, not `.env`. Seerr rejects read-only fields in writes,
     so the script only ever sends the fields it owns. Its requests are ordinary Radarr/Sonarr
-    adds; nothing in Seerr touches files.
+    adds, and it has no media mounts, but **Manage → *Remove from Radarr/Sonarr* deletes
+    files**: it asks the app to delete the title with its files, and `arr-reclaim` then
+    drops the torrent and its data (trap 9). *Delete Request* and *Clear Data* change only
+    Seerr's own database.
 13. **The units in `jobs/` (`pms-update.service`, `arr-reclaim.service`,
     `arr-fallback-search.service`, `lan-address.service`, `stack-status.service`,
     `stack-status-drift.service`) hardcode this clone's path** in `ExecStart`, because the

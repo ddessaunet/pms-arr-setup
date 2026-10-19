@@ -421,9 +421,11 @@ The request UI in front of Radarr and Sonarr. It's **Seerr**, the merged success
 Jellyseerr and Overseerr (Overseerr is archived, and the old Jellyseerr image isn't updated
 any more).
 
-It only files requests and has **no media mounts**. A request becomes an ordinary
+It files requests and has **no media mounts**. A request becomes an ordinary
 Radarr/Sonarr add, so everything from Phase 4 applies to it: 1080p, hardlinked imports, no
-upgrades, unmonitor on delete, and `arr-reclaim` freeing the space of a Plex delete.
+upgrades, unmonitor on delete, and `arr-reclaim` freeing the space of a Plex delete. Its
+*Remove from Radarr/Sonarr* deletes the title's files through those apps, and
+`arr-reclaim` then frees the torrent too (see `apps/seerr/README.md`).
 
 - **Only you sign in**, and your requests are approved automatically.
 - **The existing library shows as Available.** Seerr scans Plex, so titles already there
