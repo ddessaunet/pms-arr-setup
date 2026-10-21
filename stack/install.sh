@@ -74,6 +74,13 @@ rsync_tree() { # extra rsync flags...
     rsync "${args[@]}" "$@" "$SRC/" "$DEST/"
 }
 
+# What would change in a published site/dist, one line per file; empty when it
+# matches the source. By content: a rebuild can write a same-size file within the
+# second of the last one, which rsync's size-and-mtime check would call unchanged.
+site_changes() { # published dist
+    rsync -rlpt --delete --checksum --dry-run --itemize-changes "$SRC/site/dist/" "$1/" | grep -v '^\.d' || true
+}
+
 render() { # template → stdout
     # Comments keep the placeholders: they say where the values come from.
     sed -e "/^#/!s#@PMS_HOME@#$DEST#g" -e "/^#/!s#@PMS_USER@#$PMS_USER#g" -e "/^#/!s#@PMS_GROUP@#$PMS_GROUP#g" "$1"
@@ -117,7 +124,7 @@ check() {
             echo "OUT OF DATE: $u"; rc=1
         fi
     done < <(units)
-    if [[ -d "$SRC/site/dist" ]] && [[ -n "$(rsync -rlpt --delete --dry-run --itemize-changes "$SRC/site/dist/" "$DEST/site/dist/" | grep -v '^\.d' || true)" ]]; then
+    if [[ -d "$SRC/site/dist" ]] && [[ -n "$(site_changes "$DEST/site/dist")" ]]; then
         echo "OUT OF DATE: site/dist"; rc=1
     fi
     [[ -f "$DEST/.env" ]] || { echo "MISSING: $DEST/.env"; rc=1; }
@@ -177,7 +184,7 @@ publish_site() {
         return 0
     fi
     if [[ -d "$site/dist" ]] \
-       && [[ -z "$(rsync -rlpt --delete --dry-run --itemize-changes "$SRC/site/dist/" "$site/dist/" | grep -v '^\.d' || true)" ]]; then
+       && [[ -z "$(site_changes "$site/dist")" ]]; then
         return 0
     fi
     mkdir -p "$site"
