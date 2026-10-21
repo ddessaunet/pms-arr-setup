@@ -12,7 +12,7 @@
 #   - Recyclarr: the four profiles below (three for movies: the default 4K HDR
 #     one, its opt-in "4K HDR or 1080p" variant, and the hand-picked "UHD
 #     Fallback") and their formats/scores.
-#   - arr-configure.sh: quality SIZES (Radarr 1080p 40 but WEB-DL 80, 2160p 150 MB/min; Sonarr
+#   - arr-configure.sh: quality SIZES (Radarr 1080p 40 but WEB-DL 80, 2160p 200 MB/min; Sonarr
 #     1080p no max) — hence no
 #     `quality_definition:` here, which would reset them to TRaSH's sizes.
 #   - seerr-configure.sh: which profile a request uses by default.
@@ -78,7 +78,7 @@ radarr:
       # movie that has 4K releases but none UHD Bluray + WEB accepts (Radarr →
       # movie → Edit → Quality Profile, then Search; or Seerr's request
       # options). It is never the default; for a film with no 4K at all,
-      # "4K HDR or 1080p" is the one. Same 2160p group, no Remux, the same 150 MB/min cap; but HDR
+      # "4K HDR or 1080p" is the one. Same 2160p group, no Remux, the same 200 MB/min cap; but HDR
       # is preferred, not required, and there are no release-group tiers, so
       # among equal scores indexer priority and then seeders decide. LQ groups
       # (YTS, YIFY) pass: the -10000 blockers below are only the files that are

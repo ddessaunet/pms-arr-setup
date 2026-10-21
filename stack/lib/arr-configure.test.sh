@@ -102,11 +102,13 @@ D4='[{"id":24,"title":"WEBDL-2160p","minSize":0,"preferredSize":null,"maxSize":n
      {"id":27,"title":"Bluray-2160p","minSize":0,"preferredSize":null,"maxSize":null},
      {"id":28,"title":"Remux-2160p","minSize":0,"preferredSize":null,"maxSize":null}]'
 F4="$(sizes_to_fix "$D4" "$(size_caps radarr)")"
-ok_eq "radarr 2160p capped at 150, preferred 100" "150/100 150/100" "$(jq -r '[.[] | "\(.maxSize)/\(.preferredSize)"] | join(" ")' <<<"$F4")"
-ok_eq "2160p 150 MB/min is ~18 GB for a 2-hour film" "18000" "$(( $(size_caps radarr | awk -F'\t' '$1=="WEBDL-2160p"{print $2}') * 120 ))"
+ok_eq "radarr 2160p capped at 200, preferred 100" "200/100 200/100" "$(jq -r '[.[] | "\(.maxSize)/\(.preferredSize)"] | join(" ")' <<<"$F4")"
+ok_eq "2160p 200 MB/min is ~24 GB for a 2-hour film" "24000" "$(( $(size_caps radarr | awk -F'\t' '$1=="WEBDL-2160p"{print $2}') * 120 ))"
+# Coyote vs. Acme (2026): 103 minutes, its best release a 18406 MB iT WEB-DL (BYNDR).
+ok_eq "a 19.3 GB 4K WEB-DL fits a 103-minute film" "yes" "$( (( 18406 <= $(size_caps radarr | awk -F'\t' '$1=="WEBDL-2160p"{print $2}') * 103 )) && echo yes || echo no)"
 ok_eq "Remux-2160p is never capped into eligibility" "0" "$(jq '[.[] | select(.title=="Remux-2160p")] | length' <<<"$F4")"
 ok_eq "sonarr has no 2160p caps (series stay 1080p)" "0" "$(size_caps sonarr | grep -c 2160p)"
-ok_eq "summary line" "1080p 40/25, WEBDL-1080p 80/25, 2160p 150/100 MB/min" "$(sizes_summary radarr)"
+ok_eq "summary line" "1080p 40/25, WEBDL-1080p 80/25, 2160p 200/100 MB/min" "$(sizes_summary radarr)"
 DS='[{"id":15,"title":"WEBDL-1080p","minSize":4,"preferredSize":25,"maxSize":40},
      {"id":16,"title":"Bluray-1080p","minSize":4,"preferredSize":95,"maxSize":null},
      {"id":12,"title":"WEBDL-720p","minSize":3,"preferredSize":95,"maxSize":130}]'

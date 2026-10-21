@@ -50,7 +50,7 @@ Run `stack/preflight.sh` before each of Phases 0–1b. It is read-only.
    its data**, so until then the arrs only *added* files. It's retired now, and moves are
    safe. pms-local is not modified by this migration; what the stack needs from it is ported here (`arr-reclaim`).
 6. **Upgrades only in the 4K movie profiles (`UHD Bluray + WEB` and its `4K HDR or 1080p` variant), and movie sizes are capped**
-   (Radarr 1080p 40 but WEB-DL 80, 2160p 150 MB/min; Sonarr 1080p no max; `arr-configure.sh`). Everything else is single-grab.
+   (Radarr 1080p 40 but WEB-DL 80, 2160p 200 MB/min; Sonarr 1080p no max; `arr-configure.sh`). Everything else is single-grab.
 7. **Media is deleted in Plex, and that frees the space.** For Radarr/Sonarr imports,
    this repo's `arr-reclaim` removes the torrent, and it does the same when one is deleted
    in Radarr/Sonarr with its files. For the rest of the library, including
@@ -493,8 +493,23 @@ because many have no 4K release. Decided 2026-09-29, with these parameters:
 | default profile | TRaSH **UHD Bluray + WEB** | TRaSH **WEB-1080p** |
 | qualities | Bluray-2160p, WEB-DL/WEBRip-2160p **as one group**, so score decides (see Download health); **no Remux, no 1080p** | WEB-DL/WEBRip-1080p |
 | HDR | **HDR +500, HDR10+ +100.** SDR, DV without an HDR10 fallback (purple/green on non-DV screens), x265 without HDR, and generated HDR are all **−10000**, so they're rejected | — |
-| size cap | **150 MB/min** (~18 GB for 2 hours: most 4K HDR WEB-DLs, not 30–60 GB Bluray encodes) | **none** (25 preferred): a half-hour show's 1080p WEB-DL runs 1–1.6 GB, over 40 MB/min |
+| size cap | **200 MB/min** (~24 GB for 2 hours: tiered 4K HDR WEB-DLs and good UHD Bluray encodes, not 30–60 GB remuxes); 150 until 2026-10-21, see below | **none** (25 preferred): a half-hour show's 1080p WEB-DL runs 1–1.6 GB, over 40 MB/min |
 | upgrades | **on**, to a better-scored 4K release | off |
+
+**The 2160p cap was raised from 150 to 200 MB/min on 2026-10-21, with the disk at 94%
+(45 GB free of 702 GB).** At 150 it refused the best release of three films, each one
+only for size: the iTunes DV/HDR WEB-DLs of *Coyote vs. Acme* (19.3 GB for 103 min,
+836 seeders) and *Seven Snipers* (16.7 GB for 88 min), and the UHD Bluray encode of
+*Wicked: For Good* (25.3 GB for 137 min). They need 170–190 MB/min, as did the *Dune: Part
+Two* WEB-DL (below) and several 4K files already in the library from before the cap.
+- **What it costs:** a 2-hour film can now take ~24 GB rather than ~18 GB. Those three
+  grabs alone come to ~61 GB, ~58 GB net once *Wicked*'s 1080p is replaced,
+  which is more than was free. So free space before searching them, or search one at a
+  time; `arr-fallback-search` picks *Wicked* up on its own at 04:00.
+- **Why not split WEB-DL from Bluray** (as at 1080p): the best *Wicked* release is a
+  Bluray encode, and the 4K encodes worth having run as large as the WEB-DLs.
+- **Rollback:** set the four 2160p caps in `size_caps` back to 150, then
+  `task arr:configure`. Files already imported stay.
 
 **Who owns what,** so no two tools fight:
 - **Recyclarr** (`apps/recyclarr/recyclarr.yml`): those two profiles, the hand-picked
@@ -560,13 +575,13 @@ no Remux. The weekly search (Phase 6b) never looks at it.
 **Verify**
 
 - `task arr:check`:
-  - Radarr: 2160p capped at 150/100, 1080p at 40/25 (WEB-DL 80/25); upgrades only on `UHD Bluray + WEB`
+  - Radarr: 2160p capped at 200/100, 1080p at 40/25 (WEB-DL 80/25); upgrades only on `UHD Bluray + WEB`
     (and `4K HDR or 1080p` after Phase 6b); the default profile exists with no Remux.
   - Sonarr: `WEB-1080p`, no upgrades; 1080p sizes with no max, 25 preferred.
 - `task seerr:check`: default profiles `UHD Bluray + WEB` and `WEB-1080p`.
 - Existing movies keep their profile.
 - **End to end:** request a film with 4K HDR releases, after a size check as before.
-  - Radarr grabs a **2160p HDR** release within 150 MB/min × runtime.
+  - Radarr grabs a **2160p HDR** release within 200 MB/min × runtime.
   - Its custom formats show **HDR**, and not SDR or DV (w/o HDR fallback).
   - Hardlinked import, then Available in Seerr.
 - **When an upgrade happens:** `journalctl -u arr-reclaim` shows the old torrent removed:
@@ -678,7 +693,8 @@ for 15 GB). The line was not the cause: the three grabs before it imported at 41
 
 Why that release was picked (a `/release` search, 2026-09-29):
 - A **WEB Tier 01** 2160p WEB-DL (DV/HDR, score 5200, **508 seeders**) was refused by the
-  150 MB/min cap: 29.3 GB for a 166-minute film. The cap stays; the disk is at 91%.
+  150 MB/min cap: 29.3 GB for a 166-minute film. The cap stayed then, with the disk at 91%;
+  it was raised to 200 on 2026-10-21 (Phase 6).
 - Radarr compares **quality before score**, and the TRaSH template ranked Bluray-2160p
   above WEB 2160p. So an untiered Bluray encode (score 3500, 11 seeders) outranked every WEB
   release, whatever its tier or seeders.
