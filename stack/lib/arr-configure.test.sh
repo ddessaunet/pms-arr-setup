@@ -89,11 +89,15 @@ D='[{"id":20,"title":"WEBDL-1080p","minSize":0,"preferredSize":95,"maxSize":100}
     {"id":3,"title":"HDTV-720p","minSize":0,"preferredSize":95,"maxSize":100}]'
 F="$(sizes_to_fix "$D" "$(size_caps radarr)")"
 ok_eq "uncapped 1080p ones are fixed" "20 22" "$(jq -r '[.[].id] | join(" ")' <<<"$F")"
-ok_eq "to 40 max, 25 preferred" "40/25 40/25" "$(jq -r '[.[] | "\(.maxSize)/\(.preferredSize)"] | join(" ")' <<<"$F")"
+ok_eq "WEB-DL to 80 max, Bluray to 40, both 25 preferred" "80/25 40/25" "$(jq -r '[.[] | "\(.maxSize)/\(.preferredSize)"] | join(" ")' <<<"$F")"
 ok_eq "min and everything else kept" "0 WEBDL-1080p" "$(jq -r '.[0] | "\(.minSize) \(.title)"' <<<"$F")"
 ok_eq "Remux and 720p are not in the list" "0" "$(jq '[.[] | select(.title|test("Remux|720p"))] | length' <<<"$F")"
-ok_eq "already capped → nothing to fix" "0" "$(sizes_to_fix "$(jq -c 'map(.maxSize = 40 | .preferredSize = 25)' <<<"$D")" "$(size_caps radarr)" | jq length)"
+ok_eq "already capped → nothing to fix" "0" "$(sizes_to_fix "$(jq -c 'map(.maxSize = (if .title == "WEBDL-1080p" then 80 else 40 end) | .preferredSize = 25)' <<<"$D")" "$(size_caps radarr)" | jq length)"
+ok_eq "a WEB-DL at 40 is fixed to 80" "WEBDL-1080p 80" "$(sizes_to_fix "$(jq -c 'map(.maxSize = 40 | .preferredSize = 25)' <<<"$D")" "$(size_caps radarr)" | jq -r '.[] | "\(.title) \(.maxSize)"')"
 ok_eq "1080p 40 MB/min is ~4.8 GB for a 2-hour film" "4800" "$(( $(size_caps radarr | awk -F'\t' '$1=="Bluray-1080p"{print $2}') * 120 ))"
+ok_eq "WEBRip and HDTV 1080p stay at 40" "40 40" "$(size_caps radarr | awk -F'\t' '$1=="WEBRip-1080p"||$1=="HDTV-1080p"{printf "%s%s", (n++ ? " " : ""), $2}')"
+# Taking Chance (2009): 77 minutes, its one good release a 5336 MB AMZN WEB-DL.
+ok_eq "a 5.2 GB WEB-DL fits a 77-minute film" "yes" "$( (( 5336 <= $(size_caps radarr | awk -F'\t' '$1=="WEBDL-1080p"{print $2}') * 77 )) && echo yes || echo no)"
 D4='[{"id":24,"title":"WEBDL-2160p","minSize":0,"preferredSize":null,"maxSize":null},
      {"id":27,"title":"Bluray-2160p","minSize":0,"preferredSize":null,"maxSize":null},
      {"id":28,"title":"Remux-2160p","minSize":0,"preferredSize":null,"maxSize":null}]'
@@ -102,7 +106,7 @@ ok_eq "radarr 2160p capped at 150, preferred 100" "150/100 150/100" "$(jq -r '[.
 ok_eq "2160p 150 MB/min is ~18 GB for a 2-hour film" "18000" "$(( $(size_caps radarr | awk -F'\t' '$1=="WEBDL-2160p"{print $2}') * 120 ))"
 ok_eq "Remux-2160p is never capped into eligibility" "0" "$(jq '[.[] | select(.title=="Remux-2160p")] | length' <<<"$F4")"
 ok_eq "sonarr has no 2160p caps (series stay 1080p)" "0" "$(size_caps sonarr | grep -c 2160p)"
-ok_eq "summary line" "1080p 40/25, 2160p 150/100 MB/min" "$(sizes_summary radarr)"
+ok_eq "summary line" "1080p 40/25, WEBDL-1080p 80/25, 2160p 150/100 MB/min" "$(sizes_summary radarr)"
 DS='[{"id":15,"title":"WEBDL-1080p","minSize":4,"preferredSize":25,"maxSize":40},
      {"id":16,"title":"Bluray-1080p","minSize":4,"preferredSize":95,"maxSize":null},
      {"id":12,"title":"WEBDL-720p","minSize":3,"preferredSize":95,"maxSize":130}]'

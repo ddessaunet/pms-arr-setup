@@ -73,7 +73,9 @@ export interface Profile {
 }
 
 // MB per minute of runtime. max null: no maximum.
-export interface SizeCap { resolution: string; max: number | null; preferred: number }
+// One cap and the qualities that share it; a resolution can have several
+// (Radarr's WEB-DL 1080p is capped higher than its encodes).
+export interface SizeCap { resolution: string; qualities: string[]; max: number | null; preferred: number }
 
 const RECYCLARR = 'apps/recyclarr/recyclarr.yml';
 const POLICY = 'site/src/data/profiles.yml';
@@ -101,17 +103,15 @@ export function parseSizeCaps(sh: string): Record<App, SizeCap[]> {
   const caps = {} as Record<App, SizeCap[]>;
   for (const app of APPS) {
     const branch = fn.match(new RegExp(`${app}\\)[\\s\\S]*?;;`));
-    const byRes = new Map<string, SizeCap>();
+    const byCap = new Map<string, SizeCap>();
     for (const [, quality, res, max, pref] of (branch?.[0] ?? '').matchAll(/\b([A-Za-z]+-(\d+p)) +(none|\d+) +(\d+)\b/g)) {
-      const cap = { resolution: res, max: max === 'none' ? null : Number(max), preferred: Number(pref) };
-      const seen = byRes.get(res);
-      if (seen && (seen.max !== cap.max || seen.preferred !== cap.preferred)) {
-        throw new Error(`${ARR}: size_caps gives ${app} ${res} two caps (${quality} differs); the map shows one per resolution`);
-      }
-      byRes.set(res, cap);
+      const key = `${res} ${max} ${pref}`;
+      const seen = byCap.get(key);
+      if (seen) seen.qualities.push(quality);
+      else byCap.set(key, { resolution: res, qualities: [quality], max: max === 'none' ? null : Number(max), preferred: Number(pref) });
     }
-    if (byRes.size === 0) throw new Error(`${ARR}: no ${app} sizes found in size_caps()`);
-    caps[app] = [...byRes.values()];
+    if (byCap.size === 0) throw new Error(`${ARR}: no ${app} sizes found in size_caps()`);
+    caps[app] = [...byCap.values()];
   }
   return caps;
 }

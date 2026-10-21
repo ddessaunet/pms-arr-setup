@@ -12,7 +12,7 @@
 #   - Recyclarr: the four profiles below (three for movies: the default 4K HDR
 #     one, its opt-in "4K HDR or 1080p" variant, and the hand-picked "UHD
 #     Fallback") and their formats/scores.
-#   - arr-configure.sh: quality SIZES (Radarr 1080p 40, 2160p 150 MB/min; Sonarr
+#   - arr-configure.sh: quality SIZES (Radarr 1080p 40 but WEB-DL 80, 2160p 150 MB/min; Sonarr
 #     1080p no max) — hence no
 #     `quality_definition:` here, which would reset them to TRaSH's sizes.
 #   - seerr-configure.sh: which profile a request uses by default.

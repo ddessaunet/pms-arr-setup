@@ -47,10 +47,13 @@ test('!env_var parses, and only its name is kept', () => {
 test('size caps come from arr-configure.sh', () => {
   const caps = parseSizeCaps(ARR);
   assert.deepEqual(caps.radarr, [
-    { resolution: '1080p', max: 40, preferred: 25 },
-    { resolution: '2160p', max: 150, preferred: 100 },
+    { resolution: '1080p', qualities: ['HDTV-1080p', 'WEBRip-1080p', 'Bluray-1080p'], max: 40, preferred: 25 },
+    { resolution: '1080p', qualities: ['WEBDL-1080p'], max: 80, preferred: 25 },
+    { resolution: '2160p', qualities: ['HDTV-2160p', 'WEBDL-2160p', 'WEBRip-2160p', 'Bluray-2160p'], max: 150, preferred: 100 },
   ]);
-  assert.deepEqual(caps.sonarr, [{ resolution: '1080p', max: null, preferred: 25 }]);
+  assert.deepEqual(caps.sonarr, [
+    { resolution: '1080p', qualities: ['HDTV-1080p', 'WEBRip-1080p', 'WEBDL-1080p', 'Bluray-1080p'], max: null, preferred: 25 },
+  ]);
 });
 
 test('a profile renamed in one file only fails, naming both sides', () => {
@@ -73,9 +76,13 @@ test('an upgrade list different from arr-configure.sh fails', () => {
   assert.throws(() => buildProfiles(RECYCLARR, POLICY, noUpgrade), /upgrade_profiles/);
 });
 
-test('two caps for one resolution fail', () => {
+test('a quality capped apart from its resolution gets its own cap', () => {
   const split = ARR.replace('WEBDL-2160p 150 100', 'WEBDL-2160p 120 100');
-  assert.throws(() => parseSizeCaps(split), /two caps/);
+  const uhd = parseSizeCaps(split).radarr.filter((c) => c.resolution === '2160p');
+  assert.deepEqual(uhd.map((c) => [c.qualities, c.max]), [
+    [['HDTV-2160p', 'WEBRip-2160p', 'Bluray-2160p'], 150],
+    [['WEBDL-2160p'], 120],
+  ]);
 });
 
 test('slugs are stable anchors', () => {

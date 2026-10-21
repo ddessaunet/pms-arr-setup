@@ -15,10 +15,17 @@ const ROLE = {
 } as const;
 const role = ROLE[p.role];
 
-// The size caps for the resolutions this profile can take. A 2-hour film is
-// the yardstick: MB/min × 120 / 1000 ≈ GB.
-const resolutions = [...new Set(p.groups.flatMap((g) => g.qualities.map((q) => q.match(/(\d+p)$/)?.[1]).filter(Boolean)))];
-const caps = sizes.filter((s) => resolutions.includes(s.resolution));
+// The size caps for the qualities this profile can take, labelled by
+// resolution, or by quality where one resolution has more than one cap. A
+// 2-hour film is the yardstick: MB/min × 120 / 1000 ≈ GB.
+const accepted = new Set(p.groups.flatMap((g) => g.qualities));
+const shown = sizes
+  .map((s) => ({ ...s, qualities: s.qualities.filter((q) => accepted.has(q)) }))
+  .filter((s) => s.qualities.length > 0);
+const caps = shown.map((s) => ({
+  ...s,
+  label: shown.filter((o) => o.resolution === s.resolution).length > 1 ? s.qualities.join(', ') : s.resolution,
+}));
 const gb = (mbPerMin: number) => Math.round((mbPerMin * 120) / 100) / 10;
 
 const upgrades = p.upgrade.allowed
@@ -57,7 +64,7 @@ const formats = p.formats.kind === 'guide'
     <dd>
       {caps.map((c) => (
         <span class="cap">
-          {c.resolution}: {c.max === null ? 'no maximum' : `≤ ${c.max} MB/min (≈ ${gb(c.max)} GB for 2 h)`}, prefers {c.preferred}
+          {c.label}: {c.max === null ? 'no maximum' : `≤ ${c.max} MB/min (≈ ${gb(c.max)} GB for 2 h)`}, prefers {c.preferred}
         </span>
       ))}
     </dd>

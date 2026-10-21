@@ -30,7 +30,7 @@ There are three owners, applied in this order:
 1. **[Recyclarr](../recyclarr/README.md)**: the quality profiles and custom formats. `UHD Bluray + WEB` (4K HDR) by default; the opt-in `4K HDR or 1080p` and the hand-picked `UHD Fallback` are picked per request.
 2. **[`configure.sh`](configure.sh)**, which shares
    [`stack/lib/arr-configure.sh`](../../stack/lib/arr-configure.sh) with Sonarr: login,
-   naming, media management, root folder, sizes (1080p at most 40 MB/min, 2160p at most 150 MB/min), the qBittorrent client and the Plex
+   naming, media management, root folder, sizes (1080p at most 40 MB/min, 80 for a WEB-DL, which is the service's stream and not an encode; 2160p at most 150 MB/min), the qBittorrent client and the Plex
    connection.
 3. **[Seerr](../seerr/README.md)**: which profile a request gets.
 
