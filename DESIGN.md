@@ -79,6 +79,27 @@ Contrast is WCAG, against `surface`.
 The first draft had text #111827 on surface #000000, which is 1.18:1 and unreadable; the
 text and surface tokens above replace it.
 
+## Layout
+
+Starlight's doc layout, drawn as the maze. Starlight shows the sidebar from 50rem and the
+contents beside the page from 72rem; below that, a menu button and a bar under the header
+stand in for them.
+
+- **Header and sidebar** are walled off: a 3px maze-blue line under the header and along
+  the sidebar's edge. The sidebar is 15rem: it holds two short links.
+- **Sidebar links are a pellet trail:** each page is a pellet, and the current page is
+  Pac-Man, its label text-strong on the accent fill (#141C5C, 14.6:1). Labels are Space
+  Mono, text on the raised surface (11.6:1); hover turns them Pinky.
+- **Contents** ("On this page") hang off a dotted line. The title is label-caps, text-muted;
+  the current entry is Pinky with a Pinky bar. On the quality-profiles page they list each
+  profile card too.
+- **Previous / next** are maze cells: the double blue wall, the label in label-caps, the page
+  name in the pixel font. Hover turns the wall Pinky.
+- **The menu button** (under 50rem) is a small maze cell, its wall Pinky while the menu is
+  open.
+- **Content width:** 45rem for prose. The dashboard and the profile map, which lay cards side
+  by side, get 72rem.
+
 ## Status levels
 
 The dashboard (`/`) shows each service and host item at one of these levels. **The level is

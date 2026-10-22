@@ -32,12 +32,14 @@ export default defineConfig({
         '@fontsource-variable/space-grotesk',
         './src/styles/pacman.css',
       ],
+      // The profile cards in the quality-profiles table of contents.
+      routeMiddleware: './src/routeData.ts',
       // One dark theme: no picker, and no stored or system preference.
       components: {
         ThemeProvider: './src/components/overrides/ThemeProvider.astro',
         ThemeSelect: './src/components/overrides/ThemeSelect.astro',
       },
-      pagefind: false, // one page: nothing to search yet
+      pagefind: false, // two pages: nothing to search yet
       lastUpdated: false,
     }),
   ],

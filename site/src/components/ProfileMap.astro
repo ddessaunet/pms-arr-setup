@@ -20,12 +20,6 @@ const APPS = [
   ))}
 </div>
 
-<style is:global>
-  /* Three cards side by side need more than Starlight's 45rem prose column;
-     only the page that shows the map gets the room. */
-  :root:has(.profile-map) { --sl-content-width: 72rem; }
-</style>
-
 <style>
   .map { display: flex; flex-direction: column; gap: 2.5rem; }
   .app {
