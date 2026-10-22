@@ -22,7 +22,10 @@ test('the repo as it is: four profiles, in recyclarr.yml order', () => {
 
 test('facts come from recyclarr.yml', () => {
   const by = Object.fromEntries(buildProfiles(RECYCLARR, POLICY, ARR).profiles.map((p) => [p.name, p]));
-  assert.deepEqual(by['4K HDR or 1080p'].groups.map((g) => g.name), ['UHD 2160p', 'HD 1080p']);
+  assert.deepEqual(
+    by['4K HDR or 1080p'].groups.map((g) => g.name),
+    ['UHD 2160p', 'HD 1080p'],
+  );
   assert.deepEqual(by['UHD Bluray + WEB'].upgrade, { allowed: true, until: 'UHD 2160p' });
   assert.equal(by['UHD Fallback'].upgrade.allowed, false);
   assert.equal(by['UHD Fallback'].trashId, null);
@@ -55,7 +58,10 @@ test('size caps come from arr-configure.sh', () => {
 
 test('a profile renamed in one file only fails, naming both sides', () => {
   const renamed = POLICY.replace('  UHD Fallback:\n', '  UHD Fallback 2:\n');
-  assert.throws(() => buildProfiles(RECYCLARR, renamed, ARR), /only in recyclarr\.yml.*"UHD Fallback"[\s\S]*only in profiles\.yml.*"UHD Fallback 2"/);
+  assert.throws(
+    () => buildProfiles(RECYCLARR, renamed, ARR),
+    /only in recyclarr\.yml.*"UHD Fallback"[\s\S]*only in profiles\.yml.*"UHD Fallback 2"/,
+  );
 });
 
 test('a guide profile with no name and no guide entry fails', () => {

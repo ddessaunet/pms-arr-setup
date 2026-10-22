@@ -37,7 +37,10 @@ test('published(): host side of the first TCP mapping', () => {
 });
 
 test('an app without an entry throws', () => {
-  assert.throws(() => buildServices({ ...COMPOSE, newapp: one('      - "1:1"\n').replace('  x:', '  newapp:') }, SERVICES), /no entry for apps\/newapp/);
+  assert.throws(
+    () => buildServices({ ...COMPOSE, newapp: one('      - "1:1"\n').replace('  x:', '  newapp:') }, SERVICES),
+    /no entry for apps\/newapp/,
+  );
 });
 
 test('an entry without an app throws', () => {

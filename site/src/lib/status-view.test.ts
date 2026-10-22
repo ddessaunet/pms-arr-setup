@@ -6,18 +6,25 @@ import { ageSeconds, clock, formatAgo, isStale, levelText, parseLogs, parseStatu
 
 test('links follow the address the page was opened on', () => {
   assert.equal(serviceUrl({ protocol: 'http:', hostname: '192.168.0.86' }, 7878, '/'), 'http://192.168.0.86:7878/');
-  assert.equal(serviceUrl({ protocol: 'http:', hostname: '192.168.0.67' }, 32400, '/web'), 'http://192.168.0.67:32400/web');
+  assert.equal(
+    serviceUrl({ protocol: 'http:', hostname: '192.168.0.67' }, 32400, '/web'),
+    'http://192.168.0.67:32400/web',
+  );
   assert.equal(serviceUrl({ protocol: 'http:', hostname: '[fd00::1]' }, 8081, '/'), 'http://[fd00::1]:8081/');
   assert.equal(serviceUrl({ protocol: 'https:', hostname: 'pms' }, 5055, '/'), 'https://pms:5055/');
 });
 
 test('age comes from the server clock, not the viewer’s', () => {
-  const generated = 1791500000;                       // 22:53:20 UTC
+  const generated = 1791500000; // 22:53:20 UTC
   const serverDate = new Date((generated + 40) * 1000).toUTCString();
   const phoneWrongBy10Min = (generated + 40 + 600) * 1000;
   assert.equal(ageSeconds(generated, serverDate, phoneWrongBy10Min, phoneWrongBy10Min), 40);
   assert.equal(ageSeconds(generated, serverDate, phoneWrongBy10Min, phoneWrongBy10Min + 15000), 55);
-  assert.equal(ageSeconds(generated, null, (generated + 7) * 1000, (generated + 7) * 1000), 7, 'no Date header: the browser clock');
+  assert.equal(
+    ageSeconds(generated, null, (generated + 7) * 1000, (generated + 7) * 1000),
+    7,
+    'no Date header: the browser clock',
+  );
   assert.equal(ageSeconds(generated, 'garbage', (generated - 5) * 1000, (generated - 5) * 1000), 0, 'never negative');
 });
 
