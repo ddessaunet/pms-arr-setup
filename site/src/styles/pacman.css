@@ -155,10 +155,10 @@ html { scroll-behavior: smooth; }
   html { scroll-behavior: auto; }
 }
 
-/* ── frame: sidebar, contents, pagination ─────────────────────────────────────
+/* ── frame: sidebar and contents ──────────────────────────────────────────────
  * Starlight's doc layout, drawn as the maze: the sidebar is walled off like the
- * header, its links are a pellet trail with Pac-Man on the current page, the
- * contents hang off a dotted line, and previous/next are maze cells.
+ * header, its links are a pellet trail with Pac-Man on the current page, and
+ * the contents hang off a dotted line.
  * Starlight shows the sidebar from 50rem and the contents beside the page from
  * 72rem; below, a menu button and a bar under the header stand in for them. */
 @media (min-width: 50rem) {
@@ -241,30 +241,6 @@ mobile-starlight-toc .toggle {
 }
 mobile-starlight-toc .display-current { font-family: var(--sl-font); text-transform: none; letter-spacing: 0; }
 mobile-starlight-toc a[aria-current='true']::after { background-color: var(--pac-pink); }
-
-/* Previous / next: maze cells, the label in caps, the page in the pixel font. */
-.pagination-links a {
-  border: 5px double var(--pac-blue);
-  border-radius: var(--pac-radius-md);
-  background: var(--sl-color-gray-7);
-  box-shadow: none;
-  font-family: var(--sl-font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--sl-color-gray-3);
-}
-.pagination-links a:hover { border-color: var(--pac-pink); }
-.pagination-links .link-title {
-  display: inline-block;
-  margin-top: 0.5rem;
-  font-family: var(--pac-font-pixel);
-  font-size: 0.8rem;
-  line-height: 1.6;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--sl-color-white);
-}
 
 /* ── the dashboard (/, src/components/{StatusBar,ServiceGrid,HostStatus,LogsPanel}) ──
  * Global, not scoped: status-client.ts creates most of these elements, and

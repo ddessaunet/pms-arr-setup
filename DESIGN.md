@@ -90,11 +90,10 @@ stand in for them.
 - **Sidebar links are a pellet trail:** each page is a pellet, and the current page is
   Pac-Man, its label text-strong on the accent fill (#141C5C, 14.6:1). Labels are Space
   Mono, text on the raised surface (11.6:1); hover turns them Pinky.
-- **Contents** ("On this page") hang off a dotted line. The title is label-caps, text-muted;
-  the current entry is Pinky with a Pinky bar. On the quality-profiles page they list each
-  profile card too.
-- **Previous / next** are maze cells: the double blue wall, the label in label-caps, the page
-  name in the pixel font. Hover turns the wall Pinky.
+- **Contents** ("On this page") hang off a dotted line, on every page. The title is
+  label-caps, text-muted; the current entry is Pinky with a Pinky bar. On the
+  quality-profiles page they list each profile card too.
+- **No previous / next:** the sidebar already links every page.
 - **The menu button** (under 50rem) is a small maze cell, its wall Pinky while the menu is
   open.
 - **Content width:** 45rem for prose. The dashboard and the profile map, which lay cards side

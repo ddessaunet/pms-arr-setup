@@ -3,7 +3,8 @@
 This repo's documentation website, on the LAN. It has two pages, the
 [stack dashboard](../../site/src/content/docs/index.mdx) and the
 [quality-profiles map](../../site/src/content/docs/quality-profiles.mdx), in Starlight's doc
-layout: a sidebar between them, and the map's contents beside it, down to each profile.
+layout: a sidebar between them, and each page's contents beside it (on the map, down to
+each profile).
 
 ## Role
 

@@ -40,6 +40,7 @@ export default defineConfig({
         ThemeSelect: './src/components/overrides/ThemeSelect.astro',
       },
       pagefind: false, // two pages: nothing to search yet
+      pagination: false, // the sidebar already links every page
       lastUpdated: false,
     }),
   ],
