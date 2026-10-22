@@ -1,7 +1,7 @@
-// Unit tests for services-core.ts: `task site:test` (node --test, no build).
+// Unit tests for services-core.ts: `task site:test` (vp test, no build).
 // The real files first, then each way they can disagree, which must throw.
 
-import { test } from 'node:test';
+import { test } from 'vite-plus/test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { buildServices, published } from './services-core.ts';
@@ -37,7 +37,10 @@ test('published(): host side of the first TCP mapping', () => {
 });
 
 test('an app without an entry throws', () => {
-  assert.throws(() => buildServices({ ...COMPOSE, newapp: one('      - "1:1"\n').replace('  x:', '  newapp:') }, SERVICES), /no entry for apps\/newapp/);
+  assert.throws(
+    () => buildServices({ ...COMPOSE, newapp: one('      - "1:1"\n').replace('  x:', '  newapp:') }, SERVICES),
+    /no entry for apps\/newapp/,
+  );
 });
 
 test('an entry without an app throws', () => {
