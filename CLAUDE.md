@@ -208,7 +208,9 @@ disappear. Confirm before anything destructive:
   `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"`.
 - CI (`.github/workflows/test.yml`) runs `task lint test` and `task site:lint site:test site:check`
   on every PR and every push to `main`. It calls the same tasks, so a check added to
-  them runs there too; it pins shellcheck to the box's version (0.11.0).
+  them runs there too; it pins shellcheck to the box's version (0.11.0). A change to
+  `*.md` files only skips both jobs (skipped, not absent, so the required checks pass),
+  and with them `layout.test.sh`'s README checks: run `task test` when editing those.
 - A new app follows the app contract in the README: `apps/<app>/` with `compose.yaml`,
   `Taskfile.yml`, `README.md` (and `configure.sh` plus its test when this repo owns its
   settings), one include line each in `compose.yaml` and `Taskfile.yml`. Tests live beside
