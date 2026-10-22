@@ -82,6 +82,9 @@
 
   /* Pac-Man: a circle with the 60° wedge facing right cut out. */
   --pac-man: conic-gradient(from 60deg, transparent 0 60deg, var(--sl-color-orange-high) 60deg 360deg);
+  /* Pinky, the arcade ghost sprite (14×14, looking right). An image can't read
+     custom properties, so the colours are the hex of pink, white and the blue. */
+  --pac-ghost: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' shape-rendering='crispEdges'><path fill='%23f4b9b0' d='M5 0h4v1h-4zM3 1h8v1h-8zM2 2h10v1h-10zM1 3h12v4h-12zM0 6h14v6h-14zM0 12h2v1h-2zM3 12h3v1h-3zM8 12h3v1h-3zM12 12h2v1h-2zM0 13h1v1h-1zM4 13h2v1h-2zM8 13h2v1h-2zM13 13h1v1h-1z'/><path fill='%23f7f7fb' d='M4 3h2v1h-2zM10 3h2v1h-2zM3 4h4v3h-4zM9 4h4v3h-4zM4 7h2v1h-2zM10 7h2v1h-2z'/><path fill='%232a3fe5' d='M5 5h2v2h-2zM11 5h2v2h-2z'/></svg>");
 }
 
 /* Cards side by side need more than Starlight's 45rem prose column; only the
@@ -157,7 +160,7 @@ html { scroll-behavior: smooth; }
 
 /* ── frame: sidebar and contents ──────────────────────────────────────────────
  * Starlight's doc layout, drawn as the maze: the sidebar is walled off like the
- * header, its links are a pellet trail with Pac-Man on the current page, and
+ * header, its links are a pellet trail with Pinky on the current page, and
  * the contents hang off a dotted line.
  * Starlight shows the sidebar from 50rem and the contents beside the page from
  * 72rem; below, a menu button and a bar under the header stand in for them. */
@@ -175,13 +178,13 @@ html { scroll-behavior: smooth; }
   font-weight: 400;
   color: var(--sl-color-gray-2);
 }
-/* A pellet, as wide with its margins as Pac-Man, so the labels line up. */
+/* A pellet, as wide with its margins as the ghost, so the labels line up. */
 .sidebar-content .top-level a::before {
   content: '';
   flex: none;
   width: 0.5rem;
   height: 0.5rem;
-  margin-inline: 0.3rem;
+  margin-inline: 0.25rem;
   border-radius: 50%;
   background: var(--sl-color-gray-4);
 }
@@ -191,11 +194,13 @@ html { scroll-behavior: smooth; }
   color: var(--sl-color-white);
   background: var(--sl-color-accent-low);
 }
+/* 14px: one CSS pixel per sprite pixel, so its edges stay crisp. */
 .sidebar-content .top-level a[aria-current='page']::before {
-  width: 1.1rem;
-  height: 1.1rem;
-  margin-inline: 0;
-  background: var(--pac-man);
+  width: 14px;
+  height: 14px;
+  margin-inline: 1px;
+  border-radius: 0;
+  background: var(--pac-ghost) center / 100% 100% no-repeat;
 }
 
 /* The menu button under 50rem: a small maze cell, not Starlight's white disc. */

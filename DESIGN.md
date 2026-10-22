@@ -88,7 +88,7 @@ stand in for them.
 - **Header and sidebar** are walled off: a 3px maze-blue line under the header and along
   the sidebar's edge. The sidebar is 15rem: it holds two short links.
 - **Sidebar links are a pellet trail:** each page is a pellet, and the current page is
-  Pac-Man, its label text-strong on the accent fill (#141C5C, 14.6:1). Labels are Space
+  Pinky, the pixel ghost (the arcade sprite, one CSS pixel per sprite pixel), its label text-strong on the accent fill (#141C5C, 14.6:1). Labels are Space
   Mono, text on the raised surface (11.6:1); hover turns them Pinky.
 - **Contents** ("On this page") hang off a dotted line, on every page. The title is
   label-caps, text-muted; the current entry is Pinky with a Pinky bar. On the
