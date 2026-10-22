@@ -103,8 +103,17 @@ want_plex_top() {
 # Remux-1080p at ANY size (the 10 GB Night of the Living Dead grab) and offered
 # a 31.5 GB Iron Man 2 pack.
 #   radarr 1080p  40 / 25   ~4.8 GB max, ~3 GB preferred for a 2-hour film
-#   radarr 2160p 150 / 100  ~18 GB max, ~12 GB preferred for a 2-hour film: most
-#                           4K HDR WEB-DLs, not the 30-60 GB 4K Bluray encodes
+#   radarr WEBDL-1080p 80 / 25  ~9.6 GB max: a WEB-DL is the service's own
+#                           stream, not an encode that picks its size, and
+#                           Amazon/iTunes 1080p runs 8-10 Mbit/s (60-75 MB/min).
+#                           At 40 the only good release of Taking Chance (2009),
+#                           a 5.2 GB AMZN WEB-DL for 77 minutes, was rejected.
+#   radarr 2160p 200 / 100  ~24 GB max, ~12 GB preferred for a 2-hour film: the
+#                           tiered iTunes DV/HDR WEB-DLs and the good UHD Bluray
+#                           encodes run 170-190 MB/min, and at 150 they were the
+#                           ones refused (Coyote vs. Acme, Seven Snipers, Wicked:
+#                           For Good, 2026-10-21); not 30-60 GB Bluray remuxes.
+#                           Raised with the disk at 94%: docs/phases.md, Phase 6.
 #   sonarr 1080p none / 25  episodes are short against their real size: a
 #                           half-hour show's 1080p WEB-DL runs 1-1.6 GB on a
 #                           22-minute runtime, and 40 MB/min (880 MB) rejected
@@ -116,8 +125,8 @@ want_plex_top() {
 size_caps() {
     case "$1" in
         radarr) printf '%s\t%s\t%s\n' \
-                    HDTV-1080p 40 25   WEBDL-1080p 40 25   WEBRip-1080p 40 25   Bluray-1080p 40 25 \
-                    HDTV-2160p 150 100 WEBDL-2160p 150 100 WEBRip-2160p 150 100 Bluray-2160p 150 100 ;;
+                    HDTV-1080p 40 25   WEBDL-1080p 80 25   WEBRip-1080p 40 25   Bluray-1080p 40 25 \
+                    HDTV-2160p 200 100 WEBDL-2160p 200 100 WEBRip-2160p 200 100 Bluray-2160p 200 100 ;;
         sonarr) printf '%s\t%s\t%s\n' \
                     HDTV-1080p none 25 WEBRip-1080p none 25 WEBDL-1080p none 25 Bluray-1080p none 25 ;;
     esac
@@ -245,11 +254,12 @@ verify_sizes() { # app
     return 1
 }
 
-# "1080p 40/25, 2160p 150/100 MB/min" (or "1080p no max/25 MB/min") for the log.
+# "1080p 40/25, WEBDL-1080p 80/25, 2160p 200/100 MB/min" (or "1080p no max/25
+# MB/min") for the log: one cap per resolution, then each quality that differs.
 sizes_summary() {
-    size_caps "$1" | awk -F'\t' '{r=$1; sub(/.*-/, "", r); m=($2=="none" ? "no max" : $2)
-                                  if (!(r in s)) {s[r]=m"/"$3; o[++n]=r}}
-        END {for (i=1; i<=n; i++) printf "%s%s %s", (i>1 ? ", " : ""), o[i], s[o[i]]; printf " MB/min"}'
+    size_caps "$1" | awk -F'\t' '{r=$1; sub(/.*-/, "", r); v=($2=="none" ? "no max" : $2)"/"$3
+                                  if (!(r in s)) {s[r]=v; o[++n]=r" "v} else if (s[r]!=v) o[++n]=$1" "v}
+        END {for (i=1; i<=n; i++) printf "%s%s", (i>1 ? ", " : ""), o[i]; printf " MB/min"}'
 }
 
 apply_sizes() { # app

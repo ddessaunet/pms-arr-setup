@@ -99,7 +99,7 @@ disappear. Confirm before anything destructive:
       but not required, audio scored as in the default, no tiers, no LQ penalty (YTS
       passes), no Remux, no upgrades.
     - **`stack/lib/arr-configure.sh`** (behind `apps/radarr|sonarr/configure.sh`): sizes
-      (Radarr 1080p 40, 2160p 150 MB/min; Sonarr 1080p no max; Recyclarr's
+      (Radarr 1080p 40 but WEB-DL 80, 2160p 200 MB/min; Sonarr 1080p no max; Recyclarr's
       `quality_definition` must stay out), and upgrades and no Remux **only** on the two
       4K movie profiles.
     - **`apps/seerr/configure.sh`:** requests default to those profiles; the variant is
