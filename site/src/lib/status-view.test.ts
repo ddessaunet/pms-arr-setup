@@ -1,6 +1,6 @@
-// Unit tests for status-view.ts: `task site:test` (node --test, no build).
+// Unit tests for status-view.ts: `task site:test` (vp test, no build).
 
-import { test } from 'node:test';
+import { test } from 'vite-plus/test';
 import assert from 'node:assert/strict';
 import { ageSeconds, clock, formatAgo, isStale, levelText, parseLogs, parseStatus, serviceUrl } from './status-view.ts';
 

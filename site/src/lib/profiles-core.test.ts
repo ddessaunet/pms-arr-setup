@@ -1,7 +1,7 @@
-// Unit tests for profiles-core.ts: `task site:test` (node --test, no build).
+// Unit tests for profiles-core.ts: `task site:test` (vp test, no build).
 // The real files first, then each way they can disagree, which must throw.
 
-import { test } from 'node:test';
+import { test } from 'vite-plus/test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildProfiles, parseSizeCaps, profileSlug } from './profiles-core.ts';

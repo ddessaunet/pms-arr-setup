@@ -1,6 +1,6 @@
 # Runs the offline checks on every PR, through the same task entry points a
-# person uses: `task lint test` for the stack, `task site:test site:check` for
-# the docs site. Nothing here starts containers or installs units (trap 16):
+# person uses: `task lint test` for the stack, `task site:lint site:test
+# site:check` for the docs site. Nothing here starts containers or installs units (trap 16):
 # lint only renders compose.yaml, and the suites stub docker, curl and systemctl.
 
 name: test
@@ -44,7 +44,7 @@ jobs:
       - run: task lint test
 
   site:
-    name: task site:test site:check
+    name: task site:lint site:test site:check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -64,4 +64,4 @@ jobs:
         with:
           version: 3.x
 
-      - run: task site:test site:check
+      - run: task site:lint site:test site:check

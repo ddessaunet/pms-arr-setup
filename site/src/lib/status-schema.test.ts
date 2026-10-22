@@ -2,7 +2,7 @@
 // status.json (jobs/stack-status/testdata, written by its test) parses with the
 // schema, and with the page's parseStatus.
 
-import { test } from 'node:test';
+import { test } from 'vite-plus/test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { StatusSchema } from './status-schema.ts';
