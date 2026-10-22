@@ -200,8 +200,10 @@ both.
 | `task stack-status:dry` / `:run` / `:audit` | The dashboard's data: print it / write it now / count what it masks, and confirm no secret is left. |
 | `task site:build` | Build the docs website into the source's `site/dist`; `task deploy` publishes it on `:8088`. |
 | `task site:check` / `site:test` / `site:dev` | Prove it builds / its unit tests / a live preview on `:4321`. These need node (nvm) and pnpm (Homebrew). |
+| `task site:lint` / `site:fmt` | Lint and format-check the site (changes nothing) / rewrite its files in its format. Both are Vite+ (`site/vite.config.ts`). |
 
 `qbt:` is an alias for `qbittorrent:`.
 
-CI (`.github/workflows/test.yml`) runs `task lint test` and `task site:test site:check` on
-every PR and every push to `main`.
+CI (`.github/workflows/test.yml`) runs `task lint test` and
+`task site:lint site:test site:check` on every PR and every push to `main`, except one that
+changes only `*.md` files: then both are skipped, which still lets the PR merge.

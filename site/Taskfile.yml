@@ -5,6 +5,8 @@ version: '3'
 # builds it and copies it into the install, whose site/dist apps/docs (nginx)
 # serves. Built on the host: node from nvm (.nvmrc), pnpm from Homebrew
 # (package.json pins the version, so nvm's own pnpm switches to it).
+# Lint, format and tests are Vite+ (`vp`, configured in vite.config.ts); the
+# build is Astro's own.
 
 env:
   ASTRO_TELEMETRY_DISABLED: '1'
@@ -28,11 +30,23 @@ tasks:
     cmds:
       - pnpm exec astro dev --host {{.CLI_ARGS}}
 
+  lint:
+    desc: Lint the site and check its formatting (changes nothing; task site:fmt fixes the formatting)
+    deps: [install]
+    cmds:
+      - pnpm exec vp check
+
+  fmt:
+    desc: Rewrite the site's files in its format
+    deps: [install]
+    cmds:
+      - pnpm exec vp fmt
+
   test:
     desc: The site's unit tests — reading the profiles and checking them against recyclarr.yml
     deps: [install]
     cmds:
-      - node --test src/lib/*.test.ts
+      - pnpm exec vp test
 
   check:
     desc: Prove the site builds, into a scratch folder (publishes nothing)

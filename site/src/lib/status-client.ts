@@ -4,8 +4,18 @@
 // set with textContent, never innerHTML.
 
 import {
-  ageSeconds, clock, formatAgo, isStale, levelText, parseLogs, parseStatus, serviceUrl,
-  type Item, type Level, type LogSource, type StatusDoc,
+  ageSeconds,
+  clock,
+  formatAgo,
+  isStale,
+  levelText,
+  parseLogs,
+  parseStatus,
+  serviceUrl,
+  type Item,
+  type Level,
+  type LogSource,
+  type StatusDoc,
 } from './status-view.ts';
 
 const STATUS_URL = '/live/status.json';
@@ -55,7 +65,10 @@ function reasonsList(ul: HTMLElement, item: Item) {
   const shown = item.reasons.filter((r) => r.level !== 'notice' || item.level === 'ok');
   for (const r of shown.slice(0, 4)) {
     const li = el('li', `reason reason-${r.level}`);
-    li.append(el('span', 'reason-level', r.level === 'notice' ? 'Note' : r.level === 'down' ? 'Down' : 'Degraded'), ` ${r.text}`);
+    li.append(
+      el('span', 'reason-level', r.level === 'notice' ? 'Note' : r.level === 'down' ? 'Down' : 'Degraded'),
+      ` ${r.text}`,
+    );
     ul.append(li);
   }
   ul.hidden = ul.childElementCount === 0;
@@ -96,7 +109,11 @@ function render() {
       ...bad.slice(0, 6).map((i) => {
         const li = el('li');
         const name = i.label ?? q(`[data-app="${i.id}"] h3`)?.textContent?.trim() ?? i.id;
-        li.append(badge(i.level, stale), el('span', 'dash-attention-name', name), el('span', 'dash-attention-why', i.summary));
+        li.append(
+          badge(i.level, stale),
+          el('span', 'dash-attention-name', name),
+          el('span', 'dash-attention-why', i.summary),
+        );
         return li;
       }),
       ...(bad.length > 6 ? [el('li', 'dash-empty', `and ${bad.length - 6} more below`)] : []),
@@ -131,7 +148,11 @@ function render() {
     host.replaceChildren(
       ...doc.host.map((h) => {
         const li = el('li', 'dash-host-item');
-        li.append(el('span', 'dash-host-label', h.label ?? h.id), badge(h.level, stale), el('span', 'dash-host-summary', h.summary));
+        li.append(
+          el('span', 'dash-host-label', h.label ?? h.id),
+          badge(h.level, stale),
+          el('span', 'dash-host-summary', h.summary),
+        );
         return li;
       }),
     );
@@ -171,12 +192,18 @@ function sourceBlock(s: LogSource): HTMLDetailsElement {
   sum.append(
     el('span', 'dash-src-label', s.label),
     el('span', 'dash-src-kind', s.kind === 'journal' ? 'job' : 'container'),
-    el('span', s.problemCount ? 'dash-src-count dash-src-warn' : 'dash-src-count',
-      s.problemCount ? `${s.problemCount} warning/error line${s.problemCount === 1 ? '' : 's'}` : 'no warnings'),
+    el(
+      'span',
+      s.problemCount ? 'dash-src-count dash-src-warn' : 'dash-src-count',
+      s.problemCount ? `${s.problemCount} warning/error line${s.problemCount === 1 ? '' : 's'}` : 'no warnings',
+    ),
   );
   d.append(sum);
   if (s.error) d.append(el('p', 'dash-src-error', `Could not read it: ${s.error}`));
-  for (const [title, lines] of [[`Warnings and errors (last ${s.problems.length})`, s.problems], [`Last ${s.tail.length} lines`, s.tail]] as const) {
+  for (const [title, lines] of [
+    [`Warnings and errors (last ${s.problems.length})`, s.problems],
+    [`Last ${s.tail.length} lines`, s.tail],
+  ] as const) {
     const inner = el('details', 'dash-src-view');
     inner.append(el('summary', '', title));
     const pre = el('pre', '', logLines(lines));
@@ -211,7 +238,8 @@ async function loadLogs() {
         return b;
       }),
     );
-    if (meta) meta.textContent = `(${logs.sources.length} sources, ${formatAgo(Math.max(0, Math.round(Date.now() / 1000 - logs.generatedAtEpoch)))} old)`;
+    if (meta)
+      meta.textContent = `(${logs.sources.length} sources, ${formatAgo(Math.max(0, Math.round(Date.now() / 1000 - logs.generatedAtEpoch)))} old)`;
   } catch {
     box.replaceChildren(el('p', 'dash-empty', 'Logs unavailable: no data from the status job (/live/logs.json).'));
   }

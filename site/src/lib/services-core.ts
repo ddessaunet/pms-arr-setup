@@ -78,7 +78,9 @@ export function buildServices(composeById: Record<string, string>, servicesText:
       throw new Error(`apps/${id}/compose.yaml binds its port to 127.0.0.1: the LAN cannot reach it`);
     }
     if (pub.port !== null && e.port !== undefined) {
-      throw new Error(`${id}: the port is in both compose.yaml (${pub.port}) and services.yml (${e.port}); keep compose's`);
+      throw new Error(
+        `${id}: the port is in both compose.yaml (${pub.port}) and services.yml (${e.port}); keep compose's`,
+      );
     }
     if (pub.hostNetwork && e.port === undefined) {
       throw new Error(`${id} runs on the host network: give its port in services.yml`);

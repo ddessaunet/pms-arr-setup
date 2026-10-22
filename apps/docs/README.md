@@ -1,7 +1,10 @@
 # docs
 
-This repo's documentation website, on the LAN. For now it has one page: the
-[quality-profiles map](../../site/src/content/docs/quality-profiles.mdx).
+This repo's documentation website, on the LAN. It has two pages, the
+[stack dashboard](../../site/src/content/docs/index.mdx) and the
+[quality-profiles map](../../site/src/content/docs/quality-profiles.mdx), in Starlight's doc
+layout: a sidebar between them, and each page's contents beside it (on the map, down to
+each profile).
 
 ## Role
 
@@ -36,7 +39,10 @@ access log (the page polls every 30 s).
 The site's look is [`DESIGN.md`](../../DESIGN.md) (Pacman: pixel headings, a plain sans for
 prose, maze-blue walls and pellet-dotted lines on one dark theme), implemented in
 [`site/src/styles/pacman.css`](../../site/src/styles/pacman.css). Starlight's theme picker is
-replaced (`site/src/components/overrides/`), and the fonts are self-hosted. The design skills
+replaced (`site/src/components/overrides/`), and the fonts are self-hosted. The map's
+contents list the profile cards through Starlight's route middleware
+([`site/src/routeData.ts`](../../site/src/routeData.ts)): the cards are a component, so
+their headings don't reach the contents by themselves. The design skills
 used on it are committed in `.agents/skills/` (listed in `skills-lock.json`).
 
 ## Tasks

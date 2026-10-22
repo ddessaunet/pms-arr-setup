@@ -14,8 +14,18 @@ export const LEVELS: Record<Level, { word: string; mark: string }> = {
   'n/a': { word: 'N/A', mark: '–' },
 };
 
-export interface Reason { level: 'down' | 'degraded' | 'notice'; text: string }
-export interface Item { id: string; level: Level; summary: string; reasons: Reason[]; label?: string; kind?: string }
+export interface Reason {
+  level: 'down' | 'degraded' | 'notice';
+  text: string;
+}
+export interface Item {
+  id: string;
+  level: Level;
+  summary: string;
+  reasons: Reason[];
+  label?: string;
+  kind?: string;
+}
 export interface StatusDoc {
   schema: 1;
   generatedAt: string;
@@ -27,12 +37,24 @@ export interface StatusDoc {
   apps: Item[];
   host: Item[];
 }
-export interface LogLine { t: string | null; msg: string }
-export interface LogSource {
-  id: string; kind: 'journal' | 'docker'; label: string;
-  tail: LogLine[]; problems: LogLine[]; problemCount: number; error: string | null;
+export interface LogLine {
+  t: string | null;
+  msg: string;
 }
-export interface LogsDoc { schema: 1; generatedAtEpoch: number; sources: LogSource[] }
+export interface LogSource {
+  id: string;
+  kind: 'journal' | 'docker';
+  label: string;
+  tail: LogLine[];
+  problems: LogLine[];
+  problemCount: number;
+  error: string | null;
+}
+export interface LogsDoc {
+  schema: 1;
+  generatedAtEpoch: number;
+  sources: LogSource[];
+}
 
 const isLevel = (x: unknown): x is Level => typeof x === 'string' && x in LEVELS;
 
@@ -69,7 +91,12 @@ export function serviceUrl(loc: { protocol: string; hostname: string }, port: nu
  * Date header at fetch time, plus the time since the fetch. A phone whose clock
  * is wrong still sees the right age. Without the header, the browser's clock.
  */
-export function ageSeconds(generatedEpoch: number, serverDate: string | null, fetchedAtMs: number, nowMs: number): number {
+export function ageSeconds(
+  generatedEpoch: number,
+  serverDate: string | null,
+  fetchedAtMs: number,
+  nowMs: number,
+): number {
   const server = serverDate ? Date.parse(serverDate) : NaN;
   const atFetch = Number.isNaN(server) ? fetchedAtMs : server;
   return Math.max(0, Math.round((atFetch - generatedEpoch * 1000 + (nowMs - fetchedAtMs)) / 1000));
