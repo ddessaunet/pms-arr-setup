@@ -73,7 +73,11 @@ export interface Profile {
 }
 
 // MB per minute of runtime. max null: no maximum.
-export interface SizeCap { resolution: string; max: number | null; preferred: number }
+export interface SizeCap {
+  resolution: string;
+  max: number | null;
+  preferred: number;
+}
 
 const RECYCLARR = 'apps/recyclarr/recyclarr.yml';
 const POLICY = 'site/src/data/profiles.yml';
@@ -84,8 +88,9 @@ const ARR = 'stack/lib/arr-configure.sh';
 // what is parsed here. A reshaped function fails loudly rather than silently.
 
 function shellFunction(sh: string, name: string): string {
-  const m = sh.match(new RegExp(`^${name}\\(\\) \\{[\\s\\S]*?^\\}`, 'm'))
-    ?? sh.match(new RegExp(`^${name}\\(\\) \\{.*\\}$`, 'm'));
+  const m =
+    sh.match(new RegExp(`^${name}\\(\\) \\{[\\s\\S]*?^\\}`, 'm')) ??
+    sh.match(new RegExp(`^${name}\\(\\) \\{.*\\}$`, 'm'));
   if (!m) throw new Error(`${ARR}: ${name}() not found — the map reads it`);
   return m[0];
 }
@@ -102,11 +107,15 @@ export function parseSizeCaps(sh: string): Record<App, SizeCap[]> {
   for (const app of APPS) {
     const branch = fn.match(new RegExp(`${app}\\)[\\s\\S]*?;;`));
     const byRes = new Map<string, SizeCap>();
-    for (const [, quality, res, max, pref] of (branch?.[0] ?? '').matchAll(/\b([A-Za-z]+-(\d+p)) +(none|\d+) +(\d+)\b/g)) {
+    for (const [, quality, res, max, pref] of (branch?.[0] ?? '').matchAll(
+      /\b([A-Za-z]+-(\d+p)) +(none|\d+) +(\d+)\b/g,
+    )) {
       const cap = { resolution: res, max: max === 'none' ? null : Number(max), preferred: Number(pref) };
       const seen = byRes.get(res);
       if (seen && (seen.max !== cap.max || seen.preferred !== cap.preferred)) {
-        throw new Error(`${ARR}: size_caps gives ${app} ${res} two caps (${quality} differs); the map shows one per resolution`);
+        throw new Error(
+          `${ARR}: size_caps gives ${app} ${res} two caps (${quality} differs); the map shows one per resolution`,
+        );
       }
       byRes.set(res, cap);
     }
@@ -139,7 +148,8 @@ export function buildProfiles(recyclarrText: string, policyText: string, arrConf
           name: q.name,
           qualities: q.qualities ?? [q.name],
         }));
-        if (!groups?.length) throw new Error(`"${name}": no qualities: in ${RECYCLARR}, and none under guide.${p.trash_id} in ${POLICY}`);
+        if (!groups?.length)
+          throw new Error(`"${name}": no qualities: in ${RECYCLARR}, and none under guide.${p.trash_id} in ${POLICY}`);
         found.push({
           app,
           name,
@@ -182,7 +192,8 @@ export function buildProfiles(recyclarrText: string, policyText: string, arrConf
 
   const profiles: Profile[] = found.map((p) => {
     const d = policy.profiles[p.name];
-    if (d.app !== p.app) throw new Error(`${POLICY}: "${p.name}" says app ${d.app}, but recyclarr.yml has it under ${p.app}`);
+    if (d.app !== p.app)
+      throw new Error(`${POLICY}: "${p.name}" says app ${d.app}, but recyclarr.yml has it under ${p.app}`);
     return { ...p, ...d };
   });
 
@@ -193,12 +204,19 @@ export function buildProfiles(recyclarrText: string, policyText: string, arrConf
     const defaults = profiles.filter((p) => p.app === app && p.role === 'default').map((p) => p.name);
     const want = caseWords(arrDefault, app);
     if (defaults.length !== 1 || want.length !== 1 || defaults[0] !== want[0]) {
-      throw new Error(`${app}: the default profile is ${JSON.stringify(want)} in ${ARR} (default_profile), but ${JSON.stringify(defaults)} in ${POLICY}`);
+      throw new Error(
+        `${app}: the default profile is ${JSON.stringify(want)} in ${ARR} (default_profile), but ${JSON.stringify(defaults)} in ${POLICY}`,
+      );
     }
-    const upgrading = profiles.filter((p) => p.app === app && p.upgrade.allowed).map((p) => p.name).sort();
+    const upgrading = profiles
+      .filter((p) => p.app === app && p.upgrade.allowed)
+      .map((p) => p.name)
+      .sort();
     const allowed = caseWords(arrUpgrade, app).sort();
     if (JSON.stringify(upgrading) !== JSON.stringify(allowed)) {
-      throw new Error(`${app}: ${RECYCLARR} lets ${JSON.stringify(upgrading)} upgrade, but ${ARR} (upgrade_profiles) allows ${JSON.stringify(allowed)}`);
+      throw new Error(
+        `${app}: ${RECYCLARR} lets ${JSON.stringify(upgrading)} upgrade, but ${ARR} (upgrade_profiles) allows ${JSON.stringify(allowed)}`,
+      );
     }
   }
 
@@ -206,5 +224,11 @@ export function buildProfiles(recyclarrText: string, policyText: string, arrConf
 }
 
 export function profileSlug(name: string): string {
-  return 'profile-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return (
+    'profile-' +
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+  );
 }

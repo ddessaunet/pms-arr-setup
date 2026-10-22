@@ -1,7 +1,8 @@
 # Runs the offline checks on every PR, through the same task entry points a
-# person uses: `task lint test` for the stack, `task site:test site:check` for
-# the docs site. Nothing here starts containers or installs units (trap 16):
-# lint only renders compose.yaml, and the suites stub docker, curl and systemctl.
+# person uses: `task lint test` for the stack, `task site:lint site:test
+# site:check` for the docs site. Nothing here starts containers or installs
+# units (trap 16): lint only renders compose.yaml, and the suites stub docker,
+# curl and systemctl.
 #
 # A change to Markdown files only (*.md: READMEs, docs/, CLAUDE.md, DESIGN.md)
 # skips both. They are required checks on main, so they are skipped, not left
@@ -76,6 +77,8 @@ jobs:
       - run: task lint test
 
   site:
+    # The name is the required check on main (the ruleset), so it stays as it
+    # was when site:lint joined the job. Rename both together.
     name: task site:test site:check
     needs: changes
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
@@ -98,4 +101,4 @@ jobs:
         with:
           version: 3.x
 
-      - run: task site:test site:check
+      - run: task site:lint site:test site:check
