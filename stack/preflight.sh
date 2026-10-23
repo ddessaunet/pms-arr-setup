@@ -227,6 +227,19 @@ fi
 if command -v inotifywait >/dev/null; then ok "inotifywait present (arr-reclaim)"
 else fail "inotifywait missing — sudo apt install inotify-tools"; fi
 
+# The scripts ported to TypeScript run on Bun, found as their launchers find it
+# (stack/lib/bun.sh: PMS_BUN, PATH, then Homebrew's). Pinned, because a brew
+# upgrade would otherwise move every job to a new runtime at once.
+if bun_found="$(. "$REPO/stack/lib/bun.sh" 2>&1 && printf '%s %s' "$BUN_VERSION" "$BUN")"; then
+    ok "bun ${bun_found%% *} at ${bun_found#* }"
+    if [[ "${bun_found#* }" == */linuxbrew/* ]] && command -v brew >/dev/null \
+       && ! brew list --pinned 2>/dev/null | grep -qx bun; then
+        warn "bun is not pinned — brew pin bun"
+    fi
+else
+    fail "$(head -n 1 <<<"$bun_found") — brew install bun && brew pin bun"
+fi
+
 echo
 if [[ "$fails" -gt 0 ]]; then
     echo "$fails check(s) failed."
