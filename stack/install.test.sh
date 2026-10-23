@@ -36,8 +36,9 @@ TDEST="$T/arr-setup"
 ME="$(id -un)"
 
 rsync -a --exclude=/.git --exclude=/.claude/ --exclude=/.env --exclude=/.task/ \
-    --exclude=/site/node_modules/ --exclude=/site/dist/ --exclude='/site/.*' "$ROOT/" "$TSRC/"
+    --exclude=/node_modules/ --exclude=/site/node_modules/ --exclude=/site/dist/ --exclude='/site/.*' "$ROOT/" "$TSRC/"
 mkdir -p "$TSRC/site/dist"; echo v1 >"$TSRC/site/dist/index.html"
+mkdir -p "$TSRC/node_modules/vite-plus"   # as `task bun:install` leaves it
 
 install_() { "$TSRC/stack/install.sh" --files "$@" >"$T/out" 2>&1; }
 # The libraries find their tree by $0, so source them through bash -c with $0
@@ -81,7 +82,12 @@ ok "stack/installed.sh refuses the source" bash -c "! '$TSRC/stack/installed.sh'
 # ─── what is in it ────────────────────────────────────────────────────────────
 echo
 echo "the install's contents"
-ok_eq "no tests" "" "$(cd "$TDEST" && find . -name '*.test.sh' -o -name testdata | head -3)"
+ok_eq "no tests" "" "$(cd "$TDEST" && find . -name '*.test.sh' -o -name '*.test.ts' -o -name testdata | head -3)"
+ok_eq "no dev tools: package.json, bun.lock, tsconfig, Vite+ config, .bun-version, node_modules" "" \
+    "$(cd "$TDEST" && ls -d package.json bun.lock tsconfig.json vite.config.ts .bun-version node_modules 2>/dev/null)"
+ok_eq "the TypeScript sources" "$(cd "$TSRC" && find stack/lib -name '*.ts' ! -name '*.test.ts' | sort)" \
+    "$(cd "$TDEST" && find stack/lib -name '*.ts' | sort)"
+ok "Bun's finder" test -f "$TDEST/stack/lib/bun.sh"
 ok "no docs/" test ! -e "$TDEST/docs"
 ok "no CI workflows" test ! -e "$TDEST/.github"
 ok "no site source" test ! -e "$TDEST/site/src"
