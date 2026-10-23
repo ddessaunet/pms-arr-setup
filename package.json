@@ -1,0 +1,13 @@
+{
+  "name": "pms-arr-setup",
+  "private": true,
+  "description": "Development tools for the stack's TypeScript scripts: types, lint, format. Runtime is Bun alone; see docs/bun-migration.md.",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3",
+    "vite-plus": "1.3.0"
+  },
+  "packageManager": "bun@1.4.4"
+}

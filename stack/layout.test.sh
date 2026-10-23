@@ -15,6 +15,10 @@
 #                is (EXPECT below).
 #   jobs/<job>/  a script, its unit(s), a test, README.md, Taskfile.yml; every
 #                unit is in stack/deploy.sh's MANIFEST, and its ExecStart exists.
+#   launchers    a script ported to TypeScript keeps its .sh as a launcher: it
+#                sources stack/lib/bun.sh and execs the .ts beside it. Its
+#                --check is looked for in the .ts, and a *.test.ts counts as
+#                its test.
 #   every script finds the repo root, whatever its depth.
 
 cd "$(dirname "$0")/.." || exit 1
@@ -52,6 +56,37 @@ expect_tasks() { # app → sorted task names
                     [[ -f "apps/$1/configure.sh" ]] && t+=" $CONFIGURE_TASKS" ;;
     esac
     tr ' ' '\n' <<<"$t" | sort | paste -sd' '
+}
+
+# ─── launchers ────────────────────────────────────────────────────────────────
+# The exact lines a launcher has (README → "The app contract"), and what is
+# wrong with one: nothing, when it is well-formed. Paths are relative to $1.
+# shellcheck disable=SC2016  # the literal text in the launcher is what is matched
+LAUNCHER_SOURCE='. "$REPO/stack/lib/bun.sh" || exit 3'
+# shellcheck disable=SC2016
+is_launcher() { grep -q '^exec "\$BUN"' "$1"; }
+# shellcheck disable=SC2016
+launcher_target() { # file → the .ts it runs
+    sed -n 's#^exec "\$BUN" --no-install "\$REPO/\([^"]*\.ts\)" "\$@"$#\1#p' "$1" | head -1
+}
+launcher_problem() { # root file
+    local ts
+    grep -qxF "$LAUNCHER_SOURCE" "$1/$2" || { echo "no line: $LAUNCHER_SOURCE"; return; }
+    ts="$(launcher_target "$1/$2")"
+    # shellcheck disable=SC2016
+    [[ -n "$ts" ]] || { echo 'no line: exec "$BUN" --no-install "$REPO/<dir>/<name>.ts" "$@"'; return; }
+    [[ "$(dirname "$ts")" == "$(dirname "$2")" ]] || { echo "$ts is not beside it"; return; }
+    [[ -f "$1/$ts" ]] || { echo "$ts does not exist"; return; }
+}
+# The file that holds a script's logic: the .ts behind a launcher, else itself.
+impl_of() { if is_launcher "$1"; then launcher_target "$1"; else echo "$1"; fi; }
+# Its test: <impl>.test.sh or <impl>.test.ts.
+has_test() { [[ -f "${1%.*}.test.sh" || -f "${1%.*}.test.ts" ]]; }
+takes_check() { # impl
+    case "$1" in
+        *.ts) grep -qF -- "'--check'" "$1" ;;
+        *)    grep -q -- '--check)' "$1" ;;
+    esac
 }
 
 APP_SECTIONS=("## Role" "## Access" "## Secrets" "## Settings" "## Tasks")
@@ -94,12 +129,14 @@ for app in "${APPS[@]}"; do
         ok "configure.sh is executable" test -x "$d/configure.sh"
         # radarr/sonarr delegate to stack/lib/arr-configure.sh, which owns the
         # flag and the tests.
-        impl="$d/configure.sh"; t="$d/configure.test.sh"
-        if lib="$(grep -oE 'stack/lib/[a-z-]+\.sh' "$d/configure.sh" | grep -v servarr | head -1)" && [[ -n "$lib" ]]; then
-            impl="$lib"; t="${lib%.sh}.test.sh"
+        impl="$d/configure.sh"
+        if lib="$(grep -oE 'stack/lib/[a-z-]+\.sh' "$d/configure.sh" | grep -vxE 'stack/lib/(servarr|bun)\.sh' | head -1)" \
+           && [[ -n "$lib" ]]; then
+            impl="$lib"
         fi
-        ok "configure takes --check ($impl)" grep -q -- '--check)' "$impl"
-        ok "configure has a test ($t)" test -f "$t"
+        impl="$(impl_of "$impl")"
+        ok "configure takes --check ($impl)" takes_check "$impl"
+        ok "configure has a test (${impl%.*}.test.sh or .test.ts)" has_test "$impl"
     fi
 done
 
@@ -111,7 +148,7 @@ for job in "${JOBS[@]}"; do
     echo "$d"
     for f in Taskfile.yml README.md; do ok "has $f" test -f "$d/$f"; done
     ok "has a script"  compgen -G "$d/*[!t].sh"
-    ok "has a test"    compgen -G "$d/*.test.sh"
+    ok "has a test"    compgen -G "$d/*.test.[st][hs]"
     ok "has a unit"    compgen -G "$d/*.service"
     for s in "${JOB_SECTIONS[@]}"; do ok "README has '$s'" grep -qxF "$s" "$d/README.md"; done
     for u in "$d"/*.service "$d"/*.timer; do
@@ -131,6 +168,40 @@ done
 echo
 ok_eq "every unit in MANIFEST exists" "" \
     "$(while read -r f; do [[ -f "$f" ]] || echo "$f"; done <<<"$MANIFEST_SRCS")"
+
+# ─── launchers ────────────────────────────────────────────────────────────────
+echo
+echo "launchers (a .sh that runs the .ts beside it)"
+n=0
+while IFS= read -r f; do
+    is_launcher "$f" || continue
+    n=$((n + 1))
+    ok_eq "$f" "" "$(launcher_problem "$ROOT" "$f")"
+    ok "$f is executable" test -x "$f"
+done < <(printf '%s\n' apps/*/*.sh jobs/*/*.sh stack/*.sh stack/lib/*.sh)
+[[ "$n" -gt 0 ]] || echo "  (none yet)"
+
+# The check itself, on a scratch tree: one good launcher and each way to get it wrong.
+L="$(mktemp -d)"
+trap 'rm -rf "$L"' EXIT
+mkdir -p "$L/jobs/x" "$L/jobs/y"
+touch "$L/jobs/x/x.ts" "$L/jobs/y/y.ts"
+launcher() { # path ts → a launcher at path that runs ts
+    # shellcheck disable=SC2016
+    printf '#!/usr/bin/env bash\nREPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." && pwd)"\n%s\nexec "$BUN" --no-install "$REPO/%s" "$@"\n' \
+        "$LAUNCHER_SOURCE" "$2" >"$L/$1"
+}
+launcher jobs/x/good.sh jobs/x/x.ts
+ok_eq "self-test: a good one passes" "" "$(launcher_problem "$L" jobs/x/good.sh)"
+ok_eq "self-test: and its .ts is its logic" "jobs/x/x.ts" "$(impl_of "$L/jobs/x/good.sh")"
+launcher jobs/x/missing.sh jobs/x/gone.ts
+ok_eq "self-test: a .ts that does not exist" "jobs/x/gone.ts does not exist" "$(launcher_problem "$L" jobs/x/missing.sh)"
+launcher jobs/x/elsewhere.sh jobs/y/y.ts
+ok_eq "self-test: a .ts in another folder" "jobs/y/y.ts is not beside it" "$(launcher_problem "$L" jobs/x/elsewhere.sh)"
+launcher jobs/x/install.sh jobs/x/x.ts; sed -i 's/--no-install //' "$L/jobs/x/install.sh"
+ok "self-test: without --no-install" test -n "$(launcher_problem "$L" jobs/x/install.sh)"
+launcher jobs/x/noexit.sh jobs/x/x.ts; sed -i 's/ || exit 3$//' "$L/jobs/x/noexit.sh"
+ok "self-test: sourcing bun.sh without || exit 3" test -n "$(launcher_problem "$L" jobs/x/noexit.sh)"
 
 # ─── every script finds the repo root ─────────────────────────────────────────
 # A wrong depth fails quietly — .env reads come back empty — so evaluate each

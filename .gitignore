@@ -10,6 +10,9 @@
 .DS_Store
 *.swp
 
+# The stack's dev tools (package.json: TypeScript, Vite+), installed by bun.
+/node_modules/
+
 # The docs website (site/): installed packages and builds. dist is what apps/docs serves.
 site/node_modules/
 site/dist/

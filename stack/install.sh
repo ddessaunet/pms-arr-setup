@@ -47,12 +47,15 @@ SYS_PREFIX="${SYS_PREFIX:-}"
 
 # What an install leaves out: git, development, and what the install keeps of
 # its own (.env, the marker, Task's cache, site/). A leading / anchors at the
-# root. Unit files are rendered, not copied.
+# root. Unit files are rendered, not copied. The TypeScript runs on Bun alone:
+# the install gets the .ts sources, never the dev tools (package.json and its
+# lock, tsconfig, Vite+'s config, node_modules) or the tests.
 EXCLUDES=(
     /.git /.gitignore /.github/ /.claude/ /.agents/ /skills-lock.json /.task/
     /CLAUDE.md /DESIGN.md /docs/ /site/
     /.env /"$PMS_MARKER"
-    '*.test.sh' testdata/ node_modules/
+    /package.json /bun.lock /tsconfig.json /vite.config.ts /.bun-version
+    '*.test.sh' '*.test.ts' testdata/ node_modules/
     .idea/ .vscode/ .DS_Store '*.swp'
     '/jobs/*/*.service'
 )
