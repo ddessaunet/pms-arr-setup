@@ -28,6 +28,7 @@ native Plex database and qBittorrent state move across unchanged.
 |---|---|
 | [Phases](docs/phases.md) | The runbook and progress checklist. Each phase has Do / Verify / Rollback. |
 | [Updating](docs/updating.md) | The weekly container updater: streaming check, health wait, rollback, exit codes, adding a service. |
+| [Bun migration](docs/bun-migration.md) | Porting the API-heavy bash scripts to TypeScript on Bun, one PR per step, with its checklist. |
 | `apps/<app>/README.md` | One per app: what it does, its ports, secrets, who owns its settings, its tasks and traps. |
 | `jobs/<job>/README.md` | One per host job: what it does, when it runs, its tasks. |
 
@@ -39,19 +40,23 @@ One folder per app and per job, every one the same shape:
 compose.yaml          name: pms, the arr network, and an include for every apps/*/compose.yaml
 Taskfile.yml          every task (task --list); includes every app and job under its own name
 .env.example          the install's .env starts from it: UID/GID, timezone, appdata, API keys, logins
+package.json          dev tools only (TypeScript, Vite+), with bun.lock, tsconfig.json, vite.config.ts
+.bun-version          the Bun the box pins and CI runs; none of these are installed
 apps/<app>/           one compose service
   compose.yaml        that service alone, with its comments
   Taskfile.yml        which standard tasks it gets (from stack/taskfiles/), plus its own
   README.md           Role · Access · Secrets · Settings · Tasks · Traps
-  configure.sh        if this repo owns its settings: apply idempotently, --check reports drift
-  configure.test.sh   offline tests, beside what they test
+  configure.sh        if this repo owns its settings: apply idempotently, --check reports drift;
+                      once ported, a launcher for the configure.ts beside it
+  configure.test.sh   offline tests, beside what they test (configure.test.ts once ported)
   <config>            recyclarr.yml, decluttarr's config.yaml
 jobs/<job>/           a host-side systemd job that spans apps: script, unit(s), test, README, Taskfile
 site/                 the docs website's source (Starlight); apps/docs serves what it builds
 stack/                what the whole stack shares
   taskfiles/          the per-app task templates: service, update, configure
   lib/                servarr.sh (Servarr API plumbing), arr-configure.sh (Radarr + Sonarr),
-                      pms-home.sh (where the stack is installed)
+                      pms-home.sh (where the stack is installed), bun.sh (finds Bun for a
+                      launcher), *.ts (the TypeScript scripts' shared library, each with a test)
   install.sh          copy this tree into the install directory, then run its deploy.sh
   start.sh  preflight.sh  deploy.sh  run-tests.sh  installed.sh
   layout.test.sh      the app contract, below
@@ -103,6 +108,20 @@ serves the built website.
   (`preview` and `sync` only). Decluttarr is pinned, so it has no `update`.
 - Every job has a script, a test, a unit in `stack/deploy.sh`'s manifest whose `ExecStart`
   exists, a `README.md` (**Role, Schedule, Tasks**) and a `Taskfile.yml`.
+- A script ported to TypeScript keeps its `.sh` path, because units, `stack/deploy.sh` and
+  other scripts name it. The `.sh` becomes a launcher that runs the `.ts` beside it, which
+  holds the logic, the help text and the exit codes:
+
+  ```bash
+  #!/usr/bin/env bash
+  # jobs/x/x.sh: launcher; the job is x.ts (see its header).
+  REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." && pwd)"
+  . "$REPO/stack/lib/bun.sh" || exit 3
+  exec "$BUN" --no-install "$REPO/jobs/x/x.ts" "$@"
+  ```
+
+  The test checks those two lines and that the `.ts` exists. It looks for `--check` in the
+  `.ts`, and counts a `*.test.ts` beside it as the test.
 - Every script resolves the repo root correctly from where it lives (and, in
   `stack/install.test.sh`, the install's root from an install).
 - Every unit's `ExecStart` starts with `@PMS_HOME@/` and it runs as `@PMS_USER@`, which
@@ -121,9 +140,10 @@ default, or wherever you choose. Compose, the systemd units, the docs site and `
 live there, so the source tree (a clone, a worktree, a downloaded ZIP) can move, switch
 branches or be deleted without the services noticing. Nothing in the install needs git.
 
-You need docker with the compose plugin, [Task](https://taskfile.dev) (below), `rsync`,
-`jq`, `curl` and `inotify-tools`. To build the docs site you also need node and pnpm (see
-`site/`); without them the install has no docs site until a later deploy builds one.
+You need docker with the compose plugin, [Task](https://taskfile.dev) and
+[Bun](https://bun.com) (both below), `rsync`, `jq`, `curl` and `inotify-tools`. To build
+the docs site you also need node and pnpm (see `site/`); without them the install has no
+docs site until a later deploy builds one.
 
 From the source tree:
 
@@ -134,8 +154,10 @@ task deploy
 That lints, tests, builds the docs site, then runs `stack/install.sh`, which:
 
 1. creates the install directory (asking for sudo once if its parent isn't yours) and copies
-   the tree into it, without tests, `docs/`, the site's source or git. Files the source no
-   longer has are removed; `.env` is never touched.
+   the tree into it, without tests, `docs/`, the site's source, git or the dev tools
+   (`package.json`, `bun.lock`, `tsconfig.json`, `vite.config.ts`, `node_modules`). The
+   install runs its TypeScript on Bun alone. Files the source no longer has are removed;
+   `.env` is never touched.
 2. fills the install's path and your user into the units in `jobs/*/` (the source keeps
    them as `@PMS_HOME@` / `@PMS_USER@` templates).
 3. the first time only, creates the install's `.env`: a copy of the source's `.env` if it
@@ -165,10 +187,25 @@ binary is still `task`:
 brew install go-task
 ```
 
-Run tasks as yourself, never `sudo task`: sudo's `PATH` has no Homebrew in it. The scripts
-ask for sudo themselves where they need it. The systemd units never call `task`, so the
-timers don't depend on it. Compose runs from the install, and state lives in
-`/opt/appdata`.
+[Bun](https://bun.com) runs the scripts ported to TypeScript, and their tests. It comes
+from Homebrew too, pinned, so a `brew upgrade` can't move every job, `arr-reclaim`
+included, to a new runtime at once. Upgrade it on purpose: unpin, upgrade, run
+`task lint test`, update `.bun-version` and `packageManager` in `package.json`, and pin
+again.
+
+```bash
+brew install bun
+```
+
+```bash
+brew pin bun
+```
+
+Run tasks as yourself, never `sudo task` or `sudo bun`: sudo's `PATH` has no Homebrew in
+it. The scripts ask for sudo themselves where they need it. The systemd units never call
+`task`, so the timers don't depend on it. They find Bun through `stack/lib/bun.sh`
+(`PMS_BUN`, then `PATH`, then Homebrew's), since their `PATH` has no Homebrew either.
+Compose runs from the install, and state lives in `/opt/appdata`.
 
 **Tasks that change containers run from the install only.** These are `start`, `stop`,
 `<app>:up`, `<app>:update` and `update`. `compose.yaml` fixes the project name, so compose
@@ -185,8 +222,9 @@ both.
 | `task status` | `docker compose ps`, and when each job's timer runs next. |
 | `task logs` | Follow the logs. `task logs -- plex` or `task plex:logs` for one service. |
 | `task preflight` | Read-only checks before a phase: docker, `.env`, same-filesystem hardlinks, ports, native service state. |
-| `task lint` | `shellcheck` on every script, and check that `compose.yaml` renders. |
-| `task test` | The offline test suites, the app contract included. |
+| `task lint` | `shellcheck` on every script, Vite+ (`vp check`: Oxlint and Oxfmt) and `tsc` on the TypeScript, and check that `compose.yaml` renders. |
+| `task fmt` | Rewrite the stack's TypeScript and config files in its format (Vite+, `vite.config.ts`). |
+| `task test` | The offline test suites, the app contract included: every `*.test.sh`, then `bun test` for every `*.test.ts`. |
 | `task check` | Deploy drift and every app's settings drift, in one report. Changes nothing. |
 | `task deploy:check` | Deploy drift only. In a source: what the install is missing. In the install: units missing, changed or with the wrong mode, or a timer armed wrongly. |
 | `task deploy` | In a source: lint, test, build the site, install, deploy (see Installing). In the install: install the units again and arm or disarm the timers. |
