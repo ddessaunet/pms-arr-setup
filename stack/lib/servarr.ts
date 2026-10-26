@@ -7,7 +7,7 @@
 // version differs (Prowlarr v1, Radarr/Sonarr v3). Log lines are the bash
 // ones, word for word: stack-status parses the DRIFT/FAIL/FAILING lines.
 
-import { is2xx, jsonOf, type Http, type HttpResponse } from './http.ts';
+import { httpCode, is2xx, jsonOf, type Http, type HttpResponse } from './http.ts';
 import type { Log } from './log.ts';
 
 export interface ServarrConfig {
@@ -210,7 +210,7 @@ export function servarr(cfg: ServarrConfig, deps: ServarrDeps): Servarr {
   const applyHost = async () => {
     const r = await get('/config/host');
     if (!r.ok) {
-      log(`  FAIL  read host config (HTTP ${r.status})`);
+      log(`  FAIL  read host config (HTTP ${httpCode(r.status)})`);
       return false;
     }
     const cur = r.json as JsonObject;
@@ -227,7 +227,7 @@ export function servarr(cfg: ServarrConfig, deps: ServarrDeps): Servarr {
       passwordConfirmation: cfg.pass,
     });
     if (!put.ok) {
-      log(`  FAIL  host config (HTTP ${put.status}): ${apiError(put.text)}`);
+      log(`  FAIL  host config (HTTP ${httpCode(put.status)}): ${apiError(put.text)}`);
       return false;
     }
     log('  login and allowed hosts set');
@@ -250,7 +250,7 @@ export function servarr(cfg: ServarrConfig, deps: ServarrDeps): Servarr {
   const verifyHost = async () => {
     const r = await get('/config/host');
     if (!r.ok) {
-      log(`  FAIL  read host config (HTTP ${r.status})`);
+      log(`  FAIL  read host config (HTTP ${httpCode(r.status)})`);
       return false;
     }
     const cur = r.json as JsonObject;
@@ -285,7 +285,7 @@ export function servarr(cfg: ServarrConfig, deps: ServarrDeps): Servarr {
   }) => {
     const r = await get(`/${endpoint}`);
     if (!r.ok) {
-      log(`  FAIL  read ${label} (HTTP ${r.status})`);
+      log(`  FAIL  read ${label} (HTTP ${httpCode(r.status)})`);
       return false;
     }
     const cur = byImplementation(r.json, implementation);
@@ -293,7 +293,7 @@ export function servarr(cfg: ServarrConfig, deps: ServarrDeps): Servarr {
     if (!cur) {
       const s = await get(`/${endpoint}/schema`);
       if (!s.ok) {
-        log(`  FAIL  ${label} schema (HTTP ${s.status})`);
+        log(`  FAIL  ${label} schema (HTTP ${httpCode(s.status)})`);
         return false;
       }
       const base = byImplementation(s.json, implementation);
@@ -303,7 +303,7 @@ export function servarr(cfg: ServarrConfig, deps: ServarrDeps): Servarr {
       }
       const add = await api('POST', `/${endpoint}`, resourceWant(base, top, withSecret));
       if (!add.ok) {
-        log(`  FAIL  add ${label} (HTTP ${add.status}): ${apiError(add.text)}`);
+        log(`  FAIL  add ${label} (HTTP ${httpCode(add.status)}): ${apiError(add.text)}`);
         return false;
       }
       log(`  ${label} added`);
@@ -316,7 +316,7 @@ export function servarr(cfg: ServarrConfig, deps: ServarrDeps): Servarr {
     }
     const put = await api('PUT', `/${endpoint}/${String(cur.id ?? null)}`, resourceWant(cur, top, withSecret));
     if (!put.ok) {
-      log(`  FAIL  update ${label} (HTTP ${put.status}): ${apiError(put.text)}`);
+      log(`  FAIL  update ${label} (HTTP ${httpCode(put.status)}): ${apiError(put.text)}`);
       return false;
     }
     log(`  ${label} updated (${drift.join(' ')})`);
@@ -326,7 +326,7 @@ export function servarr(cfg: ServarrConfig, deps: ServarrDeps): Servarr {
   const verifyResource: Servarr['verifyResource'] = async ({ label, endpoint, implementation, top, fields }) => {
     const r = await get(`/${endpoint}`);
     if (!r.ok) {
-      log(`  FAIL  read ${label} (HTTP ${r.status})`);
+      log(`  FAIL  read ${label} (HTTP ${httpCode(r.status)})`);
       return false;
     }
     const cur = byImplementation(r.json, implementation);

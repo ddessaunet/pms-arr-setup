@@ -278,7 +278,7 @@ describe('verifyHost', () => {
   test('unreachable', async () => {
     const { app, logs } = fakeApp({ 'GET /config/host': () => ({ status: 0 }) });
     expect(await app.verifyHost()).toBe(false);
-    expect(logs).toEqual(['  FAIL  read host config (HTTP 0)']);
+    expect(logs).toEqual(['  FAIL  read host config (HTTP 000)']); // curl's code for no answer
   });
 });
 
