@@ -16,7 +16,7 @@ looks stale, check the repo and the box rather than trusting it.
 - [x] Step 1 — `arr-fallback-search` (2026-10-26: `--dry-run` matches the bash one on the box; Radarr types hand-written, generation left to step 2b)
 - [x] Step 2a — `apps/plex/configure.sh` (2026-10-26: `--check` matches the bash one against the live Plex 1.43.5, exit 0 both)
 - [x] Step 2b — `apps/prowlarr/configure.sh` (2026-10-26: `--check` matches the bash one against the live Prowlarr 2.6.5, 6 indexers and 2 apps; Prowlarr's API types generated)
-- [ ] Step 2c — `apps/qbittorrent/configure.sh`, with `EXCLUDED_EXTS` and decluttarr's pin
+- [x] Step 2c — `apps/qbittorrent/configure.sh`, with `EXCLUDED_EXTS` and decluttarr's pin (2026-10-26: `--check` matches the bash one against the live qBittorrent; the list is `apps/qbittorrent/excluded.ts`, pinned by `apps/decluttarr/config.test.ts`)
 - [ ] Step 2d — `apps/seerr/configure.sh`
 - [ ] Step 2e — `apps/bazarr/configure.sh`
 - [ ] Step 3 — `arr-policy` and `arr-configure` (Radarr/Sonarr); the site imports the policy

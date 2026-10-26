@@ -53,11 +53,11 @@ disappear. Confirm before anything destructive:
 6. **One qBittorrent: the container on `:8081`, peer 13762** (kept there on purpose; native
    `qbittorrent-nox` on `:8080`/13761 is disabled since Phase 7a, and its 9 torrents were
    dropped, their files kept by the library's own hardlinks). It has no import hook:
-   Radarr/Sonarr import over its API. Its settings come from `apps/qbittorrent/configure.sh`;
+   Radarr/Sonarr import over its API. Its settings come from `apps/qbittorrent/configure.ts`;
    change them there, not in the WebUI, or `task qbittorrent:check` reports drift. Torrents added by
    hand go in its `manual` category: no app looks there, so they are never imported,
    replaced or removed, only stopped at the share limits. It never downloads executables
-   (`*.exe` and others, `EXCLUDED_EXTS`): an exe-only fake finishes empty, and Decluttarr
+   (`*.exe` and others, `apps/qbittorrent/excluded.ts`): an exe-only fake finishes empty, and Decluttarr
    (trap 14) clears it.
 7. **Prowlarr's settings come from `apps/prowlarr/configure.ts`**, and its API key from
    `.env` (`PROWLARR__AUTH__APIKEY`), which Phase 4 wires into Radarr and Sonarr. Changing
@@ -134,7 +134,7 @@ disappear. Confirm before anything destructive:
     `apps/decluttarr/config.yaml` lists `remove_stalled`, `remove_slow`,
     `remove_metadata_missing` and `remove_failed_imports`; listing any job turns it on, and
     `remove_orphans` / `remove_unmonitored` would delete seeding torrents or upgrades, so
-    `apps/decluttarr/config.test.sh` pins the list. `remove_failed_imports` defaults to
+    `apps/decluttarr/config.test.ts` pins the list. `remove_failed_imports` defaults to
     matching every message; its `message_patterns` are pinned to executable fakes only (one
     per qBittorrent excluded name), and must never widen to `*`. What it removes was never
     imported, so it never meets `arr-reclaim` (trap 9). `remove_slow` pauses while
