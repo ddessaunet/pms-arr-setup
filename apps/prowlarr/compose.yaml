@@ -7,7 +7,7 @@
 # The API key and auth mode come from .env, so the key is known before the
 # first start and Phase 4 can use it without copying it out of the UI. The
 # login, FlareSolverr proxy and indexers are applied by
-# apps/prowlarr/configure.sh, not clicked in the WebUI.
+# apps/prowlarr/configure.ts, not clicked in the WebUI.
 
 services:
   prowlarr:

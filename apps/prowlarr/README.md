@@ -20,7 +20,7 @@ go through [FlareSolverr](../flaresolverr/README.md).
 
 ## Settings
 
-Owned by [`configure.sh`](configure.sh):
+Owned by [`configure.ts`](configure.ts) (`configure.sh` is its launcher):
 
 - the login and the FlareSolverr proxy;
 - the indexer list, and which indexers are tagged `flare`;
