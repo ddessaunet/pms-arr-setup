@@ -23,12 +23,16 @@ and its unit stays masked. Its database is archived in `/root/plexmediaserver-na
 
 ## Settings
 
-Set in Plex's own UI, except one: [`configure.sh`](configure.sh) pins **Preferred network
+Set in Plex's own UI, except one: [`configure.ts`](configure.ts) pins **Preferred network
 interface** to `eno1`, the wired NIC, now at the reserved `10.0.0.50`. Until 2026-10-17
 the box also had Wi‑Fi on the same subnet, and on *Any* Plex offered clients both
 addresses, so some connected to the Wi‑Fi one. The setting names the interface, not an
 address, so it holds if the address moves or a NIC is added. Its config is
 `/opt/appdata/plex`.
+
+`configure.sh` is a launcher (it finds Bun with `stack/lib/bun.sh`), kept because the
+Taskfile and the dashboard's drift check run it by that path; the script, its help and its
+exit codes are in `configure.ts`.
 
 ## Tasks
 
@@ -50,7 +54,7 @@ address, so it holds if the address moves or a NIC is added. Its config is
 - **The library is read-write** on purpose: "Allow media deletion" needs it, and
   [`arr-reclaim`](../../jobs/arr-reclaim/README.md) frees the torrent behind what is
   deleted here.
-- **Change the network interface here, not in Plex's UI**: `configure.sh` owns it, and
+- **Change the network interface here, not in Plex's UI**: `configure.ts` owns it, and
   `task plex:check` (and the dashboard's hourly drift) reports any other value. It refuses
   to apply if Plex doesn't list `eno1` (`PLEX_IFACE` overrides the name).
 - **Remote access needs a port forward on the router:** TCP 32400 → `10.0.0.50:32400`, or

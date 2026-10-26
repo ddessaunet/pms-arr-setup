@@ -14,7 +14,7 @@ looks stale, check the repo and the box rather than trusting it.
 
 - [x] Step 0 — foundation: toolchain, `stack/lib/bun.sh`, the shared `stack/lib/*.ts` with tests (2026-10-23: no script ported; `task lint test` and the site's checks pass)
 - [x] Step 1 — `arr-fallback-search` (2026-10-26: `--dry-run` matches the bash one on the box; Radarr types hand-written, generation left to step 2b)
-- [ ] Step 2a — `apps/plex/configure.sh`
+- [x] Step 2a — `apps/plex/configure.sh` (2026-10-26: `--check` matches the bash one against the live Plex 1.43.5, exit 0 both)
 - [ ] Step 2b — `apps/prowlarr/configure.sh`
 - [ ] Step 2c — `apps/qbittorrent/configure.sh`, with `EXCLUDED_EXTS` and decluttarr's pin
 - [ ] Step 2d — `apps/seerr/configure.sh`

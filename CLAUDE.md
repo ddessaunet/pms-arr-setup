@@ -185,7 +185,7 @@ disappear. Confirm before anything destructive:
     addresses in `/opt/appdata/.lan-address` are out of date. With the reservation it has
     nothing to do; it stays as the safety net for a lost reservation or a new router.
     `task lan-address:logs` shows the current address. Plex is pinned to `eno1` **by name**
-    (`apps/plex/configure.sh`). Its remote access needs the router to forward TCP 32400 to
+    (`apps/plex/configure.ts`). Its remote access needs the router to forward TCP 32400 to
     `.50`.
 19. **The dashboard's data is public on the LAN.** `jobs/stack-status` writes
     `/opt/appdata/docs-status/{status,logs,drift}.json` (every 2 min; drift hourly), served

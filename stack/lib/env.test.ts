@@ -5,7 +5,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { envFileValue, envGet } from './env.ts';
+import { envFileValue, envGet, envSeconds } from './env.ts';
 
 const SERVARR = resolve(import.meta.dir, 'servarr.sh');
 const tmp = mkdtempSync(join(tmpdir(), 'env-test-'));
@@ -80,4 +80,16 @@ describe('envGet precedence', () => {
   test('an empty one does not', () => expect(envGet('A', { repo, env: { A: '' } })).toBe('file'));
   test('unless emptyWins', () => expect(envGet('A', { repo, env: { A: '' }, emptyWins: true })).toBe(''));
   test('unset: .env', () => expect(envGet('A', { repo, env: {} })).toBe('file'));
+});
+
+describe('envSeconds', () => {
+  test('unset or empty: the default', () => {
+    expect(envSeconds({}, 'T', 15)).toBe(15_000);
+    expect(envSeconds({ T: '' }, 'T', 15)).toBe(15_000);
+  });
+  test('seconds, fractions too', () => expect(envSeconds({ T: '2.5' }, 'T', 15)).toBe(2500));
+  test('not a number is an error', () => {
+    expect(() => envSeconds({ T: 'abc' }, 'T', 15)).toThrow('T is not a number of seconds: abc');
+    expect(() => envSeconds({ T: '-1' }, 'T', 15)).toThrow();
+  });
 });

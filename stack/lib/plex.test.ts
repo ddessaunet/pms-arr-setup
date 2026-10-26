@@ -1,4 +1,5 @@
-// stack/lib/plex.test.ts — the token reader, against prefs_token in apps/plex/configure.sh.
+// stack/lib/plex.test.ts — the token reader, against plex_token in jobs/pms-update/update-stack.sh
+// (the same sed as apps/plex/configure.sh had, before its port).
 
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -6,13 +7,13 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { plexPrefsPath, plexTokenOf, readPlexToken } from './plex.ts';
 
-const PLEX_CONFIGURE = resolve(import.meta.dir, '../../apps/plex/configure.sh');
+const UPDATE_STACK = resolve(import.meta.dir, '../../jobs/pms-update/update-stack.sh');
 const tmp = mkdtempSync(join(tmpdir(), 'plex-test-'));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
 function bashToken(path: string): string {
-  const r = Bun.spawnSync(['bash', '-c', '. "$0" && prefs_token "$1"', PLEX_CONFIGURE, path], {
-    env: { ...process.env, PLEX_CONFIGURE_LIB: '1', APPDATA: tmp },
+  const r = Bun.spawnSync(['bash', '-c', '. "$0" && plex_token', UPDATE_STACK], {
+    env: { ...process.env, UPDATE_STACK_LIB: '1', APPDATA: tmp, PLEX_PREFS: path },
   });
   return r.stdout.toString().replace(/\n$/, '');
 }
@@ -27,7 +28,7 @@ const CASES: Record<string, string> = {
   'empty file': '',
 };
 
-describe('plexTokenOf matches prefs_token', () => {
+describe('plexTokenOf matches plex_token', () => {
   let n = 0;
   for (const [name, xml] of Object.entries(CASES)) {
     test(name, () => {
