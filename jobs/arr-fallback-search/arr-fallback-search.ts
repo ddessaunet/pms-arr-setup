@@ -20,7 +20,7 @@
 import { resolve } from 'node:path';
 import { headerHelp, parseCli } from '../../stack/lib/cli.ts';
 import { runMain } from '../../stack/lib/exit.ts';
-import { envGet, type Env } from '../../stack/lib/env.ts';
+import { envGet, envSeconds, type Env } from '../../stack/lib/env.ts';
 import { httpCode, makeHttp, type Http } from '../../stack/lib/http.ts';
 import { out, type Log } from '../../stack/lib/log.ts';
 import { apiError, servarr } from '../../stack/lib/servarr.ts';
@@ -82,15 +82,6 @@ export interface Deps {
   repo: string;
 }
 
-/** Seconds from an environment variable, as curl's --max-time takes them; empty is the default. */
-function seconds(env: Env, key: string, fallback: number): number {
-  const v = env[key];
-  if (v === undefined || v === '') return fallback;
-  const n = Number(v);
-  if (!Number.isFinite(n) || n < 0) throw new Error(`${key} is not a number of seconds: ${v}`);
-  return n;
-}
-
 export async function main(argv: readonly string[], deps: Deps): Promise<number> {
   const { env, log } = deps;
   const cli = parseCli(argv, { flags: ['--dry-run'], usage: 'usage: arr-fallback-search.sh [--dry-run]' });
@@ -121,8 +112,8 @@ export async function main(argv: readonly string[], deps: Deps): Promise<number>
       // No login and no host config here: only the API key is used.
       user: '',
       pass: '',
-      timeoutMs: seconds(env, 'ARR_TIMEOUT', 60) * 1000,
-      waitMs: seconds(env, 'ARR_WAIT', 90) * 1000,
+      timeoutMs: envSeconds(env, 'ARR_TIMEOUT', 60),
+      waitMs: envSeconds(env, 'ARR_WAIT', 90),
     },
     // No LAN addresses either, so stack/lib/net.ts stays out: the unit allows no AF_NETLINK.
     { http, log, sleep: deps.sleep, now: deps.now, hostname: () => '', lanIps: () => [] },

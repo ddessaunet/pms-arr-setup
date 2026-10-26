@@ -50,3 +50,16 @@ export function envGet(key: string, opts: EnvOptions): string {
   if (fromEnv !== undefined && (fromEnv !== '' || opts.emptyWins)) return fromEnv;
   return envFileValue(readEnvFile(opts.repo), key);
 }
+
+/**
+ * Milliseconds from a variable that holds seconds, as the bash scripts pass
+ * `${X:-60}` to curl's --max-time: unset or empty is the default. Not a
+ * number is an error, not a silent default.
+ */
+export function envSeconds(env: Env, key: string, fallbackSeconds: number): number {
+  const v = env[key];
+  if (v === undefined || v === '') return fallbackSeconds * 1000;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`${key} is not a number of seconds: ${v}`);
+  return n * 1000;
+}
