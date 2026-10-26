@@ -59,7 +59,7 @@ disappear. Confirm before anything destructive:
    replaced or removed, only stopped at the share limits. It never downloads executables
    (`*.exe` and others, `EXCLUDED_EXTS`): an exe-only fake finishes empty, and Decluttarr
    (trap 14) clears it.
-7. **Prowlarr's settings come from `apps/prowlarr/configure.sh`**, and its API key from
+7. **Prowlarr's settings come from `apps/prowlarr/configure.ts`**, and its API key from
    `.env` (`PROWLARR__AUTH__APIKEY`), which Phase 4 wires into Radarr and Sonarr. Changing
    the key means changing it everywhere. Indexers that go through FlareSolverr are listed
    there; add `flare` only for ones Cloudflare actually blocks, since each such search runs
@@ -214,7 +214,8 @@ disappear. Confirm before anything destructive:
   units, `deploy.sh` and other scripts name that path. `package.json` holds dev tools only
   (TypeScript, Vite+); the install never gets them or `node_modules`, and Bun runs with
   `--no-install`. So **non-test `.ts` imports only relative paths, `bun:*` and `node:*`**,
-  plus anything in an `import type` line (`stack/lib/rules.test.ts` enforces it). Commands
+  plus anything in an `import type` line (`stack/lib/rules.test.ts` enforces it), which is
+  the only way to use the generated API types in `stack/lib/api/` (`task types:gen`). Commands
   go through `stack/lib/run.ts` (never `Bun.$`), HTTP through `stack/lib/http.ts`, and a
   `main` through `runMain` (never `process.exit()`). Output formats stay the bash ones.
 - CI (`.github/workflows/test.yml`) runs `task lint test` and `task site:lint site:test site:check`

@@ -85,7 +85,8 @@ echo "the install's contents"
 ok_eq "no tests" "" "$(cd "$TDEST" && find . -name '*.test.sh' -o -name '*.test.ts' -o -name testdata | head -3)"
 ok_eq "no dev tools: package.json, bun.lock, tsconfig, Vite+ config, .bun-version, node_modules" "" \
     "$(cd "$TDEST" && ls -d package.json bun.lock tsconfig.json vite.config.ts .bun-version node_modules 2>/dev/null)"
-ok_eq "the TypeScript sources" "$(cd "$TSRC" && find stack/lib -name '*.ts' ! -name '*.test.ts' | sort)" \
+ok "no generated API types (stack/lib/api/)" test ! -e "$TDEST/stack/lib/api"
+ok_eq "the TypeScript sources" "$(cd "$TSRC" && find stack/lib -path stack/lib/api -prune -o -name '*.ts' ! -name '*.test.ts' -print | sort)" \
     "$(cd "$TDEST" && find stack/lib -name '*.ts' | sort)"
 ok "Bun's finder" test -f "$TDEST/stack/lib/bun.sh"
 ok "no docs/" test ! -e "$TDEST/docs"

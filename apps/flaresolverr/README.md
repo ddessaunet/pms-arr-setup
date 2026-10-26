@@ -19,7 +19,7 @@ None.
 ## Settings
 
 None of its own. Which indexers use it is [Prowlarr](../prowlarr/README.md)'s `flare` tag,
-set by `apps/prowlarr/configure.sh`.
+set by `apps/prowlarr/configure.ts`.
 
 ## Tasks
 
