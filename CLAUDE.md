@@ -93,7 +93,7 @@ disappear. Confirm before anything destructive:
       opt-in **`4K HDR or 1080p`** (Phase 6b): a variant of the same TRaSH profile (same
       `trash_id`, so the same scores) with a 1080p group under the 4K one, for films with no
       4K HDR release. Its name is matched exactly by `stack/lib/arr-configure.sh` and
-      `jobs/arr-fallback-search/arr-fallback-search.sh`, and that job's test pins it.
+      `jobs/arr-fallback-search/arr-fallback-search.ts`, and that job's test pins it.
       And the hand-picked **`UHD Fallback`**, for films with 4K releases the strict profile
       rejects: not guide-backed, so it gets only the formats listed for it. HDR preferred
       but not required, audio scored as in the default, no tiers, no LQ penalty (YTS
