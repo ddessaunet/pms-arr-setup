@@ -233,6 +233,7 @@ both.
 | `task preflight` | Read-only checks before a phase: docker, `.env`, same-filesystem hardlinks, ports, native service state. |
 | `task lint` | `shellcheck` on every script, Vite+ (`vp check`: Oxlint and Oxfmt) and `tsc` on the TypeScript, and check that `compose.yaml` renders. |
 | `task fmt` | Rewrite the stack's TypeScript and config files in its format (Vite+, `vite.config.ts`). |
+| `task types:gen` / `types:check` | Regenerate the API types in `stack/lib/api/` from each app's OpenAPI spec at its running version / say which are behind (changes nothing). |
 | `task test` | The offline test suites, the app contract included: every `*.test.sh`, then `bun test` for every `*.test.ts`. |
 | `task check` | Deploy drift and every app's settings drift, in one report. Changes nothing. |
 | `task deploy:check` | Deploy drift only. In a source: what the install is missing. In the install: units missing, changed or with the wrong mode, or a timer armed wrongly. |

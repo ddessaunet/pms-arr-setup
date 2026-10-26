@@ -6,6 +6,7 @@
 //   - relative paths ('./x.ts', '../lib/y.ts')
 //   - Bun's and node's built-ins ('bun:ffi', 'node:fs')
 //   - anything, in an `import type` line (erased before it runs)
+// The generated API types (stack/lib/api/*.d.ts) only ever in `import type`.
 // Also: no Bun.$ (run.ts is the one way to run a command), no process.exit()
 // (exit.ts sets process.exitCode), and every stack/lib module has a test.
 
@@ -70,6 +71,14 @@ describe('every non-test .ts', () => {
       const src = readFileSync(resolve(ROOT, f), 'utf8');
       const code = codeOf(src);
       expect({ file: f, imports: runtimeImports(src).filter((s) => !allowed(s)) }).toEqual({ file: f, imports: [] });
+      // The generated API types are not in the install: `import type` only.
+      expect({
+        file: f,
+        apiAtRuntime: runtimeImports(src).filter((s) => /\/api\/[^/]+\.d\.ts$|\.d\.ts$/.test(s)),
+      }).toEqual({
+        file: f,
+        apiAtRuntime: [],
+      });
       expect({ file: f, bunShell: /\bBun\.\$|\bimport\s*\{[^}]*\$[^}]*\}\s*from\s*['"]bun['"]/.test(code) }).toEqual({
         file: f,
         bunShell: false,

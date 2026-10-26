@@ -102,6 +102,17 @@ tasks:
         PROWLARR_API_KEY=x RADARR_API_KEY=x SONARR_API_KEY=x QBT_ARR_USER=x QBT_ARR_PASS=x
         docker compose --env-file /dev/null --profile '*' config -q
 
+  types:gen:
+    desc: Regenerate stack/lib/api/*.d.ts from each app's OpenAPI spec, at the version running here
+    deps: ['bun:install']
+    cmds:
+      - bun stack/lib/api/gen.ts
+
+  types:check:
+    desc: Which generated API types are behind the running apps (changes nothing)
+    cmds:
+      - bun stack/lib/api/gen.ts --check
+
   fmt:
     desc: Rewrite the stack's TypeScript, JSON and config files in its format (task lint checks it)
     deps: ['bun:install']

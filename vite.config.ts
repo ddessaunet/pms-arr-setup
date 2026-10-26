@@ -9,7 +9,15 @@ export default defineConfig({
     singleQuote: true,
     semi: true,
     printWidth: 120,
-    ignorePatterns: ['site/**', '.claude/**', '**/testdata/**', '**/*.md', '**/*.yml', '**/*.yaml'],
+    ignorePatterns: [
+      'site/**',
+      '.claude/**',
+      '**/testdata/**',
+      'stack/lib/api/*.d.ts',
+      '**/*.md',
+      '**/*.yml',
+      '**/*.yaml',
+    ],
   },
-  lint: { ignorePatterns: ['site/**', '.claude/**', 'node_modules/**'] },
+  lint: { ignorePatterns: ['site/**', '.claude/**', 'node_modules/**', 'stack/lib/api/*.d.ts'] },
 });
