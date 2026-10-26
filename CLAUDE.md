@@ -201,12 +201,13 @@ disappear. Confirm before anything destructive:
 
 - Commit subjects are lowercase and imperative; bodies explain *why*.
 - `.env` holds secrets and is gitignored. Only `.env.example` is tracked.
-- [Task](https://taskfile.dev) (`Taskfile.yml`) is the task runner, and [Bun](https://bun.com)
-  runs the TypeScript. Both come from Homebrew (`brew install go-task bun`, then
-  `brew pin bun`), like the box's other tools. Run `task lint test` before committing, and
-  never `sudo task` or `sudo bun` (sudo's `PATH` lacks Homebrew). `task --list` shows every
-  task. From a non-login shell, load Homebrew first:
-  `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"`.
+- [Task](https://taskfile.dev) (`Taskfile.yml`) is the task runner, from Homebrew
+  (`brew install go-task`), and [Bun](https://bun.com) runs the TypeScript, from proto,
+  pinned globally (`proto pin bun <version> --to global`; without it the shim fails
+  outside the repo). Run `task lint test` before committing, and never `sudo task` or
+  `sudo bun` (sudo's `PATH` lacks both). `task --list` shows every task. From a non-login
+  shell, load them first: `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` and
+  `export PATH="$HOME/.proto/shims:$HOME/.proto/bin:$PATH"`.
 - **The API-heavy scripts are moving to TypeScript on Bun**, one PR per step
   ([docs/bun-migration.md](docs/bun-migration.md), its checklist). A ported script keeps
   its `.sh` path as a launcher (`stack/lib/bun.sh`, then `exec` the `.ts` beside it):

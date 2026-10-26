@@ -53,9 +53,11 @@ anything else.
   `stack/layout.test.sh` checks it). `exec` passes exit codes and signals straight
   through. `--no-install` stops Bun fetching a stray bare import from npm at runtime.
 - **Finding Bun.** systemd units set no `PATH`, and neither does sudo. `stack/lib/bun.sh`
-  tries `PMS_BUN`, then `bun` on `PATH`, then `/home/linuxbrew/.linuxbrew/bin/bun`. It
-  skips one older than `PMS_BUN_MIN`, and exits 3 with a message when none is usable.
-  `stack/preflight.sh` checks the same, and warns when Homebrew's Bun is not pinned.
+  tries `PMS_BUN`, then `bun` on `PATH`, then `~/.proto/bin/bun` (the units run as the
+  installing user, with its `HOME`), then `/home/linuxbrew/.linuxbrew/bin/bun`. It skips
+  one older than `PMS_BUN_MIN` or one that can't report its version (a proto shim with
+  nothing pinned), and exits 3 with a message when none is usable. `stack/preflight.sh`
+  checks the same, and warns when Bun has no global proto pin (or no `brew pin`).
 - **Runtime rules**, enforced by `stack/lib/rules.test.ts`: a non-test `.ts` imports only
   relative paths, `bun:*` and `node:*`, or anything in an `import type` line. No `Bun.$`
   (its own shell, throws on a non-zero exit, no timeout): commands go through
@@ -133,14 +135,15 @@ themselves, on the same inputs.
 | `task fmt` | `vp fmt` |
 | CI | `oven-sh/setup-bun` from `.bun-version` in the `task lint test` job |
 
-On the box, Bun comes from Homebrew and is pinned:
+On the box, Bun comes from proto and is pinned globally (Homebrew's `brew install bun`
+and `brew pin bun` work too):
 
 ```bash
-brew install bun
+proto install bun 1.4.4
 ```
 
 ```bash
-brew pin bun
+proto pin bun 1.4.4 --to global
 ```
 
 ## Each port PR is done when

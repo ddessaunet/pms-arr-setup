@@ -187,24 +187,33 @@ binary is still `task`:
 brew install go-task
 ```
 
-[Bun](https://bun.com) runs the scripts ported to TypeScript, and their tests. It comes
-from Homebrew too, pinned, so a `brew upgrade` can't move every job, `arr-reclaim`
-included, to a new runtime at once. Upgrade it on purpose: unpin, upgrade, run
-`task lint test`, update `.bun-version` and `packageManager` in `package.json`, and pin
-again.
+[Bun](https://bun.com) runs the scripts ported to TypeScript, and their tests. This box
+has it from [proto](https://moonrepo.dev/proto), pinned globally, so a run outside any
+project (a systemd unit, a shell in `~`) still knows which version to use:
 
 ```bash
-brew install bun
+proto install bun 1.4.4
 ```
 
 ```bash
-brew pin bun
+proto pin bun 1.4.4 --to global
 ```
+
+Without the global pin, proto's `bun` shim only works inside a folder with a version file
+(here `.bun-version`), and fails everywhere else. `~/.zshrc` puts `~/.proto/shims` and
+`~/.proto/bin` on `PATH` (`proto setup` adds those lines). Homebrew works too:
+`brew install bun`, then `brew pin bun`.
+
+Either way it stays pinned, so no upgrade moves every job, `arr-reclaim` included, to a
+new runtime at once. Upgrade it on purpose: install the new version, run
+`task lint test`, update `.bun-version` and `packageManager` in `package.json`, then pin
+the new one.
 
 Run tasks as yourself, never `sudo task` or `sudo bun`: sudo's `PATH` has no Homebrew in
 it. The scripts ask for sudo themselves where they need it. The systemd units never call
 `task`, so the timers don't depend on it. They find Bun through `stack/lib/bun.sh`
-(`PMS_BUN`, then `PATH`, then Homebrew's), since their `PATH` has no Homebrew either.
+(`PMS_BUN`, then `PATH`, then `~/.proto/bin/bun`, then Homebrew's), since their `PATH`
+has neither proto nor Homebrew.
 Compose runs from the install, and state lives in `/opt/appdata`.
 
 **Tasks that change containers run from the install only.** These are `start`, `stop`,

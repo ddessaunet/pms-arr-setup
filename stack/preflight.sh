@@ -228,16 +228,22 @@ if command -v inotifywait >/dev/null; then ok "inotifywait present (arr-reclaim)
 else fail "inotifywait missing — sudo apt install inotify-tools"; fi
 
 # The scripts ported to TypeScript run on Bun, found as their launchers find it
-# (stack/lib/bun.sh: PMS_BUN, PATH, then Homebrew's). Pinned, because a brew
-# upgrade would otherwise move every job to a new runtime at once.
+# (stack/lib/bun.sh: PMS_BUN, PATH, proto's, then Homebrew's). Pinned, because
+# an upgrade would otherwise move every job to a new runtime at once.
 if bun_found="$(. "$REPO/stack/lib/bun.sh" 2>&1 && printf '%s %s' "$BUN_VERSION" "$BUN")"; then
-    ok "bun ${bun_found%% *} at ${bun_found#* }"
-    if [[ "${bun_found#* }" == */linuxbrew/* ]] && command -v brew >/dev/null \
-       && ! brew list --pinned 2>/dev/null | grep -qx bun; then
-        warn "bun is not pinned — brew pin bun"
-    fi
+    bun_ver="${bun_found%% *}" bun_at="${bun_found#* }"
+    ok "bun $bun_ver at $bun_at"
+    case "$bun_at" in
+        */.proto/*)
+            grep -qE '^bun *= *"' "${PROTO_HOME:-$HOME/.proto}/.prototools" 2>/dev/null \
+                || warn "bun has no global proto pin — proto pin bun $bun_ver --to global" ;;
+        */linuxbrew/*)
+            if command -v brew >/dev/null && ! brew list --pinned 2>/dev/null | grep -qx bun; then
+                warn "bun is not pinned — brew pin bun"
+            fi ;;
+    esac
 else
-    fail "$(head -n 1 <<<"$bun_found") — brew install bun && brew pin bun"
+    fail "$(head -n 1 <<<"$bun_found") — see stack/lib/bun.sh (proto or Homebrew)"
 fi
 
 echo

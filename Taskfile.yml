@@ -78,7 +78,7 @@ tasks:
     desc: Install the dev tools (TypeScript, Vite+) exactly as bun.lock says; the install never has them
     preconditions:
       - sh: command -v bun
-        msg: bun is not installed (brew install bun && brew pin bun).
+        msg: bun is not on PATH (proto install bun, then proto pin bun <version> --to global; see the README).
     sources: [package.json, bun.lock]
     generates: [node_modules/.bin/vp, node_modules/.bin/tsc]
     cmds:

@@ -8,21 +8,24 @@
 #   . "$REPO/stack/lib/bun.sh" || exit 3
 #   exec "$BUN" --no-install "$REPO/jobs/x/x.ts" "$@"
 #
-# systemd units set no PATH and neither does sudo, so Homebrew's bin is not on
-# it there. First match wins:
+# systemd units set no PATH and neither does sudo, so neither proto's nor
+# Homebrew's bin is on it there. First match wins:
 #   1. PMS_BUN, if set (and then only it: a wrong one is an error, not skipped)
 #   2. bun on PATH
-#   3. /home/linuxbrew/.linuxbrew/bin/bun, where `brew install bun` puts it
-# A candidate older than PMS_BUN_MIN is skipped. Sets BUN and BUN_VERSION, or
+#   3. $HOME/.proto/bin/bun, where `proto install bun` links it (the units run
+#      as the installing user, with that HOME, and none has ProtectHome)
+#   4. /home/linuxbrew/.linuxbrew/bin/bun, where `brew install bun` puts it
+# A candidate older than PMS_BUN_MIN, or one that cannot say its version (a
+# proto shim with no version to pick), is skipped. Sets BUN and BUN_VERSION, or
 # says why on stderr and returns 3.
 #
 # Keep PMS_BUN_MIN at or below .bun-version (stack/lib/bun.test.sh checks it).
-# The box pins Bun (`brew pin bun`): an unplanned upgrade would reach every job
-# at once, arr-reclaim included.
+# The box pins Bun (`proto pin bun <version> --to global`, or `brew pin bun`):
+# an unplanned upgrade would reach every job at once, arr-reclaim included.
 
 # shellcheck disable=SC2034  # BUN and BUN_VERSION are for the script that sources this
 PMS_BUN_MIN="1.4.0"
-BUN_FALLBACK="/home/linuxbrew/.linuxbrew/bin/bun"
+BUN_FALLBACKS=("${HOME:+$HOME/.proto/bin/bun}" /home/linuxbrew/.linuxbrew/bin/bun)
 BUN=""
 BUN_VERSION=""
 
@@ -45,7 +48,7 @@ pms_bun() {
     if [[ -n "${PMS_BUN:-}" ]]; then
         set -- "$PMS_BUN"
     else
-        set -- "$(command -v bun 2>/dev/null)" "$BUN_FALLBACK"
+        set -- "$(command -v bun 2>/dev/null)" "${BUN_FALLBACKS[@]}"
     fi
     for c in "$@"; do
         [[ -n "$c" && "$seen" != *" $c "* ]] || continue
@@ -64,7 +67,9 @@ pms_bun() {
     {
         echo "No usable Bun (need $PMS_BUN_MIN or later)."
         [[ ${#tried[@]} -eq 0 ]] || printf '  %s\n' "${tried[@]}"
-        echo "Install it as yourself, not with sudo: brew install bun && brew pin bun"
+        echo "Install it as yourself, not with sudo, with proto:"
+        echo "  proto install bun $PMS_BUN_MIN && proto pin bun $PMS_BUN_MIN --to global"
+        echo "or with Homebrew: brew install bun && brew pin bun"
         echo "(or point PMS_BUN at a bun binary)"
     } >&2
     return 3
