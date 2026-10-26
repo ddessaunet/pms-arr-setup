@@ -201,16 +201,28 @@ disappear. Confirm before anything destructive:
 
 - Commit subjects are lowercase and imperative; bodies explain *why*.
 - `.env` holds secrets and is gitignored. Only `.env.example` is tracked.
-- [Task](https://taskfile.dev) (`Taskfile.yml`) is the task runner, nothing else: no
-  dependencies. It comes from Homebrew (`brew install go-task`), like the box's other
-  tools. Run `task lint test` before committing, and never `sudo task` (sudo's `PATH` lacks
-  Homebrew). `task --list` shows every task. From a non-login shell, load Homebrew first:
-  `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"`.
+- [Task](https://taskfile.dev) (`Taskfile.yml`) is the task runner, from Homebrew
+  (`brew install go-task`), and [Bun](https://bun.com) runs the TypeScript, from proto,
+  pinned globally (`proto pin bun <version> --to global`; without it the shim fails
+  outside the repo). Run `task lint test` before committing, and never `sudo task` or
+  `sudo bun` (sudo's `PATH` lacks both). `task --list` shows every task. From a non-login
+  shell, load them first: `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` and
+  `export PATH="$HOME/.proto/shims:$HOME/.proto/bin:$PATH"`.
+- **The API-heavy scripts are moving to TypeScript on Bun**, one PR per step
+  ([docs/bun-migration.md](docs/bun-migration.md), its checklist). A ported script keeps
+  its `.sh` path as a launcher (`stack/lib/bun.sh`, then `exec` the `.ts` beside it):
+  units, `deploy.sh` and other scripts name that path. `package.json` holds dev tools only
+  (TypeScript, Vite+); the install never gets them or `node_modules`, and Bun runs with
+  `--no-install`. So **non-test `.ts` imports only relative paths, `bun:*` and `node:*`**,
+  plus anything in an `import type` line (`stack/lib/rules.test.ts` enforces it). Commands
+  go through `stack/lib/run.ts` (never `Bun.$`), HTTP through `stack/lib/http.ts`, and a
+  `main` through `runMain` (never `process.exit()`). Output formats stay the bash ones.
 - CI (`.github/workflows/test.yml`) runs `task lint test` and `task site:lint site:test site:check`
   on every PR and every push to `main`. It calls the same tasks, so a check added to
-  them runs there too; it pins shellcheck to the box's version (0.11.0). A change to
-  `*.md` files only skips both jobs (skipped, not absent, so the required checks pass),
-  and with them `layout.test.sh`'s README checks: run `task test` when editing those.
+  them runs there too; it pins shellcheck to the box's version (0.11.0), and Bun to
+  `.bun-version`. A change to `*.md` files only skips both jobs (skipped, not absent, so
+  the required checks pass), and with them `layout.test.sh`'s README checks: run
+  `task test` when editing those.
 - A new app follows the app contract in the README: `apps/<app>/` with `compose.yaml`,
   `Taskfile.yml`, `README.md` (and `configure.sh` plus its test when this repo owns its
   settings), one include line each in `compose.yaml` and `Taskfile.yml`. Tests live beside

@@ -1,8 +1,8 @@
 # Runs the offline checks on every PR, through the same task entry points a
-# person uses: `task lint test` for the stack, `task site:lint site:test
-# site:check` for the docs site. Nothing here starts containers or installs
-# units (trap 16): lint only renders compose.yaml, and the suites stub docker,
-# curl and systemctl.
+# person uses: `task lint test` for the stack (shellcheck, Vite+ and tsc, every
+# *.test.sh and bun test), `task site:lint site:test site:check` for the docs
+# site. Nothing here starts containers or installs units (trap 16): lint only
+# renders compose.yaml, and the suites stub docker, curl and systemctl.
 #
 # A change to Markdown files only (*.md: READMEs, docs/, CLAUDE.md, DESIGN.md)
 # skips both. They are required checks on main, so they are skipped, not left
@@ -73,6 +73,12 @@ jobs:
           sudo install shellcheck-v0.11.0/shellcheck /usr/local/bin/shellcheck
           rm -rf "$f" shellcheck-v0.11.0
           shellcheck --version
+
+      # The stack's TypeScript runs on Bun: the version the box pins (.bun-version).
+      # task lint installs the dev tools from bun.lock (bun:install).
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
 
       - run: task lint test
 

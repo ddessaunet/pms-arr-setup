@@ -74,13 +74,27 @@ tasks:
     cmds:
       - stack/preflight.sh
 
+  bun:install:
+    desc: Install the dev tools (TypeScript, Vite+) exactly as bun.lock says; the install never has them
+    preconditions:
+      - sh: command -v bun
+        msg: bun is not on PATH (proto install bun, then proto pin bun <version> --to global; see the README).
+    sources: [package.json, bun.lock]
+    generates: [node_modules/.bin/vp, node_modules/.bin/tsc]
+    cmds:
+      - bun install --frozen-lockfile
+
   lint:
-    desc: shellcheck every script, and check that compose.yaml renders
+    desc: shellcheck every script, lint and type-check the TypeScript, and check that compose.yaml renders
+    deps: ['bun:install']
     preconditions:
       - sh: command -v shellcheck
         msg: shellcheck not installed (sudo apt install shellcheck)
     cmds:
       - shellcheck -x apps/*/*.sh jobs/*/*.sh stack/*.sh stack/lib/*.sh
+      # Vite+ (Oxlint and Oxfmt; vite.config.ts) under Bun, so node is not needed.
+      - bun --bun vp check
+      - bun --bun tsc --noEmit
       # Placeholder values: this checks the files, not the .env (preflight
       # does that), so it also works in a worktree or a fresh clone.
       - >-
@@ -88,8 +102,14 @@ tasks:
         PROWLARR_API_KEY=x RADARR_API_KEY=x SONARR_API_KEY=x QBT_ARR_USER=x QBT_ARR_PASS=x
         docker compose --env-file /dev/null --profile '*' config -q
 
+  fmt:
+    desc: Rewrite the stack's TypeScript, JSON and config files in its format (task lint checks it)
+    deps: ['bun:install']
+    cmds:
+      - bun --bun vp fmt
+
   test:
-    desc: The offline test suites
+    desc: The offline test suites (every *.test.sh, and bun test)
     env:
       TASK: '{{.TASK_EXE}}'
     cmds:
