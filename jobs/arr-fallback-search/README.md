@@ -15,7 +15,9 @@ This job closes that gap for the opt-in profile (Phase 6b) that
 Daily at 04:00 (up to 30 minutes of jitter): [`arr-fallback-search.timer`](arr-fallback-search.timer)
 runs [`arr-fallback-search.service`](arr-fallback-search.service), which runs
 [`arr-fallback-search.sh`](arr-fallback-search.sh) from the install. `task deploy`
-installs both units and always arms the timer.
+installs both units and always arms the timer. The `.sh` is a launcher (it finds Bun with
+`stack/lib/bun.sh`); the job itself, its help and its exit codes are in
+[`arr-fallback-search.ts`](arr-fallback-search.ts).
 
 ## Tasks
 
@@ -28,5 +30,7 @@ installs both units and always arms the timer.
 ## Traps
 
 - **It finds the profile by its exact name**, as `stack/lib/arr-configure.sh` and
-  `apps/recyclarr/recyclarr.yml` do. [`arr-fallback-search.test.sh`](arr-fallback-search.test.sh)
+  `apps/recyclarr/recyclarr.yml` do. [`arr-fallback-search.test.ts`](arr-fallback-search.test.ts)
   fails if those three disagree.
+- **It reads no LAN addresses**, so it never imports `stack/lib/net.ts`: Bun reads
+  interfaces over netlink, and the unit's `RestrictAddressFamilies` leaves out `AF_NETLINK`.

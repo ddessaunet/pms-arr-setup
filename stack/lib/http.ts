@@ -60,3 +60,6 @@ export function jsonOf(res: Pick<HttpResponse, 'text'>): unknown {
 }
 
 export const is2xx = (status: number) => status >= 200 && status < 300;
+
+/** A status as curl's %{http_code} prints it, for log lines: 0 is `000`. */
+export const httpCode = (status: number) => String(status).padStart(3, '0');

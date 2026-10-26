@@ -2,7 +2,7 @@
 // cover the body, errors as status 0, redirects not followed.
 
 import { afterAll, describe, expect, test } from 'bun:test';
-import { jsonOf, makeHttp } from './http.ts';
+import { httpCode, jsonOf, makeHttp } from './http.ts';
 
 const server = Bun.serve({
   port: 0,
@@ -88,4 +88,9 @@ describe('http', () => {
   });
 
   test('jsonOf on something that is not JSON', () => expect(jsonOf({ text: 'Ok.' })).toBeUndefined());
+
+  test("httpCode prints no answer as curl's 000", () => {
+    expect(httpCode(0)).toBe('000');
+    expect(httpCode(401)).toBe('401');
+  });
 });
