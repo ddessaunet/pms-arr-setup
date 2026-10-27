@@ -22,7 +22,7 @@ never counts as media for [`arr-reclaim`](../../jobs/arr-reclaim/README.md).
 
 ## Settings
 
-Owned by [`configure.sh`](configure.sh):
+Owned by [`configure.ts`](configure.ts) (`configure.sh` launches it):
 
 - Radarr and Sonarr;
 - **every** language profile (Spanish and English, for every title);
@@ -42,7 +42,7 @@ Owned by [`configure.sh`](configure.sh):
 
 - **`only_monitored` stays off**: most of the library is unmonitored, and those titles need
   subtitles too.
-- **Bazarr replaces the whole language-profile list on a write**, so `configure.sh` owns
+- **Bazarr replaces the whole language-profile list on a write**, so `configure.ts` owns
   all of the profiles, not just one.
 - **It mounts `streaming/` only**, at its host path, so paths match Radarr's and Sonarr's
   with no mapping. It never hardlinks, so it can't touch seeding data.
