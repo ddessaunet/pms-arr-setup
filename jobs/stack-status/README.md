@@ -32,7 +32,7 @@ The files go to `/opt/appdata/docs-status`, which the docs container mounts at `
 [`stack-status.timer`](stack-status.timer): 1 minute after boot, then every 2 minutes.
 [`stack-status-drift.timer`](stack-status-drift.timer): 10 minutes after boot, then hourly.
 Each runs its `.service`, which runs [`stack-status.sh`](stack-status.sh) from the
-install. `task deploy` installs all four units and always arms both timers.
+install: a launcher for [`stack-status.ts`](stack-status.ts), which holds the job. `task deploy` installs all four units and always arms both timers.
 
 ## Tasks
 
@@ -47,15 +47,15 @@ install. `task deploy` installs all four units and always arms both timers.
 ## Traps
 
 - **The files are readable by anyone on the LAN**, like the apps themselves, which skip
-  login for local addresses. Every string goes through `redact()` and then a leak guard:
+  login for local addresses. Every string goes through `publish()`: `redact()`, then a leak guard:
   - secrets from `.env`, by key name (`*_KEY`, `*_PASS`, `*_TOKEN`, …);
   - Seerr's and Bazarr's API keys, and Plex's token;
   - anything shaped like a token, key, password, `Authorization:` header or `user:pass@`.
 
   If a known secret is still in a document, nothing is written and the run fails.
   **A new `.env` key must be classified**: secret by name, or listed in `PUBLIC_ENV_KEYS`.
-  The test fails on an `.env.example` key in neither group, and an unclassified one is
-  masked anyway.
+  `stack-status.test.ts` fails on an `.env.example` key in neither group, and an unclassified
+  one is masked anyway.
 - **A failed run means the checker broke, not the stack.** A degraded or down stack is still
   a successful run; the page shows it.
 - **qBittorrent's login backs off.** After one refused login it waits an hour before trying
@@ -64,5 +64,8 @@ install. `task deploy` installs all four units and always arms both timers.
 - **Create `/opt/appdata/docs-status` as yourself before the docs container first mounts
   it**, or Docker creates it root-owned and the job can't write:
   `install -d -m 755 /opt/appdata/docs-status`.
+- **`testdata/status.golden.json` is the contract with the page**: the site's own test parses
+  it, and `stack-status.test.ts` fails when a run no longer matches it. Rewrite it with
+  `UPDATE_GOLDEN=1 bun test ./jobs/stack-status` only for a change the page handles too.
 - **The page calls the data stale after 6 minutes** (three missed runs). It then shows every
   level as stale, with the command to look at the timer.

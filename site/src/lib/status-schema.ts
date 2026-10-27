@@ -1,4 +1,4 @@
-// The contract between jobs/stack-status/stack-status.sh (bash + jq) and the
+// The contract between jobs/stack-status/stack-status.ts and the
 // dashboard. Used by the tests only, so zod stays out of the page's script:
 // status-schema.test.ts parses the job's golden status.json with it.
 

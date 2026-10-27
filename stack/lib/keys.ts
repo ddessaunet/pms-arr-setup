@@ -3,9 +3,9 @@
 //   seerrKey    main.apiKey from /opt/appdata/seerr/settings.json (trap 12)
 //   bazarrKey   auth.apikey from /opt/appdata/bazarr/config/config.yaml
 //
-// The same logic as seerr_api_key and bazarr_api_key in
-// jobs/stack-status/stack-status.sh. Each is "" when the file or the key is missing:
-// the app has not written it yet.
+// Ports of the bash readers stack-status.sh and the configure scripts used
+// (keys.test.ts keeps what those returned). Each is "" when the file or the key
+// is missing: the app has not written it yet.
 
 import { readFileSync } from 'node:fs';
 
