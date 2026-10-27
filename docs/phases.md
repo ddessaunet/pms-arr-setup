@@ -50,7 +50,7 @@ Run `stack/preflight.sh` before each of Phases 0–1b. It is read-only.
    its data**, so until then the arrs only *added* files. It's retired now, and moves are
    safe. pms-local is not modified by this migration; what the stack needs from it is ported here (`arr-reclaim`).
 6. **Upgrades only in the 4K movie profiles (`UHD Bluray + WEB` and its `4K HDR or 1080p` variant), and movie sizes are capped**
-   (Radarr 1080p 40 but WEB-DL 80, 2160p 200 MB/min; Sonarr 1080p no max; `arr-configure.sh`). Everything else is single-grab.
+   (Radarr 1080p 40 but WEB-DL 80, 2160p 200 MB/min; Sonarr 1080p no max; `stack/lib/arr-policy.ts`). Everything else is single-grab.
 7. **Media is deleted in Plex, and that frees the space.** For Radarr/Sonarr imports,
    this repo's `arr-reclaim` removes the torrent, and it does the same when one is deleted
    in Radarr/Sonarr with its files. For the rest of the library, including
@@ -514,7 +514,7 @@ Two* WEB-DL (below) and several 4K files already in the library from before the 
 **Who owns what,** so no two tools fight:
 - **Recyclarr** (`apps/recyclarr/recyclarr.yml`): those two profiles, the hand-picked
   `UHD Fallback` (below), and their custom formats.
-- **`arr-configure.sh`:** sizes (Recyclarr's `quality_definition` is deliberately left out),
+- **`stack/lib/arr-policy.ts`:** sizes (Recyclarr's `quality_definition` is deliberately left out),
   and upgrades off on every other profile.
 - **`apps/seerr/configure.ts`:** requests default to those two profiles.
 
@@ -592,7 +592,7 @@ no Remux. The weekly search (Phase 6b) never looks at it.
 
 - Delete the `UHD Bluray + WEB` and `WEB-1080p` profiles in Radarr and Sonarr. Recyclarr
   only ever wrote profiles and custom formats.
-- Set `default_profile` in `arr-configure.sh` and `PROFILE_NAME` in `apps/seerr/configure.ts`
+- Set `DEFAULT_PROFILE` in `stack/lib/arr-policy.ts` (Seerr takes it from there too)
   back to `HD-1080p`, then re-run `task arr:configure` and `task seerr:configure`.
 
 ---
@@ -608,7 +608,7 @@ scheduled search for missing movies. Decided 2026-10-02:
 | | what | owned by |
 |---|---|---|
 | profile | **`4K HDR or 1080p`**: the same TRaSH profile and scores as `UHD Bluray + WEB`, with a 1080p group (Bluray, WEB-DL, WEBRip) under the 4K one. Upgrades on, until 4K. No 720p, no Remux. 1080p x265 without HDR is rejected, as TRaSH intends | `apps/recyclarr/recyclarr.yml` (a profile variant, Recyclarr ≥ 8.3) |
-| upgrades / no Remux | both 4K movie profiles | `arr-configure.sh` |
+| upgrades / no Remux | both 4K movie profiles | `stack/lib/arr-policy.ts` |
 | default | **unchanged**: requests default to `UHD Bluray + WEB`. Pick the variant per request in Seerr's request options (admin) | `apps/seerr/configure.ts` |
 | re-search | **daily, 04:00**: the variant's monitored, released movies without a 4K file (1080p, or none) get one Radarr search. Movies already in 4K are left to RSS | `jobs/arr-fallback-search/arr-fallback-search.sh`, `arr-fallback-search.timer` |
 
@@ -676,8 +676,8 @@ profile to `4K HDR or 1080p` in Radarr, then *Search Movie*, or run
 
 - Move any movies on `4K HDR or 1080p` to another profile, since Radarr won't delete a
   profile in use. Then delete the profile in Radarr.
-- Remove its entry from `apps/recyclarr/recyclarr.yml` and `upgrade_profiles` in
-  `arr-configure.sh`.
+- Remove its entry from `apps/recyclarr/recyclarr.yml` and `UPGRADE_PROFILES` in
+  `stack/lib/arr-policy.ts`.
 - Remove the timer from `stack/deploy.sh`, then
   `sudo systemctl disable --now arr-fallback-search.timer`.
 

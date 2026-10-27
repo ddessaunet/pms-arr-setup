@@ -10,7 +10,7 @@ each profile).
 
 nginx serving the static site that [`site/`](../../site/Taskfile.yml) builds (Starlight). The
 site reads the repo when it is built: the map comes from `apps/recyclarr/recyclarr.yml` and
-`stack/lib/arr-configure.sh`, and its explanations from `site/src/data/profiles.yml`.
+`stack/lib/arr-policy.ts`, and its explanations from `site/src/data/profiles.yml`.
 
 Three names, three things: `docs/` is the runbook (Markdown in the repo), `site/` is the
 website's source, and `apps/docs` is the container that serves the built website.
@@ -60,7 +60,7 @@ used on it are committed in `.agents/skills/` (listed in `skills-lock.json`).
 - **Deploy a build before the first `up`.** With no `site/dist` in the install yet, nginx
   answers 404 until `task deploy` runs with node and pnpm on `PATH`.
 - **The build is a check.** It fails if `recyclarr.yml` and `profiles.yml` list different
-  profiles, or if they disagree with `arr-configure.sh` on defaults or upgrades. A failed
+  profiles, or if they disagree with `arr-policy.ts` on defaults or upgrades. A failed
   build leaves the published site as it was.
 - **Mount `site/`, never `site/dist`.** The build and the install swap `dist` for a new
   folder, and a bind of the old one would keep serving it.

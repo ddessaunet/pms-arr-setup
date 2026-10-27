@@ -12,7 +12,7 @@
 #   - Recyclarr: the four profiles below (three for movies: the default 4K HDR
 #     one, its opt-in "4K HDR or 1080p" variant, and the hand-picked "UHD
 #     Fallback") and their formats/scores.
-#   - arr-configure.sh: quality SIZES (Radarr 1080p 40 but WEB-DL 80, 2160p 200 MB/min; Sonarr
+#   - stack/lib/arr-policy.ts: quality SIZES (Radarr 1080p 40 but WEB-DL 80, 2160p 200 MB/min; Sonarr
 #     1080p no max) — hence no
 #     `quality_definition:` here, which would reset them to TRaSH's sizes.
 #   - apps/seerr/configure.ts: which profile a request uses by default.
@@ -28,13 +28,13 @@ radarr:
       - trash_id: 64fb5f9858489bdac2af690e27c8f42f  # UHD Bluray + WEB
         # Named because the variant below shares this trash_id (Recyclarr then
         # requires a name on each). Keep it exactly this: Recyclarr's state,
-        # arr-configure.sh and apps/seerr/configure.ts all find the profile by name.
+        # stack/lib/arr-policy.ts and apps/seerr/configure.ts all find the profile by name.
         name: UHD Bluray + WEB
         reset_unmatched_scores:
           enabled: true
         # Upgrades ON here, and only here: a better-scored 4K release (e.g. HDR10+)
         # replaces the first grab. arr-reclaim removes the replaced torrent
-        # (`upgraded`); arr-configure.sh keeps every other profile at no-upgrade.
+        # (`upgraded`); arr-policy.ts keeps every other profile at no-upgrade.
         upgrade:
           allowed: true
           until_quality: UHD 2160p
@@ -45,7 +45,7 @@ radarr:
         # 508). One group makes the score, and so the TRaSH release-group tiers,
         # decide within 4K. Tiered UHD Bluray encodes (1700-1800) still edge out
         # WEB Tier 01 (1700); untiered encoders fall below tiered WEB. Remux stays
-        # out (arr-configure.sh), and qualities not listed stay disallowed.
+        # out (arr-policy.ts), and qualities not listed stay disallowed.
         qualities:
           - name: UHD 2160p
             qualities: [Bluray-2160p, WEBDL-2160p, WEBRip-2160p]

@@ -32,6 +32,11 @@ describe('the header', () => {
 const seerr = APPS.find((a) => a.name === 'seerr');
 if (!seerr) throw new Error('no seerr in APPS');
 const SEERR = '3.5.1';
+// Radarr and Sonarr run these, and their types are always in step here.
+const OTHERS: Record<string, { version: string; key: string; url: string }> = {
+  radarr: { version: '6.4.4.10685', key: 'rk', url: 'http://127.0.0.1:7878/api/v3/system/status' },
+  sonarr: { version: '4.0.20.3014', key: 'sk', url: 'http://127.0.0.1:8989/api/v3/system/status' },
+};
 
 describe('the spec check', () => {
   test('JSON', () => expect(looksLikeSpec('{"openapi":"3.0.4"}')).toBe(true));
@@ -47,6 +52,10 @@ function setup(running: string, have?: string, seerrHave: string | null = SEERR)
   mkdirSync(join(repo, 'stack/lib/api'), { recursive: true });
   if (have) writeFileSync(join(repo, 'stack/lib/api/prowlarr.d.ts'), `${header(prowlarr!, have)}export {};\n`);
   if (seerrHave) writeFileSync(join(repo, 'stack/lib/api/seerr.d.ts'), `${header(seerr!, seerrHave)}export {};\n`);
+  for (const [name, o] of Object.entries(OTHERS)) {
+    const app = APPS.find((a) => a.name === name)!;
+    writeFileSync(join(repo, `stack/lib/api/${name}.d.ts`), `${header(app, o.version)}export {};\n`);
+  }
   const urls: string[] = [];
   const argvs: string[][] = [];
   const lines: string[] = [];
@@ -58,6 +67,11 @@ function setup(running: string, have?: string, seerrHave: string | null = SEERR)
         const ok = req.headers?.['X-Api-Key'] === 'pk';
         return reply(ok ? 200 : 401, ok ? JSON.stringify({ version: running }) : '');
       }
+      for (const o of Object.values(OTHERS))
+        if (url === o.url)
+          return req.headers?.['X-Api-Key'] === o.key
+            ? reply(200, JSON.stringify({ version: o.version }))
+            : reply(401, '');
       // Seerr's /status is public.
       if (url === 'http://127.0.0.1:5055/api/v1/status')
         return reply(req.headers?.['X-Api-Key'] === undefined ? 200 : 400, JSON.stringify({ version: SEERR }));
@@ -70,7 +84,7 @@ function setup(running: string, have?: string, seerrHave: string | null = SEERR)
       return { code: 0, stdout: '', stderr: '', timedOut: false };
     },
     log: (l: string) => void lines.push(l),
-    env: { PROWLARR_API_KEY: 'pk' } as Record<string, string>,
+    env: { PROWLARR_API_KEY: 'pk', RADARR_API_KEY: 'rk', SONARR_API_KEY: 'sk' } as Record<string, string>,
     repo,
   };
   return { deps, repo, urls, argvs, lines };
@@ -80,7 +94,12 @@ describe('main', () => {
   test('--check: in step', async () => {
     const s = setup('2.6.5.5623', '2.6.5.5623');
     expect(await main(['--check'], s.deps)).toBe(0);
-    expect(s.lines).toEqual(['  ok       prowlarr 2.6.5.5623', `  ok       seerr ${SEERR}`]);
+    expect(s.lines).toEqual([
+      '  ok       prowlarr 2.6.5.5623',
+      `  ok       radarr ${OTHERS.radarr!.version}`,
+      `  ok       sonarr ${OTHERS.sonarr!.version}`,
+      `  ok       seerr ${SEERR}`,
+    ]);
     expect(s.argvs).toEqual([]);
   });
 
@@ -110,7 +129,7 @@ describe('main', () => {
     expect(s.urls).toContain(`https://raw.githubusercontent.com/seerr-team/seerr/v${SEERR}/seerr-api.yml`);
     expect(s.argvs.map((a) => a[3]).filter((f) => f?.endsWith('.yml'))).toHaveLength(1);
     expect(versionOf(readFileSync(join(s.repo, 'stack/lib/api/seerr.d.ts'), 'utf8'))).toBe(SEERR);
-    expect(s.lines[1]).toBe(`  wrote    stack/lib/api/seerr.d.ts (new → ${SEERR})`);
+    expect(s.lines).toContain(`  wrote    stack/lib/api/seerr.d.ts (new → ${SEERR})`);
   });
 
   test('a refused key is 3', async () => {

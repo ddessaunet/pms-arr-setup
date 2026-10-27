@@ -1,5 +1,5 @@
 // jobs/arr-fallback-search/arr-fallback-search.test.ts — unit fixtures for arr-fallback-search.ts,
-// the one name it shares with recyclarr.yml and arr-configure.sh, and main
+// the one name it shares with recyclarr.yml and arr-policy.ts, and main
 // against a fake Radarr.
 //
 // Offline, and changes nothing. The movie fields (qualityProfileId, monitored,
@@ -8,6 +8,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { UPGRADE_PROFILES } from '../../stack/lib/arr-policy.ts';
 import type { HttpRequest, HttpResponse } from '../../stack/lib/http.ts';
 import {
   FALLBACK_PROFILE,
@@ -85,20 +86,14 @@ describe('profile_id_of', () => {
 });
 
 // ─── one name, three owners ───────────────────────────────────────────────────
-// Recyclarr creates the profile, arr-configure.sh keeps its upgrades on, and this
+// Recyclarr creates the profile, arr-policy.ts keeps its upgrades on, and this
 // script finds it — all by name. A rename in one place must fail here (trap 11).
 describe('the profile name across files', () => {
   test('recyclarr.yml creates it', () => {
     const yml = readFileSync(resolve(ROOT, 'apps/recyclarr/recyclarr.yml'), 'utf8');
     expect(yml.split('\n').filter((l) => l === `        name: ${FALLBACK_PROFILE}`)).toHaveLength(1);
   });
-  test('arr-configure.sh lets it upgrade', () => {
-    const r = Bun.spawnSync(['bash', '-c', '. ./stack/lib/arr-configure.sh && upgrade_profiles radarr'], {
-      cwd: ROOT,
-      env: { ...process.env, ARR_CONFIGURE_LIB: '1' },
-    });
-    expect(r.stdout.toString().split('\n')).toContain(FALLBACK_PROFILE);
-  });
+  test('arr-policy.ts lets it upgrade', () => expect(UPGRADE_PROFILES.radarr).toContain(FALLBACK_PROFILE));
   test('the timer runs this script', () => {
     const unit = readFileSync(resolve(ROOT, 'jobs/arr-fallback-search/arr-fallback-search.service'), 'utf8');
     const execStart = unit.split('\n').flatMap((l) => (l.startsWith('ExecStart=') ? [l.slice(10)] : []));

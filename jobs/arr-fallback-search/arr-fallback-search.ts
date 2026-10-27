@@ -24,10 +24,11 @@ import { envGet, envSeconds, type Env } from '../../stack/lib/env.ts';
 import { httpCode, makeHttp, type Http } from '../../stack/lib/http.ts';
 import { out, type Log } from '../../stack/lib/log.ts';
 import { apiError, servarr } from '../../stack/lib/servarr.ts';
+import { VARIANT_PROFILE } from '../../stack/lib/arr-policy.ts';
 
-// Created by Recyclarr (apps/recyclarr/recyclarr.yml); arr-configure.sh keeps its
-// upgrades on (upgrade_profiles).
-export const FALLBACK_PROFILE = '4K HDR or 1080p';
+// Created by Recyclarr (apps/recyclarr/recyclarr.yml); arr-configure keeps its
+// upgrades on (UPGRADE_PROFILES in stack/lib/arr-policy.ts).
+export const FALLBACK_PROFILE = VARIANT_PROFILE;
 
 // The fields of Radarr 6's /api/v3/qualityprofile and /movie that this job reads.
 export interface QualityProfile {

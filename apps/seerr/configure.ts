@@ -25,6 +25,7 @@
 
 import { join, resolve } from 'node:path';
 import type { components } from '../../stack/lib/api/seerr.d.ts';
+import { APPS, DEFAULT_PROFILE, type App } from '../../stack/lib/arr-policy.ts';
 import { headerHelp, parseCli } from '../../stack/lib/cli.ts';
 import { envGet, envSeconds, type Env } from '../../stack/lib/env.ts';
 import { runMain } from '../../stack/lib/exit.ts';
@@ -47,8 +48,7 @@ export type RadarrWrite = Omit<Schemas['RadarrSettings'], 'id'>;
 export type SonarrWrite = Omit<Schemas['SonarrSettings'], 'id'>;
 export type ServerWrite = RadarrWrite | SonarrWrite;
 
-export type App = 'radarr' | 'sonarr';
-export const APPS: readonly App[] = ['radarr', 'sonarr'];
+export { APPS, type App };
 
 // ─── the settings ─────────────────────────────────────────────────────────────
 
@@ -65,13 +65,13 @@ export const LIBRARIES = ['Movies', 'TV Shows'] as const;
 export const wantMain = (): MainWrite => ({ newPlexLogin: false });
 
 /**
- * The profile a request uses by default, per app — the ones Recyclarr creates
- * (apps/recyclarr/recyclarr.yml) and arr-configure.sh's default_profile names.
- * Movies are 4K HDR; series stay 1080p. For a film with no 4K HDR release, pick
+ * The profile a request uses by default, per app: Radarr's and Sonarr's own
+ * default (stack/lib/arr-policy.ts), which Recyclarr creates. Movies are 4K
+ * HDR; series stay 1080p. For a film with no 4K HDR release, pick
  * "4K HDR or 1080p" in the request's options (admin): 1080p now, replaced by 4K
  * HDR when one appears. It stays opt-in, so it is never the default here.
  */
-export const PROFILE_NAME: Readonly<Record<App, string>> = { radarr: 'UHD Bluray + WEB', sonarr: 'WEB-1080p' };
+export const PROFILE_NAME = DEFAULT_PROFILE;
 
 const SERVER: Readonly<Record<App, { port: number; root: string }>> = {
   radarr: { port: 7878, root: '/mnt/data/streaming/movies' },

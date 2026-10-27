@@ -92,13 +92,14 @@ disappear. Confirm before anything destructive:
       split, any Bluray encode beat a well-seeded tiered WEB release. It also makes the
       opt-in **`4K HDR or 1080p`** (Phase 6b): a variant of the same TRaSH profile (same
       `trash_id`, so the same scores) with a 1080p group under the 4K one, for films with no
-      4K HDR release. Its name is matched exactly by `stack/lib/arr-configure.sh` and
-      `jobs/arr-fallback-search/arr-fallback-search.ts`, and that job's test pins it.
+      4K HDR release. Its name is `VARIANT_PROFILE` in `stack/lib/arr-policy.ts`, which
+      arr-configure and `jobs/arr-fallback-search/arr-fallback-search.ts` use, and that job's test pins it.
       And the hand-picked **`UHD Fallback`**, for films with 4K releases the strict profile
       rejects: not guide-backed, so it gets only the formats listed for it. HDR preferred
       but not required, audio scored as in the default, no tiers, no LQ penalty (YTS
       passes), no Remux, no upgrades.
-    - **`stack/lib/arr-configure.sh`** (behind `apps/radarr|sonarr/configure.sh`): sizes
+    - **`stack/lib/arr-policy.ts`**, applied by `stack/lib/arr-configure.ts` (behind
+      `apps/radarr|sonarr/configure.sh`): sizes
       (Radarr 1080p 40 but WEB-DL 80, 2160p 200 MB/min; Sonarr 1080p no max; Recyclarr's
       `quality_definition` must stay out), and upgrades and no Remux **only** on the two
       4K movie profiles.
@@ -163,7 +164,7 @@ disappear. Confirm before anything destructive:
 17. **The docs website is built from the repo and checks it.** `apps/docs` (nginx, `:8088`)
     serves the install's `site/dist`: `task site:build` writes the source's, and
     `task deploy` builds it and swaps it into the install. The quality-profiles
-    map reads `apps/recyclarr/recyclarr.yml` and `stack/lib/arr-configure.sh` at build time,
+    map reads `apps/recyclarr/recyclarr.yml` and imports `stack/lib/arr-policy.ts` at build time,
     with explanations in `site/src/data/profiles.yml`. Adding, renaming or removing a
     profile, or changing the defaults, upgrades or size caps, means updating `profiles.yml`
     too: `task site:check` fails until they agree. A failed build leaves the published site
