@@ -33,8 +33,8 @@ PrivateTmp=yes
 ProtectClock=yes
 ProtectHostname=yes
 LockPersonality=yes
-# AF_NETLINK: `hostname -I` reads the addresses through netlink. Without it the
-# script sees no address and does nothing, every time.
+# AF_NETLINK: listing the interfaces' addresses (stack/lib/net.ts) takes netlink.
+# Without it the script sees no address and does nothing, every time.
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 
 Nice=10

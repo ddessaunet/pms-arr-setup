@@ -30,7 +30,7 @@ PrivateTmp=yes
 ProtectClock=yes
 ProtectHostname=yes
 LockPersonality=yes
-# AF_NETLINK: the configure scripts list the box's addresses with hostname -I.
+# AF_NETLINK: the configure scripts list the box's addresses (stack/lib/net.ts).
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 
 Nice=10

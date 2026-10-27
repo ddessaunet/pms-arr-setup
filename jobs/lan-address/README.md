@@ -46,7 +46,9 @@ both units and always arms the timer.
 - **It re-applies the whole app, not just the addresses.** A setting changed by hand in one
   of those apps is put back to what its `configure.sh` says, as `task <app>:configure`
   would. Settings belong in the configure scripts anyway, not the WebUIs.
-- **The unit needs `AF_NETLINK`.** `hostname -I` reads the addresses through netlink.
+- **The unit needs `AF_NETLINK`.** Listing the interfaces' addresses takes netlink.
   Without it the job sees no address and does nothing. The test pins it.
+- **It reads the addresses as the configure scripts do,** through `stack/lib/net.ts`,
+  so the addresses it records are the ones the apps were given.
 - **With the reservation it has nothing to do,** and a run that finds nothing changed
   costs nothing. Keep it armed: without it, a moved address locks the apps out silently.
