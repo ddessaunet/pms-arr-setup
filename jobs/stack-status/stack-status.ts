@@ -572,7 +572,7 @@ export function parseShow(text: string): Record<string, Record<string, string>> 
   return outp;
 }
 
-/** Meanings of pms-update's exit codes (jobs/pms-update/update-stack.sh). */
+/** Meanings of pms-update's exit codes (jobs/pms-update/update-stack.ts). */
 const PMS_UPDATE_EXIT: Readonly<Record<string, string>> = {
   '3': 'preflight failed',
   '4': 'Plex token rejected',
