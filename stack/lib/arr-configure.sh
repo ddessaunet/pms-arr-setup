@@ -134,7 +134,7 @@ size_caps() {
 size_capped() { size_caps "$1" | cut -f1; }
 
 # The default profile for new adds (created by Recyclarr, apps/recyclarr/recyclarr.yml;
-# seerr-configure.sh points requests at the same one), and the profiles allowed
+# apps/seerr/configure.ts points requests at the same one), and the profiles allowed
 # to upgrade — every other profile is kept at no-upgrade. "4K HDR or 1080p" is
 # the opt-in variant for films with no 4K HDR release: 1080p first, then 4K HDR.
 default_profile() { case "$1" in radarr) echo "UHD Bluray + WEB" ;; sonarr) echo "WEB-1080p" ;; esac; }

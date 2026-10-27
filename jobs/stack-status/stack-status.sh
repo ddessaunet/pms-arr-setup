@@ -109,11 +109,12 @@ env_secret_values() { # env-text
 secrets_json() {
     jq -R -s -c 'split("\n") | map(select(length >= 4)) | (. + map(@uri)) | unique | sort_by(-length)'
 }
-# Seerr's and Bazarr's API keys, read by their configure scripts' own helpers,
-# in a child process so sourcing them changes nothing here.
+# Seerr's and Bazarr's API keys. Seerr's is read as stack/lib/keys.ts's seerrKey
+# reads it (keys.test.ts checks the two agree); its configure.sh is a launcher
+# now, and sourcing it would run it. Bazarr's comes from its configure script's
+# own helper, in a child process so sourcing it changes nothing here.
 seerr_api_key() {
-    SEERR_CONFIGURE_LIB=1 bash -c '. "$1/apps/seerr/configure.sh" >/dev/null 2>&1 && seerr_key "$2"' \
-        _ "$REPO" "$APPDATA/seerr/settings.json" 2>/dev/null
+    jq -r '.main.apiKey // empty' "$APPDATA/seerr/settings.json" 2>/dev/null
 }
 bazarr_api_key() {
     BAZARR_CONFIGURE_LIB=1 bash -c '. "$1/apps/bazarr/configure.sh" >/dev/null 2>&1 && bazarr_key "$2"' \

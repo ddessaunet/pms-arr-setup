@@ -17,11 +17,11 @@ media mounts, but one of its delete actions does delete files, through Radarr/So
 ## Secrets
 
 Its API key is its own, generated on first start into `/opt/appdata/seerr/settings.json`,
-not `.env`. [`configure.sh`](configure.sh) reads it there.
+not `.env`. [`configure.ts`](configure.ts) reads it there (`configure.sh` launches it).
 
 ## Settings
 
-Owned by [`configure.sh`](configure.sh), after **one browser sign-in with Plex**:
+Owned by [`configure.ts`](configure.ts), after **one browser sign-in with Plex**:
 
 - the Plex server and its libraries;
 - Radarr at `UHD Bluray + WEB` and Sonarr at `WEB-1080p` by default (the variant profiles
@@ -56,7 +56,7 @@ rather than at once. For a series it does not: deleting episodes in Plex only un
 
 - **Its API key is refused (403) until the admin exists**, so sign in with Plex in the browser
   once before the first `configure`.
-- **It rejects read-only fields in writes**, so `configure.sh` only ever sends the fields it
+- **It rejects read-only fields in writes**, so `configure.ts` only ever sends the fields it
   owns.
 - **It runs unprivileged** (as `node`), so `/opt/appdata/seerr` must exist and belong to
   you before the first start. `task start` creates it.

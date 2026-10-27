@@ -516,7 +516,7 @@ Two* WEB-DL (below) and several 4K files already in the library from before the 
   `UHD Fallback` (below), and their custom formats.
 - **`arr-configure.sh`:** sizes (Recyclarr's `quality_definition` is deliberately left out),
   and upgrades off on every other profile.
-- **`seerr-configure.sh`:** requests default to those two profiles.
+- **`apps/seerr/configure.ts`:** requests default to those two profiles.
 
 **Upgrades are safe with both watchers.**
 - An upgrade replaces the library file at the same path. `plex-watch` ignores it, because
@@ -592,7 +592,7 @@ no Remux. The weekly search (Phase 6b) never looks at it.
 
 - Delete the `UHD Bluray + WEB` and `WEB-1080p` profiles in Radarr and Sonarr. Recyclarr
   only ever wrote profiles and custom formats.
-- Set `default_profile` in `arr-configure.sh` and `profile_name` in `seerr-configure.sh`
+- Set `default_profile` in `arr-configure.sh` and `PROFILE_NAME` in `apps/seerr/configure.ts`
   back to `HD-1080p`, then re-run `task arr:configure` and `task seerr:configure`.
 
 ---
@@ -609,7 +609,7 @@ scheduled search for missing movies. Decided 2026-10-02:
 |---|---|---|
 | profile | **`4K HDR or 1080p`**: the same TRaSH profile and scores as `UHD Bluray + WEB`, with a 1080p group (Bluray, WEB-DL, WEBRip) under the 4K one. Upgrades on, until 4K. No 720p, no Remux. 1080p x265 without HDR is rejected, as TRaSH intends | `apps/recyclarr/recyclarr.yml` (a profile variant, Recyclarr ≥ 8.3) |
 | upgrades / no Remux | both 4K movie profiles | `arr-configure.sh` |
-| default | **unchanged**: requests default to `UHD Bluray + WEB`. Pick the variant per request in Seerr's request options (admin) | `seerr-configure.sh` |
+| default | **unchanged**: requests default to `UHD Bluray + WEB`. Pick the variant per request in Seerr's request options (admin) | `apps/seerr/configure.ts` |
 | re-search | **daily, 04:00**: the variant's monitored, released movies without a 4K file (1080p, or none) get one Radarr search. Movies already in 4K are left to RSS | `jobs/arr-fallback-search/arr-fallback-search.sh`, `arr-fallback-search.timer` |
 
 **What happens to a request.**
