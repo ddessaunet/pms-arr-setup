@@ -25,6 +25,8 @@ export interface Item {
   reasons: Reason[];
   label?: string;
   kind?: string;
+  /** What the job measured, per kind (the control page reads it). */
+  facts?: Record<string, unknown>;
 }
 export interface StatusDoc {
   schema: 1;

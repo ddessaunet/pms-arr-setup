@@ -1,0 +1,40 @@
+---
+title: Control
+description: Deploy main, see what is running, restart a service, run a job or check for drift. A mock for now.
+---
+
+import DeployPanel from '../../components/DeployPanel.astro';
+import RunningView from '../../components/RunningView.astro';
+import JobsPanel from '../../components/JobsPanel.astro';
+import DriftPanel from '../../components/DriftPanel.astro';
+import DeployHistory from '../../components/DeployHistory.astro';
+
+<div class="not-content">
+  <DeployPanel />
+</div>
+
+## Running
+
+Every container and the arr-reclaim watcher, as the status job last saw them (every 2 minutes).
+
+<div class="not-content">
+  <RunningView />
+</div>
+
+## Jobs
+
+<div class="not-content">
+  <JobsPanel />
+</div>
+
+## Drift
+
+<div class="not-content">
+  <DriftPanel />
+</div>
+
+## History
+
+<div class="not-content">
+  <DeployHistory />
+</div>

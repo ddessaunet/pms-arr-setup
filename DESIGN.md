@@ -86,7 +86,7 @@ contents beside the page from 72rem; below that, a menu button and a bar under t
 stand in for them.
 
 - **Header and sidebar** are walled off: a 3px maze-blue line under the header and along
-  the sidebar's edge. The sidebar is 15rem: it holds two short links.
+  the sidebar's edge. The sidebar is 15rem: it holds three short links.
 - **Sidebar links are a pellet trail:** each page is a pellet, and the current page is
   Pinky, the pixel ghost (the arcade sprite, one CSS pixel per sprite pixel), its label text-strong on the accent fill (#141C5C, 14.6:1). Labels are Space
   Mono, text on the raised surface (11.6:1); hover turns them Pinky.
@@ -96,8 +96,8 @@ stand in for them.
 - **No previous / next:** the sidebar already links every page.
 - **The menu button** (under 50rem) is a small maze cell, its wall Pinky while the menu is
   open.
-- **Content width:** 45rem for prose. The dashboard and the profile map, which lay cards side
-  by side, get 72rem.
+- **Content width:** 45rem for prose. The dashboard, the profile map and the control page,
+  which lay cards and tables side by side, get 72rem.
 
 ## Status levels
 
@@ -111,3 +111,18 @@ always a word and a mark**; colour only reinforces it. Badge text on its fill:
 | Down | ✕ | danger-text on danger-low | 8.9:1 |
 | Unknown, N/A | ?, – | text on the raised surface | 11:1 |
 | Stale (was …) | as before | text-muted on the raised surface, dashed border | 6.4:1 |
+
+## Controls
+
+The control page (`/control/`) is the only place with buttons.
+
+- **A button is a maze cell:** text-strong in Space Mono on the accent fill (#141C5C,
+  14.6:1), a 2px primary wall that turns Pinky under the pointer, and the site's Pinky focus
+  ring. While its action runs it says so ("Deploying…") in Pinky; the others are disabled
+  (dashed wall, text-muted on gray), since one action runs at a time.
+- **Deploy steps are a row of pellets,** each a word and a mark like the levels: waiting ·,
+  running ◐ (Pinky wall), done ● (success), failed ✕ (danger wall, danger-text), skipped –
+  (dashed).
+- **The Mock tag** is warning-text on warning-low with a warning border, as the Degraded
+  badge, beside a sentence saying nothing on the page changes the server. It goes when a
+  real control backend replaces the mock.

@@ -21,6 +21,7 @@ export default defineConfig({
       sidebar: [
         { label: 'Stack', link: '/' },
         { label: 'Quality profiles', link: '/quality-profiles/' },
+        { label: 'Control', link: '/control/' },
       ],
       // The Pacman theme (DESIGN.md at the repo root): self-hosted fonts, so the
       // LAN site needs no font CDN, then the theme itself. Latin only: every page
@@ -39,7 +40,7 @@ export default defineConfig({
         ThemeProvider: './src/components/overrides/ThemeProvider.astro',
         ThemeSelect: './src/components/overrides/ThemeSelect.astro',
       },
-      pagefind: false, // two pages: nothing to search yet
+      pagefind: false, // three pages: nothing to search yet
       pagination: false, // the sidebar already links every page
       lastUpdated: false,
     }),

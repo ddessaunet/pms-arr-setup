@@ -1,0 +1,31 @@
+---
+// What runs all the time: every container and the arr-reclaim watcher, from
+// /live/status.json, each with a Restart button. Filled in by
+// control-client.ts; the names come from src/data/services.yml.
+import { services } from '../lib/services.ts';
+
+const labels = JSON.stringify(Object.fromEntries(services.map((s) => [s.id, s.label])));
+---
+
+<div class="ctl-panel">
+  <p class="ctl-meta" data-ctl-age>Waiting for the status job…</p>
+  <div class="ctl-table-wrap">
+    <table class="ctl-table" data-ctl-running data-labels={labels}>
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Status</th>
+          <th scope="col">State</th>
+          <th scope="col">Up</th>
+          <th scope="col">Restarts</th>
+          <th scope="col">Version</th>
+          <th scope="col"><span class="dash-sr">Action</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="7" class="dash-empty">Waiting for the status job…</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="ctl-last" data-ctl-last="running" hidden></p>
+</div>

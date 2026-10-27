@@ -88,8 +88,9 @@
 }
 
 /* Cards side by side need more than Starlight's 45rem prose column; only the
-   pages that show them (the profile map, the dashboard) get the room. */
-:root:has(.profile-map, .dash-grid) { --sl-content-width: 72rem; }
+   pages that show them (the profile map, the dashboard, the control page) get
+   the room. */
+:root:has(.profile-map, .dash-grid, .ctl-panel) { --sl-content-width: 72rem; }
 
 /* A faint grid of pellets behind everything. */
 body {
@@ -394,3 +395,134 @@ mobile-starlight-toc a[aria-current='true']::after { background-color: var(--pac
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* ── the control page (/control/, src/components/{DeployPanel,RunningView,JobsPanel,DriftPanel,DeployHistory}) ──
+ * Global for the same reason as the dashboard's: control-client.ts builds the
+ * tables and the history. Badges are the dashboard's .lvl. */
+
+/* A button is a maze cell: the accent fill under strong text (14.6:1), a blue
+   wall that turns Pinky under the pointer. Focus is the site's Pinky ring. */
+.ctl-btn {
+  padding: 0.45rem 0.9rem;
+  border: 2px solid var(--pac-blue);
+  border-radius: var(--pac-radius-sm);
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-white);
+  font-family: var(--sl-font-mono);
+  font-size: var(--sl-text-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ctl-btn:hover:not(:disabled) { border-color: var(--pac-pink); }
+.ctl-btn:disabled { border-style: dashed; border-color: var(--sl-color-gray-4); background: var(--sl-color-gray-6); color: var(--sl-color-gray-3); cursor: not-allowed; }
+.ctl-btn[aria-busy='true'] { border-color: var(--pac-pink); color: var(--pac-pink); }
+.ctl-btn-small { padding: 0.2rem 0.6rem; font-size: var(--sl-text-xs); }
+
+.ctl-panel { display: grid; gap: 0.75rem; }
+.ctl-panel p { margin: 0; }
+.ctl-panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; }
+.ctl-meta { color: var(--sl-color-gray-2); font-size: var(--sl-text-sm); font-variant-numeric: tabular-nums; }
+.ctl-label { font-family: var(--sl-font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sl-color-gray-3); }
+
+.ctl-deploy {
+  padding: 1rem 1.15rem;
+  border: 5px double var(--pac-blue);
+  border-radius: var(--pac-radius-md);
+  background: var(--sl-color-gray-7);
+}
+.ctl-mock { color: var(--sl-color-gray-2); font-size: var(--sl-text-sm); }
+.ctl-mock-tag {
+  display: inline-block;
+  margin-right: 0.4rem;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--sl-color-orange);
+  border-radius: var(--pac-radius-sm);
+  background: var(--sl-color-orange-low);
+  color: var(--sl-color-orange-high);
+  font-family: var(--sl-font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ctl-deploy-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1.5rem; }
+.ctl-deployed { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.6rem; color: var(--sl-color-gray-2); font-size: var(--sl-text-sm); }
+.ctl-deployed code { color: var(--sl-color-white); }
+.ctl-deployed-at { color: var(--sl-color-gray-3); }
+.ctl-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+.ctl-field { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--sl-color-gray-3); font-size: var(--sl-text-sm); }
+.ctl-field select {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: var(--pac-radius-sm);
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-gray-1);
+  font: inherit;
+}
+
+/* The steps are a row of pellets: each a word and a mark, colour only reinforcing. */
+.ctl-steps { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+.ctl-steps li {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 6.5rem;
+  padding: 0.35rem 0.6rem;
+  border: 2px dotted var(--sl-color-gray-4);
+  border-radius: var(--pac-radius-sm);
+  font-family: var(--sl-font-mono);
+}
+.ctl-step-name { color: var(--sl-color-gray-1); font-size: var(--sl-text-xs); font-weight: 700; }
+.ctl-step-state { color: var(--sl-color-gray-3); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.ctl-step-state::before { content: '· '; }
+.ctl-steps li[data-state='running'] { border-style: solid; border-color: var(--pac-pink); }
+.ctl-steps li[data-state='running'] .ctl-step-state { color: var(--pac-pink); }
+.ctl-steps li[data-state='running'] .ctl-step-state::before { content: '◐ '; }
+.ctl-steps li[data-state='ok'] { border-style: solid; border-color: var(--sl-color-green); background: var(--sl-color-green-low); }
+.ctl-steps li[data-state='ok'] .ctl-step-state { color: var(--sl-color-green-high); }
+.ctl-steps li[data-state='ok'] .ctl-step-state::before { content: '● '; }
+.ctl-steps li[data-state='failed'] { border-style: solid; border-color: var(--sl-color-red); background: var(--sl-color-red-low); }
+.ctl-steps li[data-state='failed'] .ctl-step-state { color: var(--sl-color-red-high); }
+.ctl-steps li[data-state='failed'] .ctl-step-state::before { content: '✕ '; }
+.ctl-steps li[data-state='skipped'] { border-style: dashed; }
+.ctl-steps li[data-state='skipped'] .ctl-step-state::before { content: '– '; }
+
+.ctl-log {
+  max-height: 18rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px dotted var(--sl-color-gray-4);
+  border-radius: var(--pac-radius-sm);
+  background: var(--sl-color-black);
+  color: var(--sl-color-gray-1);
+  font-family: var(--sl-font-mono);
+  font-size: 0.72rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ctl-result, .ctl-last { font-size: var(--sl-text-sm); font-family: var(--sl-font-mono); }
+.ctl-result[data-ok='true'], .ctl-last[data-ok='true'] { color: var(--sl-color-green-high); }
+.ctl-result[data-ok='false'], .ctl-last[data-ok='false'] { color: var(--sl-color-red-high); }
+
+/* Tables scroll inside their box, never the page. Positioned, so the hidden
+   "Action" header (.dash-sr, absolute) is clipped with the table instead of
+   widening the page. */
+.ctl-table-wrap { position: relative; min-width: 0; overflow-x: auto; }
+.ctl-table { width: 100%; border-collapse: collapse; font-size: var(--sl-text-sm); }
+.ctl-table th, .ctl-table td { padding: 0.45rem 0.6rem; border-bottom: 3px dotted var(--sl-color-gray-5); text-align: left; vertical-align: middle; }
+.ctl-table thead th { font-family: var(--sl-font-mono); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sl-color-gray-3); white-space: nowrap; }
+.ctl-table td { color: var(--sl-color-gray-2); }
+.ctl-name { font-family: var(--sl-font-mono); font-weight: 400; color: var(--sl-color-white); white-space: nowrap; }
+.ctl-kind { display: block; font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sl-color-gray-3); }
+.ctl-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.ctl-history { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.ctl-run { padding: 0.45rem 0; border-bottom: 3px dotted var(--sl-color-gray-5); }
+.ctl-run > summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.8rem; font-size: var(--sl-text-sm); }
+.ctl-run-what { font-family: var(--sl-font-mono); color: var(--sl-color-white); }
+.ctl-run-summary { color: var(--sl-color-gray-2); overflow-wrap: anywhere; }
+.ctl-run-when { margin-left: auto; color: var(--sl-color-gray-3); font-size: var(--sl-text-xs); font-variant-numeric: tabular-nums; }
+.ctl-run .ctl-log { margin-top: 0.5rem; }

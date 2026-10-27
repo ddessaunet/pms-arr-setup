@@ -173,7 +173,10 @@ disappear. Confirm before anything destructive:
     both together, and keep text at 4.5:1 or better — the brand blue is for borders only.
     `/` is the **stack dashboard**: its service list comes from `apps/*/compose.yaml` (ports)
     and `site/src/data/services.yml`, and the build fails when they disagree. Its live part
-    is `/live/`, the files `jobs/stack-status` writes (trap 19).
+    is `/live/`, the files `jobs/stack-status` writes (trap 19). `/control/` is a **mock**:
+    its views read `/live/`, but deploy, restart, run-job and drift check are simulated in
+    the browser (`site/src/lib/control-mock.ts`) behind `ControlApi` (`control-api.ts`),
+    which a real control backend would implement. nginx still serves files only.
 18. **The box is wired-only, at `10.0.0.50`**, reserved for `eno1` on the mesh router
     (`10.0.0.1`, `10.0.0.0/22`) since 2026-10-17. Its Wi‑Fi (`wlp2s0`) is out of netplan
     on purpose; don't add it back. On the same subnet as `eno1`, each NIC answered ARP for
