@@ -1,0 +1,17 @@
+---
+// Whether each app's settings and the install still match the repo: the
+// hourly check's result from /live/status.json, and Run check now, which
+// stands for `task check`. Filled in by control-client.ts.
+---
+
+<div class="ctl-panel">
+  <div class="ctl-panel-head">
+    <p class="ctl-meta" data-ctl-drift-age>Waiting for the status job…</p>
+    <button type="button" class="ctl-btn" data-ctl-action data-ctl-drift>Run check now</button>
+  </div>
+  <ul class="dash-host" data-ctl-drift-list>
+    <li class="dash-empty">Waiting for the status job…</li>
+  </ul>
+  <pre class="ctl-log" data-ctl-drift-log tabindex="0" aria-label="Check output" hidden></pre>
+  <p class="ctl-last" data-ctl-last="drift" hidden></p>
+</div>

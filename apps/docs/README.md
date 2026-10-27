@@ -1,8 +1,10 @@
 # docs
 
-This repo's documentation website, on the LAN. It has two pages, the
-[stack dashboard](../../site/src/content/docs/index.mdx) and the
-[quality-profiles map](../../site/src/content/docs/quality-profiles.mdx), in Starlight's doc
+This repo's documentation website, on the LAN. It has four pages, the
+[stack dashboard](../../site/src/content/docs/index.mdx), the
+[logs](../../site/src/content/docs/logs.mdx), the
+[quality-profiles map](../../site/src/content/docs/quality-profiles.mdx) and the
+[control page](../../site/src/content/docs/control.mdx), in Starlight's doc
 layout: a sidebar between them, and each page's contents beside it (on the map, down to
 each profile).
 
@@ -20,6 +22,9 @@ website's source, and `apps/docs` is the container that serves the built website
 - `http://<box>:8088/` is the **stack dashboard**: a link to every service (built from the
   address you opened it on, so it follows the box), each one's status, the host's jobs, and the
   logs worth checking. `/quality-profiles/` is the profile map.
+- `/control/` is a **mock** of a control section: Deploy now with its streaming log, what is
+  running (from `/live/`), restart, run a job now, a drift check, and the history. Every
+  action is simulated in the browser and changes nothing; nginx still serves files only.
 - No login, like the other apps. The live data is written by `jobs/stack-status` with every
   secret masked before it reaches the page.
 

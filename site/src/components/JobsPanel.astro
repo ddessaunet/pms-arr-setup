@@ -1,0 +1,25 @@
+---
+// The host's jobs: every timer the status job checks, and Recyclarr's sync,
+// each with Run now. Filled in by control-client.ts from /live/status.json.
+---
+
+<div class="ctl-panel">
+  <div class="ctl-table-wrap">
+    <table class="ctl-table" data-ctl-jobs>
+      <thead>
+        <tr>
+          <th scope="col">Job</th>
+          <th scope="col">Status</th>
+          <th scope="col">Last run</th>
+          <th scope="col">Result</th>
+          <th scope="col">Next run</th>
+          <th scope="col"><span class="dash-sr">Action</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="6" class="dash-empty">Waiting for the status job…</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="ctl-last" data-ctl-last="jobs" hidden></p>
+</div>
