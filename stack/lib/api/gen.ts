@@ -5,8 +5,8 @@
 //   bun stack/lib/api/gen.ts --check    compare each file's version with the
 //                                       running app; changes nothing (task types:check)
 //
-// Each app's /system/status gives its version; the spec comes from the app's
-// own repo at that tag, and openapi-typescript (a dev dependency) turns it into
+// Each app's status endpoint gives its version; the spec (JSON or YAML) comes
+// from the app's own repo at that tag, and openapi-typescript (a dev dependency) turns it into
 // stack/lib/api/<app>.d.ts, whose header records the version. The scripts use
 // these with `import type` only, so nothing here exists at runtime and the
 // install leaves stack/lib/api/ out.
@@ -19,7 +19,7 @@
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { extname, join, resolve } from 'node:path';
 import { headerHelp, parseCli } from '../cli.ts';
 import { envGet, type Env } from '../env.ts';
 import { runMain } from '../exit.ts';
@@ -32,9 +32,11 @@ export interface ApiApp {
   /** Its URL from this box, and the variable that overrides it. */
   url: string;
   urlEnv: string;
-  keyEnv: string;
-  api: 'v1' | 'v3';
-  /** The OpenAPI spec at a version's tag. */
+  /** The path under url that answers {version}. */
+  status: string;
+  /** The .env key that path needs, if any. */
+  keyEnv?: string;
+  /** The OpenAPI spec at a version's tag, .json or .yml. */
   spec: (version: string) => string;
 }
 
@@ -43,11 +45,22 @@ export const APPS: readonly ApiApp[] = [
     name: 'prowlarr',
     url: 'http://127.0.0.1:9696',
     urlEnv: 'PROWLARR_URL',
+    status: '/api/v1/system/status',
     keyEnv: 'PROWLARR_API_KEY',
-    api: 'v1',
     spec: (v) => `https://raw.githubusercontent.com/Prowlarr/Prowlarr/v${v}/src/Prowlarr.Api.V1/openapi.json`,
   },
+  {
+    // /status is public: no key, and Seerr's own key isn't in .env anyway.
+    name: 'seerr',
+    url: 'http://127.0.0.1:5055',
+    urlEnv: 'SEERR_URL',
+    status: '/api/v1/status',
+    spec: (v) => `https://raw.githubusercontent.com/seerr-team/seerr/v${v}/seerr-api.yml`,
+  },
 ];
+
+/** Whether a fetched spec looks like one: JSON that parses, or YAML that starts as OpenAPI. */
+export const looksLikeSpec = (text: string): boolean => jsonOf({ text }) !== undefined || /^openapi: /m.test(text);
 
 const VERSION_LINE = /^\/\/ version: (\S+)$/m;
 
@@ -77,11 +90,10 @@ export interface Deps {
 
 async function runningVersion(app: ApiApp, deps: Deps): Promise<string | undefined> {
   const url = deps.env[app.urlEnv] || app.url;
-  const key = envGet(app.keyEnv, { repo: deps.repo, env: deps.env });
-  const r = await deps.http(`${url}/api/${app.api}/system/status`, {
-    headers: { 'X-Api-Key': key },
-    timeoutMs: 15_000,
-  });
+  const headers: Record<string, string> = app.keyEnv
+    ? { 'X-Api-Key': envGet(app.keyEnv, { repo: deps.repo, env: deps.env }) }
+    : {};
+  const r = await deps.http(`${url}${app.status}`, { headers, timeoutMs: 15_000 });
   const version = (jsonOf(r) as { version?: unknown } | undefined)?.version;
   if (r.status !== 200 || typeof version !== 'string') {
     deps.log(`  FAIL  ${app.name}: version from ${url} (HTTP ${httpCode(r.status)})`);
@@ -120,19 +132,20 @@ export async function main(argv: readonly string[], deps: Deps): Promise<number>
     }
 
     const spec = await deps.http(app.spec(running), { timeoutMs: 60_000, redirect: 'follow' });
-    if (spec.status !== 200 || jsonOf(spec) === undefined) {
+    if (spec.status !== 200 || !looksLikeSpec(spec.text)) {
       log(`  FAIL  ${app.name}: spec ${app.spec(running)} (HTTP ${httpCode(spec.status)})`);
       return 3;
     }
     const tmp = mkdtempSync(join(tmpdir(), 'api-gen-'));
+    const specFile = join(tmp, `spec${extname(app.spec(running))}`);
     try {
-      writeFileSync(join(tmp, 'spec.json'), spec.text);
+      writeFileSync(specFile, spec.text);
       const gen = await deps.run(
         [
           process.execPath,
           '--bun',
           join(deps.repo, 'node_modules/.bin/openapi-typescript'),
-          join(tmp, 'spec.json'),
+          specFile,
           '-o',
           join(tmp, 'out.d.ts'),
         ],

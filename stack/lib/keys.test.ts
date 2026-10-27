@@ -1,8 +1,8 @@
-// stack/lib/keys.test.ts — seerrKey and bazarrKey against seerr_key and
-// bazarr_key, run from apps/seerr/configure.sh and apps/bazarr/configure.sh.
+// stack/lib/keys.test.ts — seerrKey against stack-status.sh's seerr_api_key,
+// and bazarrKey against bazarr_key, run from apps/bazarr/configure.sh.
 
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { bazarrKey, readBazarrKey, readSeerrKey, seerrKey } from './keys.ts';
@@ -19,6 +19,18 @@ function bash(app: string, guard: string, fn: string, path: string): string {
       env: { ...process.env, [guard]: '1', APPDATA: tmp },
     },
   );
+  return r.stdout.toString().replace(/\n$/, '');
+}
+
+/** seerr_api_key from jobs/stack-status/stack-status.sh, on a file standing in for settings.json. */
+function stackStatusSeerrKey(path: string): string {
+  const src = readFileSync(resolve(import.meta.dir, '../../jobs/stack-status/stack-status.sh'), 'utf8');
+  const fn = /^seerr_api_key\(\) \{\n[\s\S]*?\n\}$/m.exec(src)?.[0];
+  if (!fn) throw new Error('no seerr_api_key in stack-status.sh');
+  const dir = mkdtempSync(join(tmp, 'appdata-'));
+  mkdirSync(join(dir, 'seerr'));
+  writeFileSync(join(dir, 'seerr/settings.json'), readFileSync(path));
+  const r = Bun.spawnSync(['bash', '-c', `${fn}\nseerr_api_key`], { env: { ...process.env, APPDATA: dir } });
   return r.stdout.toString().replace(/\n$/, '');
 }
 
@@ -39,11 +51,11 @@ const SEERR: Record<string, string> = {
   'a JSON string': '"main"',
 };
 
-describe('seerrKey matches seerr_key', () => {
+describe("seerrKey matches stack-status's seerr_api_key", () => {
   for (const [name, json] of Object.entries(SEERR)) {
     test(name, () => {
       const path = file(json);
-      expect(seerrKey(json)).toBe(bash('seerr', 'SEERR_CONFIGURE_LIB', 'seerr_key', path));
+      expect(seerrKey(json)).toBe(stackStatusSeerrKey(path));
     });
   }
   test('a missing file', () => expect(readSeerrKey(join(tmp, 'none'))).toBe(''));

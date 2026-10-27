@@ -102,7 +102,7 @@ disappear. Confirm before anything destructive:
       (Radarr 1080p 40 but WEB-DL 80, 2160p 200 MB/min; Sonarr 1080p no max; Recyclarr's
       `quality_definition` must stay out), and upgrades and no Remux **only** on the two
       4K movie profiles.
-    - **`apps/seerr/configure.sh`:** requests default to those profiles; the variant is
+    - **`apps/seerr/configure.ts`:** requests default to those profiles; the variant is
       picked per request, never the default.
 
     Radarr searches a movie in full only when it is added, and after that only through
@@ -112,7 +112,7 @@ disappear. Confirm before anything destructive:
     Run `task recyclarr:sync` → `task arr:configure` → `task seerr:configure`. Radarr reports quality sizes
     a few seconds late after a write, so the read-back re-reads for up to about 10 s before
     calling it drift.
-12. **Seerr is configured by `apps/seerr/configure.sh`, after one browser sign-in with
+12. **Seerr is configured by `apps/seerr/configure.ts`, after one browser sign-in with
     Plex.** Its API key is refused (403) until that admin exists, and it lives in
     `/opt/appdata/seerr/settings.json`, not `.env`. Seerr rejects read-only fields in writes,
     so the script only ever sends the fields it owns. Its requests are ordinary Radarr/Sonarr

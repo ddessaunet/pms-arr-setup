@@ -15,7 +15,7 @@
 #   - arr-configure.sh: quality SIZES (Radarr 1080p 40 but WEB-DL 80, 2160p 200 MB/min; Sonarr
 #     1080p no max) — hence no
 #     `quality_definition:` here, which would reset them to TRaSH's sizes.
-#   - seerr-configure.sh: which profile a request uses by default.
+#   - apps/seerr/configure.ts: which profile a request uses by default.
 #
 # Started from recyclarr/config-templates (v8): radarr/uhd-bluray-web.yml and
 # sonarr/web-1080p.yml, with the changes marked CHANGED.
@@ -28,7 +28,7 @@ radarr:
       - trash_id: 64fb5f9858489bdac2af690e27c8f42f  # UHD Bluray + WEB
         # Named because the variant below shares this trash_id (Recyclarr then
         # requires a name on each). Keep it exactly this: Recyclarr's state,
-        # arr-configure.sh and seerr-configure.sh all find the profile by name.
+        # arr-configure.sh and apps/seerr/configure.ts all find the profile by name.
         name: UHD Bluray + WEB
         reset_unmatched_scores:
           enabled: true
