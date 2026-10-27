@@ -34,6 +34,18 @@ describe('strftime', () => {
     expect(strftime('%F', new Date(Date.UTC(2026, 0, 1, 1, 0, 0)))).toBe('2025-12-31');
   });
 
+  test('%a: the weekday in local time, as jq prints it', () => {
+    process.env.TZ = 'UTC';
+    expect(strftime('%a %H:%M', T)).toBe('Fri 21:04');
+    process.env.TZ = 'Asia/Kolkata';
+    expect(strftime('%a', T)).toBe('Sat');
+    expect(strftime('%a', T)).toBe(
+      Bun.spawnSync(['date', '-d', '@' + T.getTime() / 1000, '+%a'], { env: { ...process.env, LC_ALL: 'C' } })
+        .stdout.toString()
+        .trim(),
+    );
+  });
+
   test('%s, %% and unknown letters', () => {
     expect(strftime('%s', T)).toBe(String(T.getTime() / 1000));
     expect(strftime('100%% %q', T)).toBe('100% %q');

@@ -1,6 +1,6 @@
 // Pure helpers for the dashboard's client script (status-client.ts), so
 // `task site:test` can run them under plain node. They read the documents
-// jobs/stack-status/stack-status.sh writes to /live/; its golden status.json
+// jobs/stack-status/stack-status.ts writes to /live/; its golden status.json
 // is the shape (status-schema.ts checks it).
 
 export type Level = 'ok' | 'degraded' | 'down' | 'unknown' | 'n/a';

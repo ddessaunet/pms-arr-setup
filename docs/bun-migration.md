@@ -20,7 +20,7 @@ looks stale, check the repo and the box rather than trusting it.
 - [x] Step 2d — `apps/seerr/configure.sh` (2026-10-27: `--check` matches the bash one against the live Seerr 3.5.1; Seerr's API types generated from its YAML spec; stack-status reads Seerr's key with `jq`, not by sourcing the script)
 - [x] Step 2e — `apps/bazarr/configure.sh` (2026-10-27: `--check` matches the bash one against the live Bazarr 1.6.2, the known `plex.ip` drift included; stack-status reads Bazarr's key with `awk`, not by sourcing the script)
 - [x] Step 3 — `arr-policy` and `arr-configure` (Radarr/Sonarr); the site imports the policy (2026-10-27: `--check` for both matches the bash one against the live Radarr 6.4.4 and Sonarr 4.0.20; their API types generated; Seerr and arr-fallback-search take their profile names from the policy)
-- [ ] Step 4 — `stack-status`
+- [x] Step 4 — `stack-status` (2026-10-27: against the live stack, the old and new `--stdout` status match after the timestamps, `--drift` matches, the logs match source for source, and `--audit` loads the same 10 secrets in the same order; `testdata/status.golden.json` unchanged)
 - [ ] Step 5 — `lan-address`
 - [ ] Step 6 — `pms-update`
 - [ ] Step 7 — `arr-reclaim`, rehearsed

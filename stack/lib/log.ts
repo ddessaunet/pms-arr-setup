@@ -32,11 +32,12 @@ export const err: Log = (line) => writeAll(2, `${line}\n`);
 const pad = (n: number, width = 2) => String(n).padStart(width, '0');
 
 /**
- * date(1)'s formats, in local time (TZ applies): %Y %m %d %H %M %S %F %T %z %s %%.
+ * date(1)'s formats, in local time (TZ applies): %Y %m %d %H %M %S %F %T %z %s %a %%,
+ * %a in the C locale (Mon, Tue…), as jq's strflocaltime prints it.
  * Hand-written, because Intl has no %z and toISOString is UTC.
  */
 export function strftime(fmt: string, d: Date): string {
-  return fmt.replace(/%([YmdHMSFTzs%])/g, (_, c: string) => {
+  return fmt.replace(/%([YmdHMSFTzsa%])/g, (_, c: string) => {
     switch (c) {
       case 'Y':
         return pad(d.getFullYear(), 4);
@@ -61,6 +62,8 @@ export function strftime(fmt: string, d: Date): string {
       }
       case 's':
         return String(Math.floor(d.getTime() / 1000));
+      case 'a':
+        return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] ?? '';
       default:
         return '%';
     }
