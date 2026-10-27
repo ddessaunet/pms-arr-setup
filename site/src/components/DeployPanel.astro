@@ -1,0 +1,50 @@
+---
+// The deploy card: the deployed commit, Deploy now, and the run's steps and
+// log as they stream. Every action on the control page is simulated in the
+// browser (src/lib/control-mock.ts) until a control backend exists; this is
+// where control-client.ts is loaded for the whole page.
+import { DEPLOY_STEPS } from '../lib/control-api.ts';
+---
+
+<section class="ctl-panel ctl-deploy" aria-label="Deploy">
+  <p class="ctl-mock">
+    <span class="ctl-mock-tag">Mock</span>
+    Nothing on this page changes the server. The deploy, restarts, jobs and checks are simulated in your browser; the
+    running state and drift are real, from the status job.
+  </p>
+  <div class="ctl-deploy-head">
+    <p class="ctl-deployed">
+      <span class="ctl-label">Deployed</span>
+      <code data-ctl-deployed>…</code>
+      <span class="ctl-deployed-subject" data-ctl-deployed-subject></span>
+      <span class="ctl-deployed-at" data-ctl-deployed-at></span>
+    </p>
+    <div class="ctl-actions">
+      <label class="ctl-field">
+        <span>Simulate</span>
+        <select data-ctl-scenario>
+          <option value="success">a clean deploy</option>
+          <option value="fail-test">a failing test</option>
+        </select>
+      </label>
+      <button type="button" class="ctl-btn" data-ctl-action data-ctl-deploy>Deploy main now</button>
+    </div>
+  </div>
+  <ol class="ctl-steps" data-ctl-steps aria-label="Deploy steps">
+    {
+      DEPLOY_STEPS.map((s) => (
+        <li data-step={s} data-state="pending">
+          <span class="ctl-step-name">{s}</span>
+          <span class="ctl-step-state">waiting</span>
+        </li>
+      ))
+    }
+  </ol>
+  <pre class="ctl-log" data-ctl-log tabindex="0" aria-label="Deploy log">No deploy run from this page yet.</pre>
+  <p class="ctl-result" data-ctl-result hidden></p>
+  <p class="dash-sr" aria-live="polite" data-ctl-announce></p>
+</section>
+
+<script>
+  import '../lib/control-client.ts';
+</script>
