@@ -50,6 +50,22 @@ export const APPS: readonly ApiApp[] = [
     spec: (v) => `https://raw.githubusercontent.com/Prowlarr/Prowlarr/v${v}/src/Prowlarr.Api.V1/openapi.json`,
   },
   {
+    name: 'radarr',
+    url: 'http://127.0.0.1:7878',
+    urlEnv: 'RADARR_URL',
+    status: '/api/v3/system/status',
+    keyEnv: 'RADARR_API_KEY',
+    spec: (v) => `https://raw.githubusercontent.com/Radarr/Radarr/v${v}/src/Radarr.Api.V3/openapi.json`,
+  },
+  {
+    name: 'sonarr',
+    url: 'http://127.0.0.1:8989',
+    urlEnv: 'SONARR_URL',
+    status: '/api/v3/system/status',
+    keyEnv: 'SONARR_API_KEY',
+    spec: (v) => `https://raw.githubusercontent.com/Sonarr/Sonarr/v${v}/src/Sonarr.Api.V3/openapi.json`,
+  },
+  {
     // /status is public: no key, and Seerr's own key isn't in .env anyway.
     name: 'seerr',
     url: 'http://127.0.0.1:5055',

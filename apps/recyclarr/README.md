@@ -38,9 +38,9 @@ profile a request gets) third. State goes in `/opt/appdata/recyclarr`.
 
 - **Its 4K qualities are one group on purpose.** Radarr ranks quality before score, so with
   them split, any Bluray encode would beat a well-seeded tiered WEB release.
-- **`4K HDR or 1080p` is matched by name** in `stack/lib/arr-configure.sh` and
-  `jobs/arr-fallback-search/`, and `arr-fallback-search.test.ts` pins it. Rename it in all
-  three places or none.
+- **`4K HDR or 1080p` is matched by name**: `VARIANT_PROFILE` in `stack/lib/arr-policy.ts`,
+  which arr-configure and `jobs/arr-fallback-search/` use, and `arr-fallback-search.test.ts`
+  pins it against this file. Rename it in both places or neither.
 - **`UHD Fallback` is not backed by the guide**, so it gets only the custom formats listed
   for it. HDR is preferred but not required; no tiers, no LQ penalty (YTS passes), no Remux,
   no upgrades.

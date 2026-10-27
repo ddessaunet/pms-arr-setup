@@ -29,7 +29,7 @@ There are three owners, applied in this order:
 
 1. **[Recyclarr](../recyclarr/README.md)**: the quality profiles and custom formats. `WEB-1080p` by default.
 2. **[`configure.sh`](configure.sh)**, which shares
-   [`stack/lib/arr-configure.sh`](../../stack/lib/arr-configure.sh) with Radarr: login,
+   [`stack/lib/arr-configure.ts`](../../stack/lib/arr-configure.ts) with Radarr: login,
    naming, media management, root folder, sizes (1080p with no maximum), the qBittorrent client and the Plex
    connection.
 3. **[Seerr](../seerr/README.md)**: which profile a request gets.

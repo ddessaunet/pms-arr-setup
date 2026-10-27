@@ -4,13 +4,14 @@
 import { test } from 'vite-plus/test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildProfiles, parseSizeCaps, profileSlug } from './profiles-core.ts';
+import * as arrPolicy from '../../../stack/lib/arr-policy.ts';
+import { buildProfiles, profileSlug, sizeCapsOf, type ArrPolicy } from './profiles-core.ts';
 
 const repo = new URL('../../../', import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, repo), 'utf8');
 const RECYCLARR = read('apps/recyclarr/recyclarr.yml');
 const POLICY = read('site/src/data/profiles.yml');
-const ARR = read('stack/lib/arr-configure.sh');
+const ARR: ArrPolicy = arrPolicy;
 
 test('the repo as it is: four profiles, in recyclarr.yml order', () => {
   const { profiles } = buildProfiles(RECYCLARR, POLICY, ARR);
@@ -47,8 +48,8 @@ test('!env_var parses, and only its name is kept', () => {
   assert.ok(RECYCLARR.includes('!env_var RADARR_API_KEY'));
 });
 
-test('size caps come from arr-configure.sh', () => {
-  const caps = parseSizeCaps(ARR);
+test('size caps come from arr-policy.ts', () => {
+  const caps = sizeCapsOf(ARR);
   assert.deepEqual(caps.radarr, [
     { resolution: '1080p', qualities: ['HDTV-1080p', 'WEBRip-1080p', 'Bluray-1080p'], max: 40, preferred: 25 },
     { resolution: '1080p', qualities: ['WEBDL-1080p'], max: 80, preferred: 25 },
@@ -82,19 +83,30 @@ test('a guide profile with no name and no guide entry fails', () => {
   assert.throws(() => buildProfiles(RECYCLARR, noGuide, ARR), /trash_id 72dae194fc92bf828f32cde7744e51a1 and no name/);
 });
 
-test('a different default than arr-configure.sh fails', () => {
+test('a different default than arr-policy.ts fails', () => {
   const swapped = POLICY.replace(/(UHD Fallback:\n    app: radarr\n    role:) by-hand/, '$1 default');
   assert.throws(() => buildProfiles(RECYCLARR, swapped, ARR), /default profile/);
 });
 
-test('an upgrade list different from arr-configure.sh fails', () => {
-  const noUpgrade = ARR.replace('"UHD Bluray + WEB" "4K HDR or 1080p"', '"UHD Bluray + WEB"');
-  assert.throws(() => buildProfiles(RECYCLARR, POLICY, noUpgrade), /upgrade_profiles/);
+test('an upgrade list different from arr-policy.ts fails', () => {
+  const noUpgrade = { ...ARR, UPGRADE_PROFILES: { ...ARR.UPGRADE_PROFILES, radarr: ['UHD Bluray + WEB'] } };
+  assert.throws(() => buildProfiles(RECYCLARR, POLICY, noUpgrade), /UPGRADE_PROFILES/);
+});
+
+test('a default different from profiles.yml fails', () => {
+  const other = { ...ARR, DEFAULT_PROFILE: { ...ARR.DEFAULT_PROFILE, sonarr: 'HD-1080p' } };
+  assert.throws(() => buildProfiles(RECYCLARR, POLICY, other), /DEFAULT_PROFILE/);
 });
 
 test('a quality capped apart from its resolution gets its own cap', () => {
-  const split = ARR.replace('WEBDL-2160p 200 100', 'WEBDL-2160p 120 100');
-  const uhd = parseSizeCaps(split).radarr.filter((c) => c.resolution === '2160p');
+  const split = {
+    ...ARR,
+    SIZE_CAPS: {
+      ...ARR.SIZE_CAPS,
+      radarr: ARR.SIZE_CAPS.radarr.map((c) => (c.quality === 'WEBDL-2160p' ? { ...c, max: 120 } : c)),
+    },
+  };
+  const uhd = sizeCapsOf(split).radarr.filter((c) => c.resolution === '2160p');
   assert.deepEqual(
     uhd.map((c) => [c.qualities, c.max]),
     [
