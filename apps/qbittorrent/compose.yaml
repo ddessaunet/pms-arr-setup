@@ -14,7 +14,7 @@
 # library and the torrent tree are shared through the media group (setgid dirs).
 #
 # Settings (paths, categories, port, host header domains) are applied by
-# apps/qbittorrent/configure.sh, not clicked in the WebUI.
+# apps/qbittorrent/configure.ts, not clicked in the WebUI.
 
 services:
   qbittorrent:

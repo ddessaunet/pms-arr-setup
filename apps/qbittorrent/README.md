@@ -22,7 +22,7 @@ there, so they are never imported, replaced or removed, only stopped at the shar
 
 ## Settings
 
-Owned by [`configure.sh`](configure.sh): save paths, categories, the peer port, the download
+Owned by [`configure.ts`](configure.ts) (`configure.sh` is its launcher): save paths, categories, the peer port, the download
 limit (64 MiB/s, just under the 600 Mbit/s line), slow-torrent accounting, host-header
 domains and the file types it never downloads (`*.exe`, `*.scr`, `*.bat`, `*.cmd`, `*.com`,
 `*.pif`, `*.lnk`, `*.msi`, `*.vbs`). Change them there, not in the WebUI, or `check` reports
@@ -47,6 +47,7 @@ drift.
   torrent shows as complete with 0 bytes, and Sonarr/Radarr report "No files found are
   eligible for import in …/X.exe". Decluttarr's `remove_failed_imports` removes and
   blocklists it, and the app searches again. Its patterns follow the excluded names one for
-  one, so add a type in both places (`apps/decluttarr/config.test.sh` checks it).
+  one, so add a type in both places, [`excluded.ts`](excluded.ts) and Decluttarr's config
+  (`apps/decluttarr/config.test.ts` checks it).
 - Native `qbittorrent-nox` (`:8080`/13761) is disabled since Phase 7a, not masked: its unit
   file is in `/etc/systemd/system`.

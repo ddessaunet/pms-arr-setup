@@ -24,7 +24,7 @@ network.
 
 [`config.yaml`](config.yaml), mounted read-only, turns on three jobs: `remove_stalled`,
 `remove_slow` (under 500 KB/s) and `remove_metadata_missing`. Each removes a download after
-three strikes, with a check every 10 minutes. [`config.test.sh`](config.test.sh) pins that
+three strikes, with a check every 10 minutes. [`config.test.ts`](config.test.ts) pins that
 list.
 
 ## Tasks
