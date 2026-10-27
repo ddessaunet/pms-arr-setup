@@ -1,15 +1,19 @@
 ---
 // The logs worth checking: each job's journal and each container's output,
-// the last 50 lines and the last 50 warnings and errors. status-client.ts
-// fetches /live/logs.json only while this is open. Secrets are masked by the
+// the last 50 lines and the last 50 warnings and errors. logs-client.ts
+// fetches /live/logs.json while the page is open. Secrets are masked by the
 // job before the file is written (jobs/stack-status/README.md).
 ---
 
-<details class="dash-logs" data-logs>
-  <summary>Show the logs <span data-logs-meta></span></summary>
+<section class="dash-logs" aria-label="Logs" data-logs>
+  <p class="dash-meta" data-logs-meta></p>
   <p class="dash-hint">
     Each job's journal and each container's output: its last 50 warnings and errors, and its last 50 lines.
-    Refreshed every 2 minutes while this is open. Tokens, keys and passwords are masked.
+    Refreshed every 2 minutes while this page is open. Tokens, keys and passwords are masked.
   </p>
   <div data-log-sources><p class="dash-empty">Loading…</p></div>
-</details>
+</section>
+
+<script>
+  import '../lib/logs-client.ts';
+</script>

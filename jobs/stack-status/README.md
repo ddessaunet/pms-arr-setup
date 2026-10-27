@@ -1,7 +1,7 @@
 # stack-status
 
 Writes the stack's status, recent logs and settings drift as JSON for the docs site's front
-page (`http://<box>:8088/`).
+page (`http://<box>:8088/`) and its logs page (`/logs/`).
 
 ## Role
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # jobs/stack-status/stack-status.sh — gather the stack's status and recent logs
-# for the docs site's front page, as JSON files nginx serves at /live/.
+# for the docs site's front and logs pages, as JSON files nginx serves at /live/.
 #
 #   jobs/stack-status/stack-status.sh            fast run: status.json and logs.json
 #   jobs/stack-status/stack-status.sh --drift    settings drift: drift.json (slow)
