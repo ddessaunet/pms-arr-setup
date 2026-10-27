@@ -1,44 +1,30 @@
 // The dashboard's browser side: links from the address the page was opened on,
-// /live/status.json every 30 s, /live/logs.json while the logs are open.
-// Everything from the files is untrusted (logs especially): it is only ever
-// set with textContent, never innerHTML.
+// and /live/status.json every 30 s. Everything from the file is untrusted: it is
+// only ever set with textContent, never innerHTML. The logs page has its own
+// script (logs-client.ts).
 
+import { el, q, qa } from './dom.ts';
 import {
   ageSeconds,
-  clock,
   formatAgo,
   isStale,
   levelText,
-  parseLogs,
   parseStatus,
   serviceUrl,
   type Item,
   type Level,
-  type LogSource,
   type StatusDoc,
 } from './status-view.ts';
 
 const STATUS_URL = '/live/status.json';
-const LOGS_URL = '/live/logs.json';
 const POLL_MS = 30_000;
 const TICK_MS = 5_000;
-const LOGS_POLL_MS = 120_000;
 
 let doc: StatusDoc | null = null;
 let dateHeader: string | null = null;
 let fetchedAt = 0;
 let unavailable = false;
 let announced = '';
-
-const q = <T extends Element = HTMLElement>(sel: string) => document.querySelector<T>(sel);
-const qa = <T extends Element = HTMLElement>(sel: string) => Array.from(document.querySelectorAll<T>(sel));
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text !== undefined) e.textContent = text;
-  return e;
-}
 
 function badge(level: Level, stale: boolean, big = false): HTMLSpanElement {
   const b = el('span', big ? 'lvl lvl-big' : 'lvl');
@@ -182,69 +168,6 @@ async function poll() {
   render();
 }
 
-function logLines(lines: { t: string | null; msg: string }[]): string {
-  return lines.length ? lines.map((l) => `${clock(l.t).padEnd(8)} ${l.msg}`).join('\n') : '(none)';
-}
-
-function sourceBlock(s: LogSource): HTMLDetailsElement {
-  const d = el('details', 'dash-src');
-  const sum = el('summary');
-  sum.append(
-    el('span', 'dash-src-label', s.label),
-    el('span', 'dash-src-kind', s.kind === 'journal' ? 'job' : 'container'),
-    el(
-      'span',
-      s.problemCount ? 'dash-src-count dash-src-warn' : 'dash-src-count',
-      s.problemCount ? `${s.problemCount} warning/error line${s.problemCount === 1 ? '' : 's'}` : 'no warnings',
-    ),
-  );
-  d.append(sum);
-  if (s.error) d.append(el('p', 'dash-src-error', `Could not read it: ${s.error}`));
-  for (const [title, lines] of [
-    [`Warnings and errors (last ${s.problems.length})`, s.problems],
-    [`Last ${s.tail.length} lines`, s.tail],
-  ] as const) {
-    const inner = el('details', 'dash-src-view');
-    inner.append(el('summary', '', title));
-    const pre = el('pre', '', logLines(lines));
-    pre.tabIndex = 0;
-    inner.append(pre);
-    d.append(inner);
-  }
-  return d;
-}
-
-async function loadLogs() {
-  const box = q('[data-log-sources]');
-  const meta = q('[data-logs-meta]');
-  if (!box) return;
-  try {
-    const res = await fetch(LOGS_URL, { cache: 'no-store' });
-    if (!res.ok) throw new Error(String(res.status));
-    const logs = parseLogs(await res.json());
-    if (!logs) throw new Error('unreadable');
-    // Keep what the viewer has open across refreshes.
-    const open = new Set(qa<HTMLDetailsElement>('.dash-src[open]').map((d) => d.dataset.id));
-    const openViews = new Set(qa<HTMLDetailsElement>('.dash-src-view[open]').map((d) => d.dataset.key));
-    box.replaceChildren(
-      ...logs.sources.map((s) => {
-        const b = sourceBlock(s);
-        b.dataset.id = s.id;
-        b.open = open.has(s.id);
-        b.querySelectorAll<HTMLDetailsElement>('.dash-src-view').forEach((v, i) => {
-          v.dataset.key = `${s.id}#${i}`;
-          v.open = openViews.has(v.dataset.key);
-        });
-        return b;
-      }),
-    );
-    if (meta)
-      meta.textContent = `(${logs.sources.length} sources, ${formatAgo(Math.max(0, Math.round(Date.now() / 1000 - logs.generatedAtEpoch)))} old)`;
-  } catch {
-    box.replaceChildren(el('p', 'dash-empty', 'Logs unavailable: no data from the status job (/live/logs.json).'));
-  }
-}
-
 function start() {
   setLinks();
   render();
@@ -256,16 +179,6 @@ function start() {
     if (!document.hidden) {
       void poll();
       timer = window.setInterval(poll, POLL_MS);
-    }
-  });
-
-  const logs = q<HTMLDetailsElement>('[data-logs]');
-  let logsTimer = 0;
-  logs?.addEventListener('toggle', () => {
-    window.clearInterval(logsTimer);
-    if (logs.open) {
-      void loadLogs();
-      logsTimer = window.setInterval(loadLogs, LOGS_POLL_MS);
     }
   });
 }

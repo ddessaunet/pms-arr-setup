@@ -78,7 +78,7 @@ serves the built website.
 | [recyclarr](apps/recyclarr/README.md) | — | TRaSH quality profiles, on demand. |
 | [decluttarr](apps/decluttarr/README.md) | — | Replaces stalled or crawling downloads. |
 | [bazarr](apps/bazarr/README.md) | 6767 | Spanish and English subtitles. |
-| [docs](apps/docs/README.md) | 8088 | This repo's docs website: the stack dashboard (links, status, logs) and the quality-profiles map. |
+| [docs](apps/docs/README.md) | 8088 | This repo's docs website: the stack dashboard (links, status), its logs and the quality-profiles map. |
 
 | job | runs | role |
 |---|---|---|

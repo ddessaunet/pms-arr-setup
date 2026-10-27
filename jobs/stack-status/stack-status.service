@@ -9,7 +9,7 @@
 # helpers beside it.
 
 [Unit]
-Description=Write the stack's status and recent logs for the docs site's front page
+Description=Write the stack's status and recent logs for the docs site's front and logs pages
 Documentation=https://github.com/ddessaunet/pms-arr-setup/blob/main/jobs/stack-status/README.md
 After=network-online.target docker.service
 Wants=network-online.target

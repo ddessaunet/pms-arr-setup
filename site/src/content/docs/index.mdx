@@ -1,12 +1,11 @@
 ---
 title: Stack
-description: Every service of the media stack with a link and its status, the host's jobs, and the logs worth checking.
+description: Every service of the media stack with a link and its status, and the host's jobs.
 ---
 
 import StatusBar from '../../components/StatusBar.astro';
 import ServiceGrid from '../../components/ServiceGrid.astro';
 import HostStatus from '../../components/HostStatus.astro';
-import LogsPanel from '../../components/LogsPanel.astro';
 
 <div class="not-content">
   <StatusBar />
@@ -27,10 +26,6 @@ the box.
   <HostStatus />
 </div>
 
-## Logs
-
-<div class="not-content">
-  <LogsPanel />
-</div>
+Each job's and container's recent output is on the [Logs](/logs/) page.
 
 The status comes from `jobs/stack-status` every 2 minutes, and the settings check hourly.
