@@ -109,16 +109,17 @@ env_secret_values() { # env-text
 secrets_json() {
     jq -R -s -c 'split("\n") | map(select(length >= 4)) | (. + map(@uri)) | unique | sort_by(-length)'
 }
-# Seerr's and Bazarr's API keys. Seerr's is read as stack/lib/keys.ts's seerrKey
-# reads it (keys.test.ts checks the two agree); its configure.sh is a launcher
-# now, and sourcing it would run it. Bazarr's comes from its configure script's
-# own helper, in a child process so sourcing it changes nothing here.
+# Seerr's and Bazarr's API keys, read as stack/lib/keys.ts reads them
+# (keys.test.ts checks they agree). Their configure.sh files are launchers now,
+# and sourcing one would run it.
 seerr_api_key() {
     jq -r '.main.apiKey // empty' "$APPDATA/seerr/settings.json" 2>/dev/null
 }
+# auth.apikey, without a YAML parser: the key line inside the top-level auth: block.
 bazarr_api_key() {
-    BAZARR_CONFIGURE_LIB=1 bash -c '. "$1/apps/bazarr/configure.sh" >/dev/null 2>&1 && bazarr_key "$2"' \
-        _ "$REPO" "$APPDATA/bazarr/config/config.yaml" 2>/dev/null
+    awk '/^auth:/ { on = 1; next } /^[^ ]/ { on = 0 }
+         on && $1 == "apikey:" { gsub(/["'\'']/, "", $2); print $2; exit }' \
+        "$APPDATA/bazarr/config/config.yaml" 2>/dev/null
 }
 plex_online_token() {
     sed -n 's/.*PlexOnlineToken="\([^"]*\)".*/\1/p' \

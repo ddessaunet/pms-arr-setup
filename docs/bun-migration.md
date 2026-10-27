@@ -18,7 +18,7 @@ looks stale, check the repo and the box rather than trusting it.
 - [x] Step 2b — `apps/prowlarr/configure.sh` (2026-10-26: `--check` matches the bash one against the live Prowlarr 2.6.5, 6 indexers and 2 apps; Prowlarr's API types generated)
 - [x] Step 2c — `apps/qbittorrent/configure.sh`, with `EXCLUDED_EXTS` and decluttarr's pin (2026-10-26: `--check` matches the bash one against the live qBittorrent; the list is `apps/qbittorrent/excluded.ts`, pinned by `apps/decluttarr/config.test.ts`)
 - [x] Step 2d — `apps/seerr/configure.sh` (2026-10-27: `--check` matches the bash one against the live Seerr 3.5.1; Seerr's API types generated from its YAML spec; stack-status reads Seerr's key with `jq`, not by sourcing the script)
-- [ ] Step 2e — `apps/bazarr/configure.sh`
+- [x] Step 2e — `apps/bazarr/configure.sh` (2026-10-27: `--check` matches the bash one against the live Bazarr 1.6.2, the known `plex.ip` drift included; stack-status reads Bazarr's key with `awk`, not by sourcing the script)
 - [ ] Step 3 — `arr-policy` and `arr-configure` (Radarr/Sonarr); the site imports the policy
 - [ ] Step 4 — `stack-status`
 - [ ] Step 5 — `lan-address`
@@ -94,7 +94,7 @@ anything else.
 | `qbittorrent.ts` | the login rule (204, or 200 `Ok.`), once, and a session | `qbt_login_ok` (×3) |
 | `plex.ts` | the token from `Preferences.xml` | `prefs_token` / `plex_token` |
 | `net.ts` | the box's LAN IPv4 addresses | `lan_ips` |
-| `keys.ts` | `seerrKey`, `bazarrKey` | `seerr_key`, `bazarr_key` |
+| `keys.ts` | `seerrKey`, `bazarrKey` | `seerr_key`, `bazarr_key` (stack-status keeps a bash copy of each until step 4) |
 | `lock.ts` | `flock(2)`, now or with a timeout | `flock -n` / `flock -w` |
 
 `env.ts`, `servarr.ts`, `plex.ts` and `keys.ts` are tested against the bash functions

@@ -147,7 +147,7 @@ disappear. Confirm before anything destructive:
     its subtitle server's 500, upstream. **Bazarr** (Phase 9) writes `.es.srt`/`.en.srt`
     beside the video for every Radarr/Sonarr title, monitored or not (`only_monitored`
     stays off: most of the library is unmonitored). It mounts `streaming/` only, and
-    `apps/bazarr/configure.sh` owns **all** its language profiles (Bazarr replaces the
+    `apps/bazarr/configure.ts` owns **all** its language profiles (Bazarr replaces the
     whole list on a write). A sidecar never counts as media for `arr-reclaim`.
 
 16. **Every tree is the live stack to compose.** `compose.yaml` fixes the project name
