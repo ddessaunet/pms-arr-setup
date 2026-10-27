@@ -20,6 +20,7 @@ export default defineConfig({
       title: 'pms',
       sidebar: [
         { label: 'Stack', link: '/' },
+        { label: 'Logs', link: '/logs/' },
         { label: 'Quality profiles', link: '/quality-profiles/' },
         { label: 'Control', link: '/control/' },
       ],
@@ -40,7 +41,7 @@ export default defineConfig({
         ThemeProvider: './src/components/overrides/ThemeProvider.astro',
         ThemeSelect: './src/components/overrides/ThemeSelect.astro',
       },
-      pagefind: false, // three pages: nothing to search yet
+      pagefind: false, // four pages: nothing to search yet
       pagination: false, // the sidebar already links every page
       lastUpdated: false,
     }),

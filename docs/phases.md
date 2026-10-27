@@ -50,7 +50,7 @@ Run `stack/preflight.sh` before each of Phases 0–1b. It is read-only.
    its data**, so until then the arrs only *added* files. It's retired now, and moves are
    safe. pms-local is not modified by this migration; what the stack needs from it is ported here (`arr-reclaim`).
 6. **Upgrades only in the 4K movie profiles (`UHD Bluray + WEB` and its `4K HDR or 1080p` variant), and movie sizes are capped**
-   (Radarr 1080p 40 but WEB-DL 80, 2160p 200 MB/min; Sonarr 1080p no max; `arr-configure.sh`). Everything else is single-grab.
+   (Radarr 1080p 40 but WEB-DL 80, 2160p 200 MB/min; Sonarr 1080p no max; `stack/lib/arr-policy.ts`). Everything else is single-grab.
 7. **Media is deleted in Plex, and that frees the space.** For Radarr/Sonarr imports,
    this repo's `arr-reclaim` removes the torrent, and it does the same when one is deleted
    in Radarr/Sonarr with its files. For the rest of the library, including
@@ -514,9 +514,9 @@ Two* WEB-DL (below) and several 4K files already in the library from before the 
 **Who owns what,** so no two tools fight:
 - **Recyclarr** (`apps/recyclarr/recyclarr.yml`): those two profiles, the hand-picked
   `UHD Fallback` (below), and their custom formats.
-- **`arr-configure.sh`:** sizes (Recyclarr's `quality_definition` is deliberately left out),
+- **`stack/lib/arr-policy.ts`:** sizes (Recyclarr's `quality_definition` is deliberately left out),
   and upgrades off on every other profile.
-- **`seerr-configure.sh`:** requests default to those two profiles.
+- **`apps/seerr/configure.ts`:** requests default to those two profiles.
 
 **Upgrades are safe with both watchers.**
 - An upgrade replaces the library file at the same path. `plex-watch` ignores it, because
@@ -592,7 +592,7 @@ no Remux. The weekly search (Phase 6b) never looks at it.
 
 - Delete the `UHD Bluray + WEB` and `WEB-1080p` profiles in Radarr and Sonarr. Recyclarr
   only ever wrote profiles and custom formats.
-- Set `default_profile` in `arr-configure.sh` and `profile_name` in `seerr-configure.sh`
+- Set `DEFAULT_PROFILE` in `stack/lib/arr-policy.ts` (Seerr takes it from there too)
   back to `HD-1080p`, then re-run `task arr:configure` and `task seerr:configure`.
 
 ---
@@ -608,8 +608,8 @@ scheduled search for missing movies. Decided 2026-10-02:
 | | what | owned by |
 |---|---|---|
 | profile | **`4K HDR or 1080p`**: the same TRaSH profile and scores as `UHD Bluray + WEB`, with a 1080p group (Bluray, WEB-DL, WEBRip) under the 4K one. Upgrades on, until 4K. No 720p, no Remux. 1080p x265 without HDR is rejected, as TRaSH intends | `apps/recyclarr/recyclarr.yml` (a profile variant, Recyclarr ≥ 8.3) |
-| upgrades / no Remux | both 4K movie profiles | `arr-configure.sh` |
-| default | **unchanged**: requests default to `UHD Bluray + WEB`. Pick the variant per request in Seerr's request options (admin) | `seerr-configure.sh` |
+| upgrades / no Remux | both 4K movie profiles | `stack/lib/arr-policy.ts` |
+| default | **unchanged**: requests default to `UHD Bluray + WEB`. Pick the variant per request in Seerr's request options (admin) | `apps/seerr/configure.ts` |
 | re-search | **daily, 04:00**: the variant's monitored, released movies without a 4K file (1080p, or none) get one Radarr search. Movies already in 4K are left to RSS | `jobs/arr-fallback-search/arr-fallback-search.sh`, `arr-fallback-search.timer` |
 
 **What happens to a request.**
@@ -676,8 +676,8 @@ profile to `4K HDR or 1080p` in Radarr, then *Search Movie*, or run
 
 - Move any movies on `4K HDR or 1080p` to another profile, since Radarr won't delete a
   profile in use. Then delete the profile in Radarr.
-- Remove its entry from `apps/recyclarr/recyclarr.yml` and `upgrade_profiles` in
-  `arr-configure.sh`.
+- Remove its entry from `apps/recyclarr/recyclarr.yml` and `UPGRADE_PROFILES` in
+  `stack/lib/arr-policy.ts`.
 - Remove the timer from `stack/deploy.sh`, then
   `sudo systemctl disable --now arr-fallback-search.timer`.
 
@@ -704,7 +704,7 @@ Why that release was picked (a `/release` search, 2026-09-29):
 | seeder floor | **minimum 5 seeders** on every Radarr/Sonarr indexer, pushed from Prowlarr's sync profile | `prowlarr-configure.sh` (`MIN_SEEDERS`) |
 | 4K ranking | Bluray-2160p, WEB-DL-2160p and WEBRip-2160p in **one group**, so score (TRaSH's release-group tiers) decides; tiered groups are the well-seeded ones | `apps/recyclarr/recyclarr.yml` |
 | replacement | **Decluttarr**: a queued download stalled (no connections), under **500 KB/s**, or stuck on metadata for 3 checks in a row, 10 min apart, is removed, blocklisted, and searched again (~30–40 min) | `apps/decluttarr/config.yaml` |
-| executable fakes | **qBittorrent never downloads** `*.exe` and other executables. An exe-only fake (2026-10-08: "Scrubs … S02E04 … CAKES", 886 MB of Windows program) then finishes empty, and **Decluttarr's `remove_failed_imports`** removes and blocklists it on its next check, so the app searches again. Narrow patterns only: a folder that held an `.exe` and an `.nfo` stays queued for a person | `apps/qbittorrent/configure.sh` (`EXCLUDED_EXTS`), `apps/decluttarr/config.yaml` |
+| executable fakes | **qBittorrent never downloads** `*.exe` and other executables. An exe-only fake (2026-10-08: "Scrubs … S02E04 … CAKES", 886 MB of Windows program) then finishes empty, and **Decluttarr's `remove_failed_imports`** removes and blocklists it on its next check, so the app searches again. Narrow patterns only: a folder that held an `.exe` and an `.nfo` stays queued for a person | `apps/qbittorrent/excluded.ts`, `apps/decluttarr/config.yaml` |
 | qBittorrent | global download limit **64 MiB/s** (~537 Mbit/s, just under the 600 Mbit/s line; first set at 5 MiB/s from a wrong ~50 Mbit/s estimate, corrected 2026-09-30), so Decluttarr's slow check pauses while the line is busy rather than blaming a swarm; a stalled download no longer holds one of the 3 active slots | `qbt-configure.sh` |
 
 **What Decluttarr never does.** It works on the Radarr/Sonarr **queue** only, i.e. downloads
@@ -713,7 +713,7 @@ download was never imported, so it never reaches `arr-reclaim`'s import history
 (CLAUDE.md trap 9). A replaced *upgrade* leaves the old library file where it is. Only
 four jobs are listed, because listing a job turns it on; `remove_orphans` and
 `remove_unmonitored` would delete seeding torrents or upgrades. `remove_failed_imports` acts
-only on the executable-fake messages, never its default `*`. `apps/decluttarr/config.test.sh`
+only on the executable-fake messages, never its default `*`. `apps/decluttarr/config.test.ts`
 pins the list and those patterns.
 
 **Do**

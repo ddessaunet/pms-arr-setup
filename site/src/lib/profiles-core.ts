@@ -1,12 +1,12 @@
 // The quality-profiles map, from the files that own each fact:
 //
 //   apps/recyclarr/recyclarr.yml   the profiles: names, qualities, upgrades, scores
-//   stack/lib/arr-configure.sh     size caps, the default profile per app, which
-//                                  profiles may upgrade
+//   stack/lib/arr-policy.ts        size caps, the default profile per app, which
+//                                  profiles may upgrade (arr-configure applies it)
 //   site/src/data/profiles.yml     what neither can say: who picks a profile,
 //                                  HDR, low-quality groups, a one-line summary
 //
-// Pure (strings in, data out) so `task site:test` runs it under plain node.
+// Pure (text and data in, data out) so `task site:test` runs it under plain node.
 // Anything that disagrees throws, and a throw fails `astro build`: the map is
 // never published out of step with the files it describes.
 
@@ -84,47 +84,31 @@ export interface SizeCap {
 
 const RECYCLARR = 'apps/recyclarr/recyclarr.yml';
 const POLICY = 'site/src/data/profiles.yml';
-const ARR = 'stack/lib/arr-configure.sh';
+const ARR = 'stack/lib/arr-policy.ts';
 
-// ─── stack/lib/arr-configure.sh ───────────────────────────────────────────────
-// Read as text: its functions are one-line `case` tables, and those lines are
-// what is parsed here. A reshaped function fails loudly rather than silently.
+// ─── stack/lib/arr-policy.ts ──────────────────────────────────────────────────
+// Imported, not parsed: profiles.ts passes the module itself, the tests a
+// changed copy.
 
-function shellFunction(sh: string, name: string): string {
-  const m =
-    sh.match(new RegExp(`^${name}\\(\\) \\{[\\s\\S]*?^\\}`, 'm')) ??
-    sh.match(new RegExp(`^${name}\\(\\) \\{.*\\}$`, 'm'));
-  if (!m) throw new Error(`${ARR}: ${name}() not found — the map reads it`);
-  return m[0];
+export interface ArrPolicy {
+  DEFAULT_PROFILE: Readonly<Record<App, string>>;
+  UPGRADE_PROFILES: Readonly<Record<App, readonly string[]>>;
+  SIZE_CAPS: Readonly<Record<App, readonly { quality: string; max: number | null; preferred: number }[]>>;
 }
 
-// The quoted words of one app's branch in a one-line `case`: radarr) … ;;
-function caseWords(fn: string, app: App): string[] {
-  const branch = fn.match(new RegExp(`${app}\\)([^;]*);;`));
-  return branch ? [...branch[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]) : [];
-}
-
-export function parseSizeCaps(sh: string): Record<App, SizeCap[]> {
-  const fn = shellFunction(sh, 'size_caps');
+/** The caps grouped for the map: one per resolution and cap, in the policy's order. */
+export function sizeCapsOf(arr: ArrPolicy): Record<App, SizeCap[]> {
   const caps = {} as Record<App, SizeCap[]>;
   for (const app of APPS) {
-    const branch = fn.match(new RegExp(`${app}\\)[\\s\\S]*?;;`));
     const byCap = new Map<string, SizeCap>();
-    for (const [, quality, res, max, pref] of (branch?.[0] ?? '').matchAll(
-      /\b([A-Za-z]+-(\d+p)) +(none|\d+) +(\d+)\b/g,
-    )) {
-      const key = `${res} ${max} ${pref}`;
+    for (const { quality, max, preferred } of arr.SIZE_CAPS[app]) {
+      const resolution = quality.replace(/.*-/, '');
+      const key = `${resolution} ${max} ${preferred}`;
       const seen = byCap.get(key);
       if (seen) seen.qualities.push(quality);
-      else
-        byCap.set(key, {
-          resolution: res,
-          qualities: [quality],
-          max: max === 'none' ? null : Number(max),
-          preferred: Number(pref),
-        });
+      else byCap.set(key, { resolution, qualities: [quality], max, preferred });
     }
-    if (byCap.size === 0) throw new Error(`${ARR}: no ${app} sizes found in size_caps()`);
+    if (byCap.size === 0) throw new Error(`${ARR}: no ${app} sizes in SIZE_CAPS`);
     caps[app] = [...byCap.values()];
   }
   return caps;
@@ -132,10 +116,10 @@ export function parseSizeCaps(sh: string): Record<App, SizeCap[]> {
 
 // ─── the map ──────────────────────────────────────────────────────────────────
 
-export function buildProfiles(recyclarrText: string, policyText: string, arrConfigureText: string) {
+export function buildProfiles(recyclarrText: string, policyText: string, arr: ArrPolicy) {
   const raw = parse(recyclarrText, { customTags: [envVar] });
   const policy = Policy.parse(parse(policyText));
-  const sizes = parseSizeCaps(arrConfigureText);
+  const sizes = sizeCapsOf(arr);
 
   const found: Omit<Profile, 'role' | 'pickedBy' | 'summary' | 'hdr' | 'lq' | 'dailySearch'>[] = [];
   for (const app of APPS) {
@@ -202,25 +186,23 @@ export function buildProfiles(recyclarrText: string, policyText: string, arrConf
     return { ...p, ...d };
   });
 
-  // The same facts as arr-configure.sh, which applies them.
-  const arrDefault = shellFunction(arrConfigureText, 'default_profile');
-  const arrUpgrade = shellFunction(arrConfigureText, 'upgrade_profiles');
+  // The same facts as arr-policy.ts, which arr-configure applies.
   for (const app of APPS) {
     const defaults = profiles.filter((p) => p.app === app && p.role === 'default').map((p) => p.name);
-    const want = caseWords(arrDefault, app);
-    if (defaults.length !== 1 || want.length !== 1 || defaults[0] !== want[0]) {
+    const want = arr.DEFAULT_PROFILE[app];
+    if (defaults.length !== 1 || defaults[0] !== want) {
       throw new Error(
-        `${app}: the default profile is ${JSON.stringify(want)} in ${ARR} (default_profile), but ${JSON.stringify(defaults)} in ${POLICY}`,
+        `${app}: the default profile is ${JSON.stringify(want)} in ${ARR} (DEFAULT_PROFILE), but ${JSON.stringify(defaults)} in ${POLICY}`,
       );
     }
     const upgrading = profiles
       .filter((p) => p.app === app && p.upgrade.allowed)
       .map((p) => p.name)
       .sort();
-    const allowed = caseWords(arrUpgrade, app).sort();
+    const allowed = [...arr.UPGRADE_PROFILES[app]].sort();
     if (JSON.stringify(upgrading) !== JSON.stringify(allowed)) {
       throw new Error(
-        `${app}: ${RECYCLARR} lets ${JSON.stringify(upgrading)} upgrade, but ${ARR} (upgrade_profiles) allows ${JSON.stringify(allowed)}`,
+        `${app}: ${RECYCLARR} lets ${JSON.stringify(upgrading)} upgrade, but ${ARR} (UPGRADE_PROFILES) allows ${JSON.stringify(allowed)}`,
       );
     }
   }

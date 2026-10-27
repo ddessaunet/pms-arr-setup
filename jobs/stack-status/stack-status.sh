@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # jobs/stack-status/stack-status.sh — gather the stack's status and recent logs
-# for the docs site's front page, as JSON files nginx serves at /live/.
+# for the docs site's front and logs pages, as JSON files nginx serves at /live/.
 #
 #   jobs/stack-status/stack-status.sh            fast run: status.json and logs.json
 #   jobs/stack-status/stack-status.sh --drift    settings drift: drift.json (slow)
@@ -109,15 +109,17 @@ env_secret_values() { # env-text
 secrets_json() {
     jq -R -s -c 'split("\n") | map(select(length >= 4)) | (. + map(@uri)) | unique | sort_by(-length)'
 }
-# Seerr's and Bazarr's API keys, read by their configure scripts' own helpers,
-# in a child process so sourcing them changes nothing here.
+# Seerr's and Bazarr's API keys, read as stack/lib/keys.ts reads them
+# (keys.test.ts checks they agree). Their configure.sh files are launchers now,
+# and sourcing one would run it.
 seerr_api_key() {
-    SEERR_CONFIGURE_LIB=1 bash -c '. "$1/apps/seerr/configure.sh" >/dev/null 2>&1 && seerr_key "$2"' \
-        _ "$REPO" "$APPDATA/seerr/settings.json" 2>/dev/null
+    jq -r '.main.apiKey // empty' "$APPDATA/seerr/settings.json" 2>/dev/null
 }
+# auth.apikey, without a YAML parser: the key line inside the top-level auth: block.
 bazarr_api_key() {
-    BAZARR_CONFIGURE_LIB=1 bash -c '. "$1/apps/bazarr/configure.sh" >/dev/null 2>&1 && bazarr_key "$2"' \
-        _ "$REPO" "$APPDATA/bazarr/config/config.yaml" 2>/dev/null
+    awk '/^auth:/ { on = 1; next } /^[^ ]/ { on = 0 }
+         on && $1 == "apikey:" { gsub(/["'\'']/, "", $2); print $2; exit }' \
+        "$APPDATA/bazarr/config/config.yaml" 2>/dev/null
 }
 plex_online_token() {
     sed -n 's/.*PlexOnlineToken="\([^"]*\)".*/\1/p' \

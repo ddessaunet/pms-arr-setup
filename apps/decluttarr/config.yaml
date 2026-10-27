@@ -8,7 +8,7 @@
 # removed download never reaches its import history.
 #
 # A job is ON as soon as its key is listed under `jobs:`, even with no value. So
-# list only the four wanted ones — apps/decluttarr/config.test.sh fails on any
+# list only the four wanted ones — apps/decluttarr/config.test.ts fails on any
 # other. Deliberately absent:
 #   remove_orphans         removes torrents whose media left the arr; one deleted in
 #                          Plex is arr-reclaim's to judge, not this
@@ -45,7 +45,7 @@ jobs:
   # download stuck for any reason, path problems included. The first is the
   # app's own warning for an executable it finds. The rest are what an exe-only
   # fake becomes once qBittorrent has skipped the file (excluded_file_names in
-  # apps/qbittorrent/configure.sh, one pattern per entry there): "No files found
+  # apps/qbittorrent/excluded.ts, one pattern per entry there): "No files found
   # are eligible for import in" ending in that excluded name. A folder that held
   # an .exe and an .nfo ends in the folder's name instead, so it is not matched
   # and stays in the queue for a person. fnmatch is case-sensitive here, hence

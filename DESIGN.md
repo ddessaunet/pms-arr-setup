@@ -86,7 +86,7 @@ contents beside the page from 72rem; below that, a menu button and a bar under t
 stand in for them.
 
 - **Header and sidebar** are walled off: a 3px maze-blue line under the header and along
-  the sidebar's edge. The sidebar is 15rem: it holds three short links.
+  the sidebar's edge. The sidebar is 15rem: it holds four short links.
 - **Sidebar links are a pellet trail:** each page is a pellet, and the current page is
   Pinky, the pixel ghost (the arcade sprite, one CSS pixel per sprite pixel), its label text-strong on the accent fill (#141C5C, 14.6:1). Labels are Space
   Mono, text on the raised surface (11.6:1); hover turns them Pinky.
@@ -97,7 +97,7 @@ stand in for them.
 - **The menu button** (under 50rem) is a small maze cell, its wall Pinky while the menu is
   open.
 - **Content width:** 45rem for prose. The dashboard, the profile map and the control page,
-  which lay cards and tables side by side, get 72rem.
+  which lay cards and tables side by side, and the logs, with their long lines, get 72rem.
 
 ## Status levels
 

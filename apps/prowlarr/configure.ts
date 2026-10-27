@@ -60,7 +60,7 @@ export const FLARE_TAG = 'flare';
 /**
  * Releases with fewer seeders are never grabbed. Set on the sync profile every
  * indexer uses, and pushed from there to each Radarr/Sonarr indexer as its
- * "Minimum Seeders" — so it is owned here, not in arr-configure.sh. 5 drops the
+ * "Minimum Seeders" — so it is owned here, not in arr-configure. 5 drops the
  * dead 1-4-seed releases a public tracker lists; above it, the apps already
  * prefer more seeders when quality and score tie, and a higher floor would
  * starve older TV episodes.

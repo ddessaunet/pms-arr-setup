@@ -87,10 +87,10 @@
   --pac-ghost: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' shape-rendering='crispEdges'><path fill='%23f4b9b0' d='M5 0h4v1h-4zM3 1h8v1h-8zM2 2h10v1h-10zM1 3h12v4h-12zM0 6h14v6h-14zM0 12h2v1h-2zM3 12h3v1h-3zM8 12h3v1h-3zM12 12h2v1h-2zM0 13h1v1h-1zM4 13h2v1h-2zM8 13h2v1h-2zM13 13h1v1h-1z'/><path fill='%23f7f7fb' d='M4 3h2v1h-2zM10 3h2v1h-2zM3 4h4v3h-4zM9 4h4v3h-4zM4 7h2v1h-2zM10 7h2v1h-2z'/><path fill='%232a3fe5' d='M5 5h2v2h-2zM11 5h2v2h-2z'/></svg>");
 }
 
-/* Cards side by side need more than Starlight's 45rem prose column; only the
-   pages that show them (the profile map, the dashboard, the control page) get
-   the room. */
-:root:has(.profile-map, .dash-grid, .ctl-panel) { --sl-content-width: 72rem; }
+/* Cards and tables side by side, and long log lines, need more than Starlight's
+   45rem prose column; only the pages that show them (the profile map, the
+   dashboard, the logs, the control page) get the room. */
+:root:has(.profile-map, .dash-grid, .dash-logs, .ctl-panel) { --sl-content-width: 72rem; }
 
 /* A faint grid of pellets behind everything. */
 body {
@@ -248,8 +248,10 @@ mobile-starlight-toc .toggle {
 mobile-starlight-toc .display-current { font-family: var(--sl-font); text-transform: none; letter-spacing: 0; }
 mobile-starlight-toc a[aria-current='true']::after { background-color: var(--pac-pink); }
 
-/* ── the dashboard (/, src/components/{StatusBar,ServiceGrid,HostStatus,LogsPanel}) ──
- * Global, not scoped: status-client.ts creates most of these elements, and
+/* ── the dashboard (/, src/components/{StatusBar,ServiceGrid,HostStatus}) and the
+ * logs (/logs/, src/components/LogsPanel) ──
+ * Global, not scoped: status-client.ts and logs-client.ts create most of these
+ * elements, and
  * elements made in the browser carry no Astro scope attribute.
  * Levels are a word and a mark first (status-view.ts LEVELS); colour only
  * reinforces them. Text on each fill is 6.3:1 or better. */
@@ -362,14 +364,7 @@ mobile-starlight-toc a[aria-current='true']::after { background-color: var(--pac
 }
 .dash-empty { color: var(--sl-color-gray-3); }
 
-.dash-logs > summary {
-  cursor: pointer;
-  font-family: var(--pac-font-pixel);
-  font-size: 0.75rem;
-  line-height: 1.8;
-  color: var(--pac-pink);
-}
-.dash-logs [data-logs-meta] { font-family: var(--sl-font-mono); font-size: var(--sl-text-xs); color: var(--sl-color-gray-3); }
+.dash-logs [data-logs-meta] { margin: 0; }
 .dash-hint { color: var(--sl-color-gray-3); font-size: var(--sl-text-sm); }
 .dash-src { border-bottom: 3px dotted var(--sl-color-gray-5); padding: 0.4rem 0; }
 .dash-src > summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.8rem; }

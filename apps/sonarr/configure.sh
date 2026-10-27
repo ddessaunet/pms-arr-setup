@@ -4,7 +4,8 @@
 #   apps/sonarr/configure.sh            apply, then verify   (task sonarr:configure)
 #   apps/sonarr/configure.sh --check    verify only          (task sonarr:check)
 #
-# Radarr and Sonarr share one implementation, stack/lib/arr-configure.sh, and
-# its tests (stack/lib/arr-configure.test.sh). This only picks the app.
+# Radarr and Sonarr share one implementation, stack/lib/arr-configure.ts (run
+# through its launcher, arr-configure.sh), and its tests
+# (stack/lib/arr-configure.test.ts). This only picks the app.
 
 exec "$(dirname "$(readlink -f "$0")")/../../stack/lib/arr-configure.sh" sonarr "$@"

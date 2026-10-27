@@ -29,8 +29,8 @@ installs both units and always arms the timer. The `.sh` is a launcher (it finds
 
 ## Traps
 
-- **It finds the profile by its exact name**, as `stack/lib/arr-configure.sh` and
-  `apps/recyclarr/recyclarr.yml` do. [`arr-fallback-search.test.ts`](arr-fallback-search.test.ts)
-  fails if those three disagree.
+- **It finds the profile by its exact name**, `VARIANT_PROFILE` in `stack/lib/arr-policy.ts`,
+  as `apps/recyclarr/recyclarr.yml` creates it. [`arr-fallback-search.test.ts`](arr-fallback-search.test.ts)
+  fails if they disagree, or if the policy stops letting it upgrade.
 - **It reads no LAN addresses**, so it never imports `stack/lib/net.ts`: Bun reads
   interfaces over netlink, and the unit's `RestrictAddressFamilies` leaves out `AF_NETLINK`.

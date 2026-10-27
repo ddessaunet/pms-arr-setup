@@ -54,7 +54,8 @@ jobs/<job>/           a host-side systemd job that spans apps: script, unit(s), 
 site/                 the docs website's source (Starlight); apps/docs serves what it builds
 stack/                what the whole stack shares
   taskfiles/          the per-app task templates: service, update, configure
-  lib/                servarr.sh (Servarr API plumbing), arr-configure.sh (Radarr + Sonarr),
+  lib/                servarr.sh (Servarr API plumbing), arr-configure.ts (Radarr + Sonarr)
+                      and arr-policy.ts (what it holds them to),
                       pms-home.sh (where the stack is installed), bun.sh (finds Bun for a
                       launcher), *.ts (the TypeScript scripts' shared library, each with a test)
   install.sh          copy this tree into the install directory, then run its deploy.sh
@@ -78,7 +79,7 @@ serves the built website.
 | [recyclarr](apps/recyclarr/README.md) | — | TRaSH quality profiles, on demand. |
 | [decluttarr](apps/decluttarr/README.md) | — | Replaces stalled or crawling downloads. |
 | [bazarr](apps/bazarr/README.md) | 6767 | Spanish and English subtitles. |
-| [docs](apps/docs/README.md) | 8088 | This repo's docs website: the stack dashboard (links, status, logs) and the quality-profiles map. |
+| [docs](apps/docs/README.md) | 8088 | This repo's docs website: the stack dashboard (links, status), its logs and the quality-profiles map. |
 
 | job | runs | role |
 |---|---|---|
