@@ -22,7 +22,7 @@ looks stale, check the repo and the box rather than trusting it.
 - [x] Step 3 — `arr-policy` and `arr-configure` (Radarr/Sonarr); the site imports the policy (2026-10-27: `--check` for both matches the bash one against the live Radarr 6.4.4 and Sonarr 4.0.20; their API types generated; Seerr and arr-fallback-search take their profile names from the policy)
 - [x] Step 4 — `stack-status` (2026-10-27: against the live stack, the old and new `--stdout` status match after the timestamps, `--drift` matches, the logs match source for source, and `--audit` loads the same 10 secrets in the same order; `testdata/status.golden.json` unchanged)
 - [x] Step 5 — `lan-address` (2026-10-27: `--dry-run` matches the bash one on the box, against the live state and a scratch one with stale, missing and two-address lines, `--force` included; it reads the addresses through `net.ts`, as the configure scripts have since step 2; `servarr.sh` now has no runtime user)
-- [ ] Step 6 — `pms-update`
+- [x] Step 6 — `pms-update` (2026-10-27: `--dry-run` over all nine services matches the bash one on the box line for line, Plex's stream gate included, and so do a single service and a bad flag; recreate, the health wait and the rollback are tested against a fake docker, and run for real on the next update)
 - [ ] Step 7 — `arr-reclaim`, rehearsed
 - [ ] Step 8 — cleanup: `servarr.sh` deleted, shellcheck targets trimmed, docs pass
 

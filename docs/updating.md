@@ -106,14 +106,14 @@ When a later phase brings a service up, add its compose name to `UPDATE_SERVICES
 (space-separated, e.g. `UPDATE_SERVICES=plex qbittorrent prowlarr`). With no hooks it gets
 the default health check: stays up for 20 seconds without restarting, and no gate.
 
-Only add hooks if the service needs them. They are functions in `jobs/pms-update/update-stack.sh` named
-after the compose service, with dashes as underscores:
+Only add hooks if the service needs them. They are an entry in `HOOKS` in
+`jobs/pms-update/update-stack.ts`, keyed by the compose service name, as Plex's is:
 
 | hook | purpose |
 |---|---|
-| `gate_<svc>` | return `0` to go ahead, `1` to defer to next week, anything else to fail with that code |
-| `identity_<svc>` | print something that must be unchanged after the update; health waits for it |
-| `version_<svc>` | print a version to log before and after |
+| `gate` | resolve to `0` to go ahead, `1` to defer to next week, anything else to fail with that code |
+| `identity` | resolve to something that must be unchanged after the update; health waits for it |
+| `version` | resolve to a version to log before and after |
 
 For example, qBittorrent could get a gate that defers while anything is downloading.
 
@@ -144,9 +144,10 @@ cutover, though, so anything watched since then is missing.
 ## Tests
 
 ```bash
-jobs/pms-update/update-stack.test.sh
+bun test jobs/pms-update
 ```
 
-The tests run offline: `curl` is stubbed, and nothing outside a temp directory is written.
-Pulling, recreating, the health wait and the rollback need a live box. `--dry-run` rehearses
-the first half.
+The tests run offline against a fake docker and a fake Plex, with a fake clock, and write
+nothing outside a temp directory. They cover the whole run: pull, the gate, recreate, the
+health wait (identity, and staying up without restarting), and the rollback, including one
+that fails. On the box, `--dry-run` rehearses the first half for real.
