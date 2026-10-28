@@ -15,7 +15,7 @@
 #                is (EXPECT below).
 #   jobs/<job>/  a script, its unit(s), a test, README.md, Taskfile.yml; every
 #                unit is in stack/deploy.sh's MANIFEST, and its ExecStart exists.
-#   launchers    a script ported to TypeScript keeps its .sh as a launcher: it
+#   launchers    a script in TypeScript keeps its .sh as a launcher: it
 #                sources stack/lib/bun.sh and execs the .ts beside it. Its
 #                --check is looked for in the .ts, and a *.test.ts counts as
 #                its test.
@@ -130,7 +130,7 @@ for app in "${APPS[@]}"; do
         # radarr/sonarr delegate to stack/lib/arr-configure.sh, which owns the
         # flag and the tests.
         impl="$d/configure.sh"
-        if lib="$(grep -oE 'stack/lib/[a-z-]+\.sh' "$d/configure.sh" | grep -vxE 'stack/lib/(servarr|bun)\.sh' | head -1)" \
+        if lib="$(grep -oE 'stack/lib/[a-z-]+\.sh' "$d/configure.sh" | grep -vxE 'stack/lib/bun\.sh' | head -1)" \
            && [[ -n "$lib" ]]; then
             impl="$lib"
         fi

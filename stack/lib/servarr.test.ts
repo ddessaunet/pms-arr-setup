@@ -1,8 +1,8 @@
 // stack/lib/servarr.test.ts — servarr.ts against a fake Servarr API, and its
-// pure helpers against the jq of stack/lib/servarr.sh.
+// pure helpers on the values the jq of the bash servarr.sh gave, recorded
+// before it was deleted.
 
 import { describe, expect, test } from 'bun:test';
-import { resolve } from 'node:path';
 import type { HttpRequest, HttpResponse } from './http.ts';
 import {
   apiError,
@@ -18,16 +18,6 @@ import {
   type Resource,
   type ServarrConfig,
 } from './servarr.ts';
-
-const SERVARR = resolve(import.meta.dir, 'servarr.sh');
-
-/** Runs a servarr.sh function in bash and returns its stdout. */
-function bash(fn: string, ...args: string[]): string {
-  const r = Bun.spawnSync(['bash', '-c', `. "$0"; ${fn} "$@"`, SERVARR, ...args]);
-  if (r.exitCode !== 0) throw new Error(r.stderr.toString());
-  return r.stdout.toString();
-}
-const lines = (s: string) => s.split('\n').filter(Boolean);
 
 const CFG: ServarrConfig = {
   name: 'radarr',
@@ -85,11 +75,10 @@ const goodHost = {
   allowedHosts: HOSTS,
 };
 
-describe('pure helpers match servarr.sh', () => {
+describe('pure helpers, as servarr.sh had them', () => {
   const got = { a: 1, b: { x: [1, 2] }, c: 'same', d: null };
   const want = { b: { x: [1, 2] }, a: 2, c: 'same', e: null, f: 'new' };
   test('hostDrift', () => {
-    expect(hostDrift(got, want)).toEqual(lines(bash('host_drift', JSON.stringify(got), JSON.stringify(want))));
     expect(hostDrift(got, want)).toEqual(['a', 'f']);
   });
 
@@ -106,17 +95,24 @@ describe('pure helpers match servarr.sh', () => {
   };
   const map: JsonObject = { host: 'qbittorrent', port: 8080, tags: [], missing: 'x', password: null };
   test('fieldsDrift', () => {
-    expect(fieldsDrift(res, map)).toEqual(lines(bash('fields_drift', JSON.stringify(res), JSON.stringify(map))));
     expect(fieldsDrift(res, map)).toEqual(['port', 'missing']);
   });
   test('fieldsSet', () => {
-    expect(fieldsSet(res, map)).toEqual(JSON.parse(bash('fields_set', JSON.stringify(res), JSON.stringify(map))));
+    expect(fieldsSet(res, map)).toEqual({
+      id: 3,
+      implementation: 'QBittorrent',
+      enable: true,
+      fields: [
+        { name: 'host', value: 'qbittorrent' },
+        { name: 'port', value: 8080 },
+        { name: 'password', value: null },
+        { name: 'tags', value: [] },
+      ],
+    });
   });
   test('resourceDrift', () => {
     const top = { enable: false, implementation: 'QBittorrent' };
-    expect(resourceDrift(res, top, map)).toEqual(
-      lines(bash('resource_drift', JSON.stringify(res), JSON.stringify(top), JSON.stringify(map))),
-    );
+    expect(resourceDrift(res, top, map)).toEqual(['enable', 'port', 'missing']);
   });
   test('loginRedirectOk', () => {
     expect(loginRedirectOk('http://x/')).toBe(true);
@@ -127,22 +123,18 @@ describe('pure helpers match servarr.sh', () => {
 });
 
 describe('apiError', () => {
-  // The same jq as api_error, on the same bodies.
-  const jq = (body: string) =>
-    Bun.spawnSync(['jq', '-r', '.[0].errorMessage? // .message? // empty'], { stdin: Buffer.from(body) })
-      .stdout.toString()
-      .replace(/\n$/, '')
-      .slice(0, 160);
-  for (const body of [
-    '[{"propertyName":"Path","errorMessage":"Folder does not exist"}]',
-    '{"message":"Unauthorized"}',
-    '[{"propertyName":"x"}]',
-    '[]',
-    '{}',
-    `{"message":"${'x'.repeat(300)}"}`,
-  ]) {
-    test(body.slice(0, 40), () => expect(apiError(body)).toBe(jq(body)));
-  }
+  // As api_error's jq gave them: an object body errors on `.[0]`, and that was
+  // read as no message.
+  const cases: [string, string][] = [
+    ['[{"propertyName":"Path","errorMessage":"Folder does not exist"}]', 'Folder does not exist'],
+    ['{"message":"Unauthorized"}', ''],
+    ['[{"propertyName":"x"}]', ''],
+    ['[]', ''],
+    ['{}', ''],
+    [`{"message":"${'x'.repeat(300)}"}`, ''],
+    [`[{"errorMessage":"${'y'.repeat(300)}"}]`, 'y'.repeat(160)],
+  ];
+  for (const [body, want] of cases) test(body.slice(0, 40), () => expect(apiError(body)).toBe(want));
   test('not JSON', () => expect(apiError('<html>')).toBe(''));
 });
 

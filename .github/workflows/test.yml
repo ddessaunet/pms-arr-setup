@@ -2,7 +2,8 @@
 # person uses: `task lint test` for the stack (shellcheck, Vite+ and tsc, every
 # *.test.sh and bun test), `task site:lint site:test site:check` for the docs
 # site. Nothing here starts containers or installs units (trap 16): lint only
-# renders compose.yaml, and the suites stub docker, curl and systemctl.
+# renders compose.yaml, and the suites stand in for docker, systemctl and the
+# apps' APIs.
 #
 # A change to Markdown files only (*.md: READMEs, docs/, CLAUDE.md, DESIGN.md)
 # skips both. They are required checks on main, so they are skipped, not left

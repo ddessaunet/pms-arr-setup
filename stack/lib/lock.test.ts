@@ -1,5 +1,6 @@
 // stack/lib/lock.test.ts — lock.ts and util-linux flock exclude each other on
-// the same file, both ways, as bash and TypeScript jobs must while both exist.
+// the same file, both ways: a job rolled back to bash, or a flock run by hand,
+// excludes the TypeScript one.
 
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';

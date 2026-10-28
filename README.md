@@ -28,7 +28,7 @@ native Plex database and qBittorrent state move across unchanged.
 |---|---|
 | [Phases](docs/phases.md) | The runbook and progress checklist. Each phase has Do / Verify / Rollback. |
 | [Updating](docs/updating.md) | The weekly container updater: streaming check, health wait, rollback, exit codes, adding a service. |
-| [Bun migration](docs/bun-migration.md) | Porting the API-heavy bash scripts to TypeScript on Bun, one PR per step, with its checklist. |
+| [Bun migration](docs/bun-migration.md) | How the API-heavy bash scripts became TypeScript on Bun: the design, the shared library, and the checklist of steps. |
 | `apps/<app>/README.md` | One per app: what it does, its ports, secrets, who owns its settings, its tasks and traps. |
 | `jobs/<job>/README.md` | One per host job: what it does, when it runs, its tasks. |
 
@@ -47,14 +47,15 @@ apps/<app>/           one compose service
   Taskfile.yml        which standard tasks it gets (from stack/taskfiles/), plus its own
   README.md           Role · Access · Secrets · Settings · Tasks · Traps
   configure.sh        if this repo owns its settings: apply idempotently, --check reports drift;
-                      once ported, a launcher for the configure.ts beside it
-  configure.test.sh   offline tests, beside what they test (configure.test.ts once ported)
+                      a launcher for the configure.ts beside it (Radarr's and Sonarr's
+                      pick their app and run stack/lib/arr-configure.ts)
+  configure.test.ts   offline tests, beside what they test
   <config>            recyclarr.yml, decluttarr's config.yaml
 jobs/<job>/           a host-side systemd job that spans apps: script, unit(s), test, README, Taskfile
 site/                 the docs website's source (Starlight); apps/docs serves what it builds
 stack/                what the whole stack shares
   taskfiles/          the per-app task templates: service, update, configure
-  lib/                servarr.sh (Servarr API plumbing), arr-configure.ts (Radarr + Sonarr)
+  lib/                servarr.ts (Servarr API plumbing), arr-configure.ts (Radarr + Sonarr)
                       and arr-policy.ts (what it holds them to),
                       pms-home.sh (where the stack is installed), bun.sh (finds Bun for a
                       launcher), *.ts (the TypeScript scripts' shared library, each with a test)
@@ -109,9 +110,9 @@ serves the built website.
   (`preview` and `sync` only). Decluttarr is pinned, so it has no `update`.
 - Every job has a script, a test, a unit in `stack/deploy.sh`'s manifest whose `ExecStart`
   exists, a `README.md` (**Role, Schedule, Tasks**) and a `Taskfile.yml`.
-- A script ported to TypeScript keeps its `.sh` path, because units, `stack/deploy.sh` and
-  other scripts name it. The `.sh` becomes a launcher that runs the `.ts` beside it, which
-  holds the logic, the help text and the exit codes:
+- A script in TypeScript keeps a `.sh` path, because units, `stack/deploy.sh` and other
+  scripts name it. The `.sh` is a launcher that runs the `.ts` beside it, which holds the
+  logic, the help text and the exit codes:
 
   ```bash
   #!/usr/bin/env bash
@@ -142,7 +143,7 @@ live there, so the source tree (a clone, a worktree, a downloaded ZIP) can move,
 branches or be deleted without the services noticing. Nothing in the install needs git.
 
 You need docker with the compose plugin, [Task](https://taskfile.dev) and
-[Bun](https://bun.com) (both below), `rsync`, `jq`, `curl` and `inotify-tools`. To build
+[Bun](https://bun.com) (both below), `rsync`, `jq` and `inotify-tools`. To build
 the docs site you also need node and pnpm (see `site/`); without them the install has no
 docs site until a later deploy builds one.
 
@@ -188,7 +189,7 @@ binary is still `task`:
 brew install go-task
 ```
 
-[Bun](https://bun.com) runs the scripts ported to TypeScript, and their tests. This box
+[Bun](https://bun.com) runs the stack's scripts, which are TypeScript, and their tests. This box
 has it from [proto](https://moonrepo.dev/proto), pinned globally, so a run outside any
 project (a systemd unit, a shell in `~`) still knows which version to use:
 

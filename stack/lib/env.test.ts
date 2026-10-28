@@ -1,13 +1,13 @@
-// stack/lib/env.test.ts — envGet keeps env_get's rules (stack/lib/servarr.sh).
-// The parity cases run the bash function itself on the same .env and compare.
+// stack/lib/env.test.ts — envGet keeps the rules of the bash scripts' env_get.
+// The values in FILES are what env_get gave on the same .env, recorded before
+// the last bash copy (stack/lib/servarr.sh) was deleted.
 
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { envFileValue, envGet, envSeconds } from './env.ts';
 
-const SERVARR = resolve(import.meta.dir, 'servarr.sh');
 const tmp = mkdtempSync(join(tmpdir(), 'env-test-'));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
@@ -19,16 +19,6 @@ function repoWith(envText: string | null): string {
   return repo;
 }
 
-/** What `KEY="${KEY:-$(env_get KEY)}"` (or `${KEY-…}`) gives in bash. */
-function bashGet(repo: string, key: string, env: Record<string, string>, emptyWins = false): string {
-  const expand = emptyWins ? `\${${key}-$(env_get ${key})}` : `\${${key}:-$(env_get ${key})}`;
-  const r = Bun.spawnSync(['bash', '-c', `REPO="$1"; . "$2"; v="${expand}"; printf '%s' "$v"`, '_', repo, SERVARR], {
-    env: { PATH: process.env.PATH ?? '/usr/bin:/bin', ...env },
-  });
-  if (r.exitCode !== 0) throw new Error(r.stderr.toString());
-  return r.stdout.toString();
-}
-
 describe('envFileValue', () => {
   test('the last KEY= line wins', () => expect(envFileValue('A=1\nA=2\n', 'A')).toBe('2'));
   test('a later empty line wins too', () => expect(envFileValue('A=1\nA=\n', 'A')).toBe(''));
@@ -38,37 +28,42 @@ describe('envFileValue', () => {
   test('rejects a name that is not one', () => expect(() => envFileValue('', 'A.*')).toThrow());
 });
 
-// Each .env is read for every key in KEYS, with and without the variable set.
-const FILES: Record<string, string | null> = {
-  'no .env': null,
-  empty: '',
-  plain: 'A=1\nB=two words\n',
-  'duplicates, last wins': 'A=1\nB=x\nA=3\n',
-  'last is empty': 'A=1\nA=\n',
-  quoted: `A="quoted"\nB='single'\nC="a=b"\n`,
-  'equals in the value': 'A==x=y\n',
-  'spaces around =': 'A =1\nB= 2 \n',
-  'export and comments': 'export A=1\n#B=2\n  C=3\nB=4 # not a comment\n',
-  'CRLF lines': 'A=1\r\nB=2\r\n',
-  'no final newline': 'A=1\nB=2',
-  prefixes: 'AB=1\nA_B=2\nA=3\n',
-  'trailing spaces': 'A=x  \n',
+// Each .env, and what bash's env_get read from it for each key. With the
+// variable set it wins; set but empty, .env wins unless emptyWins (`${KEY-…}`).
+const FILES: Record<string, [string | null, Record<string, string>]> = {
+  'no .env': [null, {}],
+  empty: ['', {}],
+  plain: ['A=1\nB=two words\n', { A: '1', B: 'two words' }],
+  'duplicates, last wins': ['A=1\nB=x\nA=3\n', { A: '3', B: 'x' }],
+  'last is empty': ['A=1\nA=\n', {}],
+  quoted: [`A="quoted"\nB='single'\nC="a=b"\n`, { A: '"quoted"', B: "'single'", C: '"a=b"' }],
+  'equals in the value': ['A==x=y\n', { A: '=x=y' }],
+  'spaces around =': ['A =1\nB= 2 \n', { B: ' 2 ' }],
+  'export and comments': ['export A=1\n#B=2\n  C=3\nB=4 # not a comment\n', { B: '4 # not a comment' }],
+  'CRLF lines': ['A=1\r\nB=2\r\n', { A: '1\r', B: '2\r' }],
+  'no final newline': ['A=1\nB=2', { A: '1', B: '2' }],
+  prefixes: ['AB=1\nA_B=2\nA=3\n', { A: '3', A_B: '2' }],
+  'trailing spaces': ['A=x  \n', { A: 'x  ' }],
 };
 const KEYS = ['A', 'B', 'C', 'A_B'];
 
-describe('envGet matches bash env_get', () => {
-  for (const [name, text] of Object.entries(FILES)) {
+describe('envGet reads as bash env_get did', () => {
+  for (const [name, [text, values]] of Object.entries(FILES)) {
     test(name, () => {
       const repo = repoWith(text);
       for (const key of KEYS) {
-        for (const env of [{}, { [key]: 'from-env' }, { [key]: '' }]) {
-          expect({ key, env, got: envGet(key, { repo, env }) }).toEqual({ key, env, got: bashGet(repo, key, env) });
-          expect({ key, env, emptyWins: envGet(key, { repo, env, emptyWins: true }) }).toEqual({
+        const file = values[key] ?? '';
+        const got = (env: Record<string, string>, emptyWins = false) => envGet(key, { repo, env, emptyWins });
+        expect({ key, got: [got({}), got({ [key]: 'from-env' }), got({ [key]: '' })] }).toEqual({
+          key,
+          got: [file, 'from-env', file],
+        });
+        expect({ key, emptyWins: [got({}, true), got({ [key]: 'from-env' }, true), got({ [key]: '' }, true)] }).toEqual(
+          {
             key,
-            env,
-            emptyWins: bashGet(repo, key, env, true),
-          });
-        }
+            emptyWins: [file, 'from-env', ''],
+          },
+        );
       }
     });
   }

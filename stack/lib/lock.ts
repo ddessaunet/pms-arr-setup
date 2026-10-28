@@ -1,9 +1,9 @@
-// stack/lib/lock.ts — flock(2) on a lock file, shared with the bash scripts.
+// stack/lib/lock.ts — flock(2) on a lock file, as util-linux flock takes it.
 //
-// The bash jobs take their locks with util-linux flock on an open file
+// The bash jobs took their locks with util-linux flock on an open file
 // (`exec 9>"$LOCK"; flock -n 9`). This takes the same kind of lock on the same
-// file, through libc, so while bash and TypeScript versions of a job both
-// exist, each excludes the other (lock.test.ts proves it both ways). A lock
+// files, through libc, so a job rolled back to bash, or a `flock` run by hand,
+// still excludes the TypeScript one (lock.test.ts proves it both ways). A lock
 // lives as long as its file descriptor: release() closes it, and so does the
 // process ending.
 //

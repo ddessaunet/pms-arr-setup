@@ -1,6 +1,5 @@
 // stack/lib/servarr.ts — the API plumbing shared by the Servarr configure
-// scripts: a port of stack/lib/servarr.sh, which stays until its last bash
-// user is ported.
+// scripts, ported from the bash servarr.sh they sourced.
 //
 // Prowlarr, Radarr and Sonarr are one code base underneath: the same API-key
 // header, the same forms login, the same /config/host object. Only the API
