@@ -318,7 +318,7 @@ which `plex-watch` read as deletions (rule 5) until Phase 7a.
 | indexers | pushed by Prowlarr (full sync); not configured here |
 | Plex | refreshed on import and delete, through `host.docker.internal:32400` |
 
-**How `arr-reclaim` decides.** `jobs/arr-reclaim/arr-reclaim.sh`, run by `arr-reclaim.service`, ports
+**How `arr-reclaim` decides.** `jobs/arr-reclaim/arr-reclaim.ts`, run by `arr-reclaim.service`, ports
 pms-local's `plex-watch` + reconcile to the `:8081` instance. It watches the library with
 inotify and waits 60 s of quiet after a burst of deletions. It then removes a torrent **only
 when all three are true**:

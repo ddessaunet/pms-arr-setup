@@ -23,7 +23,7 @@ looks stale, check the repo and the box rather than trusting it.
 - [x] Step 4 — `stack-status` (2026-10-27: against the live stack, the old and new `--stdout` status match after the timestamps, `--drift` matches, the logs match source for source, and `--audit` loads the same 10 secrets in the same order; `testdata/status.golden.json` unchanged)
 - [x] Step 5 — `lan-address` (2026-10-27: `--dry-run` matches the bash one on the box, against the live state and a scratch one with stale, missing and two-address lines, `--force` included; it reads the addresses through `net.ts`, as the configure scripts have since step 2; `servarr.sh` now has no runtime user)
 - [x] Step 6 — `pms-update` (2026-10-27: `--dry-run` over all nine services matches the bash one on the box line for line, Plex's stream gate included, and so do a single service and a bad flag; recreate, the health wait and the rollback are tested against a fake docker, and run for real on the next update)
-- [ ] Step 7 — `arr-reclaim`, rehearsed
+- [x] Step 7 — `arr-reclaim`, rehearsed (2026-10-27: `--audit` matches the bash one on the box; `record` writes the live ledger's copies byte for byte as the bash does, including after re-recording dropped rows; a shadow `watch --dry-run` on a scratch library, beside the bash unit, logged deletes, a rename and a second link as the bash would and changed nothing; the lock is shared with util-linux `flock`. Audit parity was compared once, not over days: `task arr-reclaim:watch-dry` shadows the real library before or after the switch)
 - [ ] Step 8 — cleanup: `servarr.sh` deleted, shellcheck targets trimmed, docs pass
 
 ---
@@ -88,7 +88,7 @@ anything else.
 | `log.ts` | synchronous lines, `stamped()`, a `strftime` for `%F %T %z` | each script's `log()` |
 | `cli.ts` | flags and positionals; `-h` prints the `.ts` header | the `case` loops |
 | `exit.ts` | `EXIT`, `UsageError`, `runMain` | — |
-| `run.ts` | `Bun.spawn` with timeout (124) and stdin | `timeout`, `$(…)` |
+| `run.ts` | `Bun.spawn` with timeout (124) and stdin; `lines()`, a long-running command's output line by line | `timeout`, `$(…)`, `read -t` |
 | `http.ts` | `fetch` with curl's habits | `curl -s --max-time … -w '%{http_code}'` |
 | `servarr.ts` | `api`, `waitReady`, apply/verify host and resource | `stack/lib/servarr.sh` |
 | `qbittorrent.ts` | the login rule (204, or 200 `Ok.`), once, and a session | `qbt_login_ok` (×3) |
@@ -201,7 +201,7 @@ services and `--dry-run`.
 - **Shadow watch:** a new `watch --dry-run` logs decisions and never sends a DELETE or a
   Radarr removal. It runs beside the bash unit on a scratch `LIBRARY` of hardlinked
   fixtures (a delete, a move, a rename, a second link remaining, an import not made yet),
-  with `RECLAIM_IMPORTS` pointed at a scratch file.
+  with `RECLAIM_LEDGER` pointed at a scratch file.
 - **Locks:** a bash `run` and a TypeScript `run` exclude each other.
 - **Switch:** `task deploy` restarts the watcher. Rolling back means reverting the
   launcher.

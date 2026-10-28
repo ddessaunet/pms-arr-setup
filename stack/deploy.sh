@@ -50,7 +50,7 @@ TIMER="pms-update.timer"
 NATIVE_PLEX_UNIT="plexmediaserver.service"
 
 # The long-running watcher: enabled and restarted on EVERY deploy, not only
-# when its unit changes — it is also stale when jobs/arr-reclaim/arr-reclaim.sh changes,
+# when its unit changes — it is also stale when jobs/arr-reclaim/arr-reclaim.ts changes,
 # which no unit file shows. (The same reasoning as pms-local's plex-watch.)
 WATCHER="arr-reclaim.service"
 

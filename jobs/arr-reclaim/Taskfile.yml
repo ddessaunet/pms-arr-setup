@@ -9,6 +9,11 @@ tasks:
     cmds:
       - ./arr-reclaim.sh --audit
 
+  watch-dry:
+    desc: Watch the library and log what arr-reclaim would do (changes nothing; Ctrl-C to stop)
+    cmds:
+      - ./arr-reclaim.sh watch --dry-run
+
   status:
     desc: The watcher's unit state
     cmds:

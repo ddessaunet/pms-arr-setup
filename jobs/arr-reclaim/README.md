@@ -40,15 +40,18 @@ upgrade isn't a delete here: a minute later its new file is in place and Radarr 
 
 Always running: `arr-reclaim.service` watches the library and reclaims after each burst of
 deletions. [`arr-reclaim.service`](arr-reclaim.service) runs
-[`arr-reclaim.sh`](arr-reclaim.sh) `watch` from the install. `task deploy` installs,
-enables and restarts it on every run, because a change to the script alone doesn't show in
-the unit file.
+[`arr-reclaim.sh`](arr-reclaim.sh) `watch` from the install: a launcher for
+[`arr-reclaim.ts`](arr-reclaim.ts), which holds the logic, its help text and its exit codes.
+`task deploy` installs, enables and restarts it on every run, because a change to the script
+alone doesn't show in the unit file. Rolling the job back means reverting the script, then
+`task deploy`.
 
 ## Tasks
 
 | task | does |
 |---|---|
 | `task arr-reclaim:audit` | What it would remove right now. Changes nothing. |
+| `task arr-reclaim:watch-dry` | Watches the library beside the unit and logs what it would do after each burst: removals, and what it would tell Radarr/Sonarr. Removes nothing, tells nobody, writes no ledger, takes no lock. Ctrl-C to stop. |
 | `task arr-reclaim:status` / `arr-reclaim:logs` | The unit's state / its journal. |
 
 ## Traps
@@ -59,5 +62,7 @@ the unit file.
   only list their own category, so *Remove Completed* would stop seeing imported torrents.
 - **It only removes what was imported.** [Decluttarr](../../apps/decluttarr/README.md)
   only removes what wasn't, so the two never meet.
+- **Watching is `inotifywait`**, not Bun's `fs.watch`, which reports a delete and a move
+  alike: a move must keep its torrent. Stopping the watcher stops its `inotifywait` too.
 - **Torrents moved over from native qBittorrent** aren't in the import history, so it never
   reclaims them.
