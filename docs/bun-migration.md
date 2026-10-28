@@ -23,6 +23,7 @@ page is how the TypeScript fits together.
 - [x] Step 6 — `pms-update` (2026-10-27: `--dry-run` over all nine services matches the bash one on the box line for line, Plex's stream gate included, and so do a single service and a bad flag; recreate, the health wait and the rollback are tested against a fake docker, and run for real on the next update)
 - [x] Step 7 — `arr-reclaim`, rehearsed (2026-10-27: `--audit` matches the bash one on the box; `record` writes the live ledger's copies byte for byte as the bash does, including after re-recording dropped rows; a shadow `watch --dry-run` on a scratch library, beside the bash unit, logged deletes, a rename and a second link as the bash would and changed nothing; the lock is shared with util-linux `flock`. Audit parity was compared once, not over days: `task arr-reclaim:watch-dry` shadows the real library before or after the switch)
 - [x] Step 8 — cleanup: `servarr.sh` deleted, shellcheck targets trimmed, docs pass (2026-10-28: `servarr.sh` deleted, with `env.test.ts` and `servarr.test.ts` now holding the values it returned; shellcheck's globs already cover only what is left, launchers and the `stack/` plumbing; CLAUDE.md, the READMEs and this page describe the finished state)
+- [x] Step 9 — the docs site on Bun too (2026-10-28: `site/bun.lock` migrated from `pnpm-lock.yaml`, same versions; Astro and Vite+ run under `bun --bun`, so node, nvm and pnpm are gone; the Bun-built `dist` matches the node one but for Astro's scope-class and asset hashes, which hash `node_modules` paths, and how Vite's preload helper is minified in the search script, which the site never loads with Pagefind off)
 
 ---
 
@@ -140,7 +141,8 @@ bash returned.
 | `task lint` | shellcheck, `bun --bun vp check`, `bun --bun tsc --noEmit`, compose |
 | `task test` | every `*.test.sh`, then `bun test ./apps ./jobs ./stack` (a bare `bun test` would also find the site's Vitest suites and the worktrees) |
 | `task fmt` | `vp fmt` |
-| CI | `oven-sh/setup-bun` from `.bun-version` in the `task lint test` job |
+| site | `site/package.json`, `site/bun.lock` (`task site:install`); Astro and `vp` under `bun --bun` |
+| CI | `oven-sh/setup-bun` from `.bun-version` in both jobs |
 
 On the box, Bun comes from proto and is pinned globally (Homebrew's `brew install bun`
 and `brew pin bun` work too):

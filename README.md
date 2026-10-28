@@ -143,9 +143,8 @@ live there, so the source tree (a clone, a worktree, a downloaded ZIP) can move,
 branches or be deleted without the services noticing. Nothing in the install needs git.
 
 You need docker with the compose plugin, [Task](https://taskfile.dev) and
-[Bun](https://bun.com) (both below), `rsync`, `jq` and `inotify-tools`. To build
-the docs site you also need node and pnpm (see `site/`); without them the install has no
-docs site until a later deploy builds one.
+[Bun](https://bun.com) (both below), `rsync`, `jq` and `inotify-tools`. Bun also builds
+the docs site (`site/`).
 
 From the source tree:
 
@@ -249,7 +248,7 @@ both.
 | `task lan-address:dry` / `:run` / `:logs` | Which apps are behind the box's addresses / apply them now / each change, with the new address. |
 | `task stack-status:dry` / `:run` / `:audit` | The dashboard's data: print it / write it now / count what it masks, and confirm no secret is left. |
 | `task site:build` | Build the docs website into the source's `site/dist`; `task deploy` publishes it on `:8088`. |
-| `task site:check` / `site:test` / `site:dev` | Prove it builds / its unit tests / a live preview on `:4321`. These need node (nvm) and pnpm (Homebrew). |
+| `task site:check` / `site:test` / `site:dev` | Prove it builds / its unit tests / a live preview on `:4321`. These run on Bun, like the scripts. |
 | `task site:lint` / `site:fmt` | Lint and format-check the site (changes nothing) / rewrite its files in its format. Both are Vite+ (`site/vite.config.ts`). |
 
 `qbt:` is an alias for `qbittorrent:`.

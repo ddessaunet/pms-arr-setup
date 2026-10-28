@@ -63,14 +63,12 @@ used on it are committed in `.agents/skills/` (listed in `skills-lock.json`).
 ## Traps
 
 - **Deploy a build before the first `up`.** With no `site/dist` in the install yet, nginx
-  answers 404 until `task deploy` runs with node and pnpm on `PATH`.
+  answers 404 until `task deploy` builds it.
 - **The build is a check.** It fails if `recyclarr.yml` and `profiles.yml` list different
   profiles, or if they disagree with `arr-policy.ts` on defaults or upgrades. A failed
   build leaves the published site as it was.
 - **Mount `site/`, never `site/dist`.** The build and the install swap `dist` for a new
   folder, and a bind of the old one would keep serving it.
-- **Node comes from nvm, which `~/.profile` loads.** In a shell without it, the `site:*`
-  tasks stop and say how to load it.
 - **Create `/opt/appdata/docs-status` as yourself before the first `up` with the `/live`
   mount**, or Docker creates it root-owned and `jobs/stack-status` cannot write:
   `install -d -m 755 /opt/appdata/docs-status`.

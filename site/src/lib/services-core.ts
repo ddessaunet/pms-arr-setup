@@ -4,7 +4,7 @@
 //   site/src/data/services.yml  what each one is, its web path, and the port of
 //                               an app on the host network (Plex)
 //
-// Pure (strings in, data out) so `task site:test` runs it under plain node.
+// Pure (strings in, data out) so `task site:test` runs it without Astro.
 // Anything that disagrees throws, and a throw fails `astro build`: the page
 // never lists a service that does not exist, or misses one that does.
 

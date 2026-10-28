@@ -6,7 +6,7 @@
 //   site/src/data/profiles.yml     what neither can say: who picks a profile,
 //                                  HDR, low-quality groups, a one-line summary
 //
-// Pure (text and data in, data out) so `task site:test` runs it under plain node.
+// Pure (text and data in, data out) so `task site:test` runs it without Astro.
 // Anything that disagrees throws, and a throw fails `astro build`: the map is
 // never published out of step with the files it describes.
 
