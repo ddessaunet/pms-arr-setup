@@ -24,6 +24,7 @@ page is how the TypeScript fits together.
 - [x] Step 7 — `arr-reclaim`, rehearsed (2026-10-27: `--audit` matches the bash one on the box; `record` writes the live ledger's copies byte for byte as the bash does, including after re-recording dropped rows; a shadow `watch --dry-run` on a scratch library, beside the bash unit, logged deletes, a rename and a second link as the bash would and changed nothing; the lock is shared with util-linux `flock`. Audit parity was compared once, not over days: `task arr-reclaim:watch-dry` shadows the real library before or after the switch)
 - [x] Step 8 — cleanup: `servarr.sh` deleted, shellcheck targets trimmed, docs pass (2026-10-28: `servarr.sh` deleted, with `env.test.ts` and `servarr.test.ts` now holding the values it returned; shellcheck's globs already cover only what is left, launchers and the `stack/` plumbing; CLAUDE.md, the READMEs and this page describe the finished state)
 - [x] Step 9 — the docs site on Bun too (2026-10-28: `site/bun.lock` migrated from `pnpm-lock.yaml`, same versions; Astro and Vite+ run under `bun --bun`, so node, nvm and pnpm are gone; the Bun-built `dist` matches the node one but for Astro's scope-class and asset hashes, which hash `node_modules` paths, and how Vite's preload helper is minified in the search script, which the site never loads with Pagefind off)
+- [x] After — the first runtime dependency: Hono, for `jobs/stack-api` (2026-10-28: pinned exactly in `package.json`'s `dependencies`; `stack/install.sh` copies `node_modules/hono` alone into the install, which works because it has no dependencies of its own, and `rules.test.ts` checks that and allows it only under `jobs/stack-api/`)
 
 ---
 
@@ -40,9 +41,11 @@ anything else.
 
 ## How it fits together
 
-- **Runtime: Bun and the `.ts` sources, nothing else.** `package.json` lists dev tools
-  only (`typescript`, `@types/bun`, `openapi-typescript`, `vite-plus`, exact versions), and
-  the install is still an rsync copy without them, `bun.lock`, `tsconfig.json`,
+- **Runtime: Bun and the `.ts` sources, plus Hono for stack-api.** `package.json` lists
+  dev tools (`typescript`, `@types/bun`, `openapi-typescript`, `vite-plus`, exact
+  versions) and, under `dependencies`, the one runtime package, `hono`, which
+  `stack/install.sh` copies into the install's `node_modules` on its own. The install is
+  still an rsync copy without the dev tools, `bun.lock`, `tsconfig.json`,
   `vite.config.ts`, `.bun-version`, `node_modules` or the tests (`stack/install.sh`,
   checked by `stack/install.test.sh`).
 - **Launchers keep every `.sh` path.** Units, `deploy.sh`'s manifest, `pms-home.sh`'s

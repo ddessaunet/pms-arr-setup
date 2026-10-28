@@ -10,12 +10,17 @@
 # or worktree it would serve that tree's build.
 #
 # Unprivileged nginx (uid 101, port 8080 inside), read-only root filesystem.
-# Not on the arr network: it talks to nothing.
+# Not on the arr network: the one thing it talks to is jobs/stack-api, over the
+# Unix socket in /opt/appdata/stack-api/run (mounted at /api). nginx asks it
+# before serving anything but the login page, so only the Plex server's owner
+# gets in; while stack-api is down, every page goes to the login page.
 #
 # /live is the dashboard's data, written every 2 minutes by jobs/stack-status
 # (redacted: it is readable by anyone on the LAN). Create the directory as
 # yourself before the first `up`, or Docker creates it root-owned and the job
 # cannot write: install -d -m 755 /opt/appdata/docs-status
+# The same for the socket's folder:
+#   install -d -m 755 /opt/appdata/stack-api /opt/appdata/stack-api/run
 
 services:
   docs:
@@ -27,6 +32,7 @@ services:
       - ../../site:/site:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ${APPDATA:?set APPDATA in .env}/docs-status:/live:ro
+      - ${APPDATA:?set APPDATA in .env}/stack-api/run:/api:ro
     read_only: true
     tmpfs:
       - /tmp

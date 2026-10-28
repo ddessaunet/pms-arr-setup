@@ -7,12 +7,13 @@ import starlight from '@astrojs/starlight';
 export default defineConfig({
   // The pages read files outside site/ (src/lib/profiles.ts, src/lib/services.ts);
   // the dev server only serves inside site/ unless told. /live is the
-  // dashboard's data, which nginx serves on the box: `task site:dev` proxies to
-  // it, so the preview shows the live status too.
+  // dashboard's data and /api stack-api, both behind nginx on the box: `task
+  // site:dev` proxies to it, so the preview shows the live status too (once
+  // signed in there: the session cookie is the box's, sent to any of its ports).
   vite: {
     server: {
       fs: { allow: ['..'] },
-      proxy: { '/live': 'http://127.0.0.1:8088' },
+      proxy: { '/live': 'http://127.0.0.1:8088', '/api': 'http://127.0.0.1:8088' },
     },
   },
   integrations: [
@@ -36,12 +37,14 @@ export default defineConfig({
       ],
       // The profile cards in the quality-profiles table of contents.
       routeMiddleware: './src/routeData.ts',
-      // One dark theme: no picker, and no stored or system preference.
+      // One dark theme: no picker, and no stored or system preference. The
+      // header's social links (none) become the sign-out button.
       components: {
         ThemeProvider: './src/components/overrides/ThemeProvider.astro',
         ThemeSelect: './src/components/overrides/ThemeSelect.astro',
+        SocialIcons: './src/components/overrides/SocialIcons.astro',
       },
-      pagefind: false, // four pages: nothing to search yet
+      pagefind: false, // a handful of pages: nothing to search yet
       pagination: false, // the sidebar already links every page
       lastUpdated: false,
     }),

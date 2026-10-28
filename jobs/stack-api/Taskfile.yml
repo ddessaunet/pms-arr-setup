@@ -1,0 +1,20 @@
+version: '3'
+
+# stack-api — see README.md. It runs as stack-api.service, from the install;
+# `task deploy` installs and restarts it.
+
+tasks:
+  health:
+    desc: Ask the running service whether it is up (through its socket)
+    cmds:
+      - curl -fsS --unix-socket "${APPDATA:-/opt/appdata}/stack-api/run/api.sock" http://stack-api/api/health; echo
+
+  status:
+    desc: The service's unit state
+    cmds:
+      - systemctl status stack-api.service --no-pager
+
+  logs:
+    desc: Follow the service's journal (sign-ins, refusals, errors)
+    cmds:
+      - journalctl -u stack-api.service -f -n 100

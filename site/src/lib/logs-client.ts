@@ -3,6 +3,7 @@
 // ever set with textContent, never innerHTML.
 
 import { el, q, qa } from './dom.ts';
+import { signInIfSignedOut } from './session.ts';
 import { clock, formatAgo, parseLogs, type LogSource } from './status-view.ts';
 
 const LOGS_URL = '/live/logs.json';
@@ -46,6 +47,7 @@ async function loadLogs() {
   if (!box) return;
   try {
     const res = await fetch(LOGS_URL, { cache: 'no-store' });
+    if (signInIfSignedOut(res)) return;
     if (!res.ok) throw new Error(String(res.status));
     const logs = parseLogs(await res.json());
     if (!logs) throw new Error('unreadable');

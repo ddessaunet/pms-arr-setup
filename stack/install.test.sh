@@ -39,6 +39,12 @@ rsync -a --exclude=/.git --exclude=/.claude/ --exclude=/.env --exclude=/.task/ \
     --exclude=/node_modules/ --exclude=/site/node_modules/ --exclude=/site/dist/ --exclude='/site/.*' "$ROOT/" "$TSRC/"
 mkdir -p "$TSRC/site/dist"; echo v1 >"$TSRC/site/dist/index.html"
 mkdir -p "$TSRC/node_modules/vite-plus"   # as `task bun:install` leaves it
+# The runtime dependencies (package.json's), as bun:install leaves them too.
+while IFS= read -r d; do
+    mkdir -p "$TSRC/node_modules/$d/dist"
+    echo '{"name":"'"$d"'"}' >"$TSRC/node_modules/$d/package.json"
+    echo "export {}" >"$TSRC/node_modules/$d/dist/index.js"
+done < <(jq -r '.dependencies // {} | keys[]' "$TSRC/package.json")
 
 install_() { "$TSRC/stack/install.sh" --files "$@" >"$T/out" 2>&1; }
 # The libraries find their tree by $0, so source them through bash -c with $0
@@ -83,8 +89,12 @@ ok "stack/installed.sh refuses the source" bash -c "! '$TSRC/stack/installed.sh'
 echo
 echo "the install's contents"
 ok_eq "no tests" "" "$(cd "$TDEST" && find . -name '*.test.sh' -o -name '*.test.ts' -o -name testdata | head -3)"
-ok_eq "no dev tools: package.json, bun.lock, tsconfig, Vite+ config, .bun-version, node_modules" "" \
-    "$(cd "$TDEST" && ls -d package.json bun.lock tsconfig.json vite.config.ts .bun-version node_modules 2>/dev/null)"
+ok_eq "no dev tools: package.json, bun.lock, tsconfig, Vite+ config, .bun-version" "" \
+    "$(cd "$TDEST" && ls -d package.json bun.lock tsconfig.json vite.config.ts .bun-version 2>/dev/null)"
+ok_eq "node_modules holds the runtime dependencies only" \
+    "$(jq -r '.dependencies // {} | keys[]' "$TSRC/package.json" | sed 's#/.*##' | sort -u)" \
+    "$(ls "$TDEST/node_modules" 2>/dev/null)"
+ok "hono, whole" cmp "$TSRC/node_modules/hono/dist/index.js" "$TDEST/node_modules/hono/dist/index.js"
 ok "no generated API types (stack/lib/api/)" test ! -e "$TDEST/stack/lib/api"
 ok_eq "the TypeScript sources" "$(cd "$TSRC" && find stack/lib -path stack/lib/api -prune -o -name '*.ts' ! -name '*.test.ts' -print | sort)" \
     "$(cd "$TDEST" && find stack/lib -name '*.ts' | sort)"
@@ -143,6 +153,23 @@ ok "no drift after" check_files "$TDEST"
 before="$(stat -c %Y "$TDEST/jobs/arr-reclaim/arr-reclaim.service")"
 sleep 1; install_ "$TDEST"
 ok_eq "an unchanged unit is not rewritten" "$before" "$(stat -c %Y "$TDEST/jobs/arr-reclaim/arr-reclaim.service")"
+
+echo
+echo "runtime dependencies"
+echo "export const v = 2" >"$TSRC/node_modules/hono/dist/index.js"
+ok_eq "a changed dependency is drift" 1 "$(check_files "$TDEST" >/dev/null; echo $?)"
+mkdir -p "$TDEST/node_modules/left-over"
+install_ "$TDEST"
+ok "the change is copied" grep -qx "export const v = 2" "$TDEST/node_modules/hono/dist/index.js"
+ok "and said so" grep -qx "copied node_modules/hono" "$T/out"
+ok "one that is no longer a dependency is removed" test ! -e "$TDEST/node_modules/left-over"
+ok "no drift after" check_files "$TDEST"
+install_ "$TDEST"
+ok_eq "an unchanged dependency is not reported as copied" "" "$(grep 'node_modules' "$T/out")"
+mv "$TSRC/node_modules/hono" "$T/hono.away"
+ok_eq "a source without it (no bun:install) is refused" 1 "$(install_ "$TDEST"; echo $?)"
+ok "and says how to get it" grep -q 'task bun:install' "$T/out"
+mv "$T/hono.away" "$TSRC/node_modules/hono"
 
 # ─── where ────────────────────────────────────────────────────────────────────
 echo

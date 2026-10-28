@@ -27,6 +27,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Address check — `lan-address.timer` re-applies the apps' address settings when DHCP moves the box (2026-10-08: first run applied all five at .66/.86; a stale Seerr entry re-applied only Seerr; after the 18:29 reboot it ran at +2 min, addresses unchanged, nothing applied)
 - [x] Stack dashboard — the docs site's front page: every service's link and status, the host's jobs, redacted logs (`jobs/stack-status`) (2026-10-08: both timers armed; runs every 2 min in ~3 s, overall OK, 16 log sources read, 0 secrets in the output; the first settings check found all six apps matching)
 - [x] Install directory — the stack runs from `/opt/arr-setup`, installed from the repo by `task deploy`; the clone can move freely (2026-10-19: installed from `777aef7`, `.env` carried over; all six units run from the install, `arr-reclaim` restarted there and watching, every timer armed, the first `stack-status` run from it succeeded; `docs` and `decluttarr` recreated with their files under `/opt/arr-setup`, `:8088` and `/live/` answer 200; the install matches the clone and `task check` is clean. The move-the-clone check was not run)
+- [ ] Sign-in — the docs site behind the Plex server owner's sign-in (`jobs/stack-api`, nginx's `auth_request`)
 
 Run `stack/preflight.sh` before each of Phases 0–1b. It is read-only.
 
@@ -1274,3 +1275,68 @@ task docs:up decluttarr:up
 
 The old deploy points the units back at the clone. `/opt/arr-setup` is then inert and can
 be removed.
+
+## Sign-in — the docs site behind the Plex server owner's sign-in
+
+The site shows container logs, torrent names and addresses, and is about to get a request
+doctor and real controls. `jobs/stack-api` (a Bun service on a Unix socket) runs Plex's PIN
+sign-in and lets in only the account that owns this server; nginx asks it before serving
+any page or `/live/` file. CLAUDE.md trap 20 and [stack-api's README](../jobs/stack-api/README.md)
+have the details.
+
+**Do**
+
+From the main clone, after the merge. It needs sudo, so it's yours to run:
+
+1. Create the socket's folder as yourself, before docs mounts it (Docker would create it
+   root-owned):
+
+   ```bash
+   install -d -m 755 /opt/appdata/stack-api /opt/appdata/stack-api/run
+   ```
+
+2. Install. `task deploy` copies `node_modules/hono` into the install, installs and starts
+   `stack-api.service`, and restarts `docs` for its new `nginx.conf`:
+
+   ```bash
+   task deploy
+   ```
+
+3. Recreate docs from the install, for its new `/api` mount (a restart keeps the old
+   mounts):
+
+   ```bash
+   cd /opt/arr-setup && task docs:up
+   ```
+
+**Verify**
+
+- `task stack-api:health` answers `{"ok":true}`; `task stack-api:status` is active.
+- Signed out: `curl -sI http://10.0.0.50:8088/` is a 302 to `/login/?next=/`, and
+  `curl -s http://10.0.0.50:8088/live/status.json` a 401 `{"error":"signed out"}`.
+- In a browser, `http://10.0.0.50:8088/` goes to the login page. *Sign in with Plex* opens
+  plex.tv; after approving there, the dashboard shows, live. The journal says `signed in:
+  <you>`.
+- Another Plex account (a friend's) is refused: "Only the owner of this Plex server can
+  sign in", and `sign-in refused` in the journal.
+- *Sign out* (header) goes back to the login page, and `/` sends you there again.
+- `sudo systemctl stop stack-api`: every page goes to `/login/`, which says stack-api is not
+  answering. `sudo systemctl start stack-api` and sign in again (the session is kept).
+- The dashboard lists `stack-api` among the host's services, ok.
+
+**Rollback**
+
+Check out the commit before this one in the clone, then, from the clone:
+
+```bash
+task deploy
+```
+
+```bash
+cd /opt/arr-setup && task docs:up
+```
+
+The old `nginx.conf` serves every page with no sign-in again, and the old deploy no longer
+knows `stack-api.service`: stop and disable it by hand (`sudo systemctl disable --now
+stack-api`), then remove `/etc/systemd/system/stack-api.service` and
+`/opt/appdata/stack-api`.

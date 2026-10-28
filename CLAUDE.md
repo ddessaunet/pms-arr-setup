@@ -177,7 +177,8 @@ disappear. Confirm before anything destructive:
     is `/live/`, the files `jobs/stack-status` writes (trap 19). `/control/` is a **mock**:
     its views read `/live/`, but deploy, restart, run-job and drift check are simulated in
     the browser (`site/src/lib/control-mock.ts`) behind `ControlApi` (`control-api.ts`),
-    which a real control backend would implement. nginx still serves files only.
+    which a real control backend would implement. Every page but `/login/` is behind the
+    owner's Plex sign-in (trap 20).
 18. **The box is wired-only, at `10.0.0.50`**, reserved for `eno1` on the mesh router
     (`10.0.0.1`, `10.0.0.0/22`) since 2026-10-17. Its Wi‑Fi (`wlp2s0`) is out of netplan
     on purpose; don't add it back. On the same subnet as `eno1`, each NIC answered ARP for
@@ -191,15 +192,26 @@ disappear. Confirm before anything destructive:
     `task lan-address:logs` shows the current address. Plex is pinned to `eno1` **by name**
     (`apps/plex/configure.ts`). Its remote access needs the router to forward TCP 32400 to
     `.50`.
-19. **The dashboard's data is public on the LAN.** `jobs/stack-status` writes
-    `/opt/appdata/docs-status/{status,logs,drift}.json` (every 2 min; drift hourly), served
-    at `/live/` with no login. Every string goes through its `publish` (redact, then a leak
-    guard that refuses to write a document still holding a known secret); nothing may
-    bypass it. A new `.env` key must be classified: secret by name (`*_KEY`, `*_PASS`,
+19. **The dashboard's data is behind the sign-in, and still redacted as if public.**
+    `jobs/stack-status` writes `/opt/appdata/docs-status/{status,logs,drift}.json` (every
+    2 min; drift hourly), served at `/live/` to the signed-in owner only (trap 20). The
+    redaction stays the second layer: every string goes through its `publish` (redact,
+    then a leak guard that refuses to write a document still holding a known secret);
+    nothing may bypass it. A new `.env` key must be classified: secret by name (`*_KEY`, `*_PASS`,
     `*_TOKEN`, …) or listed in `PUBLIC_ENV_KEYS`; the test fails otherwise. A failed run
     means the checker broke, never that the stack is down: a down stack is a successful run.
     Its qBittorrent login backs off for an hour after one refusal, so it never gets the
     docker bridge banned (which would lock out `arr-reclaim` too).
+20. **`jobs/stack-api` is the site's gate.** nginx asks its `/api/auth/check` (an
+    `auth_request`, over the Unix socket in `/opt/appdata/stack-api/run`, mounted at `/api`)
+    before serving any page or `/live/` file; only `/login/`, `/_astro/` and `/api/` skip it.
+    Signing in is Plex's PIN flow, done server-side, and only the account that owns the
+    server (identity `f3860770…`) gets a session: its own cookie, stored hashed, with the
+    Plex token dropped after the check. It listens on no TCP port, never logs cookies or
+    tokens, and is read-only toward the apps. **While it is down the site is locked**
+    (fails closed: every page goes to `/login/`, which says so); the jobs carry on.
+    Redirects use `$request_uri`, never `$uri` (decoded, so `%0d%0a` would split headers).
+    It is built on Hono, the one runtime dependency (Conventions).
 
 ## Conventions
 
@@ -216,10 +228,14 @@ disappear. Confirm before anything destructive:
   ([docs/bun-migration.md](docs/bun-migration.md) has the design and how they got there);
   the install, deploy and test plumbing in `stack/` stays bash. A script keeps
   its `.sh` path as a launcher (`stack/lib/bun.sh`, then `exec` the `.ts` beside it):
-  units, `deploy.sh` and other scripts name that path. `package.json` holds dev tools only
-  (TypeScript, Vite+); the install never gets them or `node_modules`, and Bun runs with
-  `--no-install`. So **non-test `.ts` imports only relative paths, `bun:*` and `node:*`**,
-  plus anything in an `import type` line (`stack/lib/rules.test.ts` enforces it), which is
+  units, `deploy.sh` and other scripts name that path. `package.json` holds dev tools
+  (TypeScript, Vite+), which the install never gets, and its `dependencies` the runtime
+  ones: only Hono, for `jobs/stack-api`. `stack/install.sh` copies just those folders into
+  the install's `node_modules`, so each must be pinned exactly and have no dependencies of
+  its own, and Bun runs with `--no-install`. So **non-test `.ts` imports only relative
+  paths, `bun:*` and `node:*`** (and a runtime dependency, only from the folder
+  `rules.test.ts` allows it in; never `stack/lib`), plus anything in an `import type` line
+  (`stack/lib/rules.test.ts` enforces it), which is
   the only way to use the generated API types in `stack/lib/api/` (`task types:gen`). Commands
   go through `stack/lib/run.ts` (never `Bun.$`), HTTP through `stack/lib/http.ts`, and a
   `main` through `runMain` (never `process.exit()`). Output formats stay the bash ones.

@@ -521,3 +521,27 @@ mobile-starlight-toc a[aria-current='true']::after { background-color: var(--pac
 .ctl-run-summary { color: var(--sl-color-gray-2); overflow-wrap: anywhere; }
 .ctl-run-when { margin-left: auto; color: var(--sl-color-gray-3); font-size: var(--sl-text-xs); font-variant-numeric: tabular-nums; }
 .ctl-run .ctl-log { margin-top: 0.5rem; }
+
+/* ── sign-in (/login/) and sign-out ───────────────────────────────────────────
+   The login page is a splash: one maze panel in the middle, a ghost over it.
+   Its message line reuses the level tones (text-high on the raised surface). */
+.login {
+  display: grid;
+  justify-items: start;
+  gap: 0.9rem;
+  max-width: 34rem;
+  margin: 3rem auto 2rem;
+  padding: 1.4rem 1.5rem;
+  border: 5px double var(--pac-blue);
+  border-radius: var(--pac-radius-md);
+  background: var(--sl-color-gray-7);
+}
+.login p { margin: 0; }
+.login-ghost { width: 28px; height: 28px; background: var(--pac-ghost) center / contain no-repeat; image-rendering: pixelated; }
+.login-head { margin: 0; font-family: var(--pac-font-pixel); font-size: var(--sl-text-base); color: var(--pac-pink); }
+.login-msg:empty { display: none; }
+.login-msg { color: var(--sl-color-gray-2); }
+.login-msg[data-level='down'] { color: var(--sl-color-red-high); }
+.login-msg[data-level='degraded'] { color: var(--sl-color-orange-high); }
+.login-msg a { color: var(--sl-color-white); }
+.sign-out { margin-inline-start: 0.5rem; }

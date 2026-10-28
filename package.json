@@ -1,8 +1,11 @@
 {
   "name": "pms-arr-setup",
   "private": true,
-  "description": "Development tools for the stack's TypeScript scripts: types, lint, format. Runtime is Bun alone; see docs/bun-migration.md.",
+  "description": "Dev tools for the stack's TypeScript scripts (types, lint, format), and its one runtime dependency, Hono, for jobs/stack-api. See docs/bun-migration.md.",
   "type": "module",
+  "dependencies": {
+    "hono": "4.13.13"
+  },
   "devDependencies": {
     "@types/bun": "1.4.4",
     "openapi-typescript": "7.13.0",

@@ -80,7 +80,7 @@ serves the built website.
 | [recyclarr](apps/recyclarr/README.md) | — | TRaSH quality profiles, on demand. |
 | [decluttarr](apps/decluttarr/README.md) | — | Replaces stalled or crawling downloads. |
 | [bazarr](apps/bazarr/README.md) | 6767 | Spanish and English subtitles. |
-| [docs](apps/docs/README.md) | 8088 | This repo's docs website: the stack dashboard (links, status), its logs and the quality-profiles map. |
+| [docs](apps/docs/README.md) | 8088 | This repo's docs website, behind the owner's Plex sign-in: the stack dashboard (links, status), its logs and the quality-profiles map. |
 
 | job | runs | role |
 |---|---|---|
@@ -89,6 +89,7 @@ serves the built website.
 | [pms-update](jobs/pms-update/README.md) | Sunday 05:00 | Updates the containers, with a streaming check and a rollback. |
 | [lan-address](jobs/lan-address/README.md) | after boot, every 5 min | Re-applies the apps that list the box's address if it moves (it's reserved now; this is the safety net). |
 | [stack-status](jobs/stack-status/README.md) | every 2 min; drift hourly | Writes the dashboard's status, redacted logs and settings drift for the docs site. |
+| [stack-api](jobs/stack-api/README.md) | always (service) | The docs site's backend: the Plex sign-in that gates it, on a Unix socket nginx proxies to. |
 
 ## The app contract
 

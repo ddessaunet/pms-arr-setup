@@ -9,7 +9,7 @@
     "degraded": 2,
     "down": 3,
     "n/a": 1,
-    "ok": 14
+    "ok": 15
   },
   "notes": [],
   "lan": [
@@ -323,6 +323,18 @@
       "facts": {
         "active": true,
         "since": 1791489200
+      }
+    },
+    {
+      "id": "service:stack-api",
+      "kind": "service",
+      "label": "stack-api",
+      "level": "ok",
+      "summary": "signing in the owner, up 60 min",
+      "reasons": [],
+      "facts": {
+        "active": true,
+        "since": 1791496400
       }
     },
     {

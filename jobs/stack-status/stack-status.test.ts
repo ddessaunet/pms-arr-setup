@@ -34,6 +34,7 @@ import {
   classifyDrift,
   classifyLan,
   classifyTimer,
+  classifyStackApi,
   classifyWatcher,
   containersJson,
   DRIFT_APPS,
@@ -359,7 +360,12 @@ ExecMainStatus=0
 Id=arr-reclaim.service
 ActiveState=active
 SubState=running
-ActiveEnterTimestamp=@1791489200`;
+ActiveEnterTimestamp=@1791489200
+
+Id=stack-api.service
+ActiveState=active
+SubState=running
+ActiveEnterTimestamp=@1791496400`;
 const SJSON = parseShow(SHOW);
 const DF90 = '/dev/x 753118085120 645078695936 76393869312 90% /mnt/data';
 const DF96 = '/dev/x 753118085120 723000000000 30118085120 96% /mnt/data';
@@ -396,6 +402,12 @@ describe('host items', () => {
   test('unknown unit → degraded', () => expect(classifyTimer('nothing', SJSON, {}).level).toBe('degraded'));
   test('watcher running', () => expect(lv(classifyWatcher(SJSON, NOW))).toBe('ok | watching the library, up 3 h'));
   test('watcher stopped → down', () => expect(classifyWatcher({}, NOW).level).toBe('down'));
+  test('stack-api running', () =>
+    expect(lv(classifyStackApi(SJSON, NOW))).toBe('ok | signing in the owner, up 60 min'));
+  test('stack-api stopped → down, and what that costs', () =>
+    expect(lv(classifyStackApi({}, NOW))).toBe(
+      'down | not running (not installed): the site shows only its login page',
+    ));
   test('disk 90% → ok', () => expect(lv(classifyDisk('/mnt/data', DF90, 95))).toBe('ok | 90% used, 76 GB free'));
   test('disk 96% → degraded', () =>
     expect(lv(classifyDisk('/mnt/data', DF96, 95))).toBe('degraded | 96% used, 30 GB free'));
@@ -601,7 +613,7 @@ function fakes() {
     if (url.endsWith(':8989/api/v3/health')) return r(H, 200, 0.02);
     if (/:8989\/.*\/status$/.test(url)) return r('{"version":"4.0.20"}', 200, 0.01);
     if (url.endsWith(':32400/identity')) return r(ID_OK, 200, 0.005);
-    if (url.endsWith(':8088/')) return r('<html>', 200, 0.002);
+    if (url.endsWith(':8088/login/')) return r('<html>', 200, 0.002);
     if (url === 'http://172.19.0.4:8191/') return r('{"msg":"FlareSolverr is ready!","version":"3.5.2"}', 200, 0.003);
     return r('', 0, 0);
   };
@@ -694,7 +706,7 @@ describe('fast_run', () => {
   test('fast_run exits 0 on a degraded stack', () => expect(code).toBe(0));
   test('schema, overall, counts', () =>
     expect(`${S.schema} ${S.overall} ${JSON.stringify(S.counts)}`).toBe(
-      '1 down {"degraded":2,"down":3,"n/a":1,"ok":14}',
+      '1 down {"degraded":2,"down":3,"n/a":1,"ok":15}',
     ));
   test('one item per app, in order', () => expect(S.apps.map((a) => a.id)).toEqual([...STATUS_APPS]));
   test("apps' levels", () =>
@@ -703,7 +715,7 @@ describe('fast_run', () => {
     ));
   test('host levels', () =>
     expect(S.host.map((h) => `${h.id}:${h.level}`).join(' ')).toBe(
-      'service:arr-reclaim:ok timer:pms-update:degraded timer:arr-fallback-search:ok timer:lan-address:ok timer:stack-status:ok timer:stack-status-drift:ok disk:/mnt/data:ok lan:ok drift:ok',
+      'service:arr-reclaim:ok service:stack-api:ok timer:pms-update:degraded timer:arr-fallback-search:ok timer:lan-address:ok timer:stack-status:ok timer:stack-status-drift:ok disk:/mnt/data:ok lan:ok drift:ok',
     ));
   test('the drift warning reaches its app as a notice', () => {
     const p = S.apps.find((a) => a.id === 'prowlarr');
