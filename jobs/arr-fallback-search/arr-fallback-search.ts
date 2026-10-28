@@ -25,26 +25,17 @@ import { httpCode, makeHttp, type Http } from '../../stack/lib/http.ts';
 import { out, type Log } from '../../stack/lib/log.ts';
 import { apiError, servarr } from '../../stack/lib/servarr.ts';
 import { VARIANT_PROFILE } from '../../stack/lib/arr-policy.ts';
+import type { components as RadarrApi } from '../../stack/lib/api/radarr.d.ts';
 
 // Created by Recyclarr (apps/recyclarr/recyclarr.yml); arr-configure keeps its
 // upgrades on (UPGRADE_PROFILES in stack/lib/arr-policy.ts).
 export const FALLBACK_PROFILE = VARIANT_PROFILE;
 
-// The fields of Radarr 6's /api/v3/qualityprofile and /movie that this job reads.
-export interface QualityProfile {
-  id: number;
-  name: string;
-}
-export interface Movie {
-  id: number;
-  title: string;
-  year: number;
-  qualityProfileId: number;
-  monitored: boolean;
-  isAvailable: boolean;
-  /** Absent when the movie has no file. */
-  movieFile?: { quality?: { quality?: { name?: string; resolution?: number } } };
-}
+// Radarr's /api/v3/qualityprofile and /movie, generated from its OpenAPI spec
+// (stack/lib/api/radarr.d.ts). Every field is optional there; movieFile is
+// absent when the movie has no file.
+export type QualityProfile = RadarrApi['schemas']['QualityProfileResource'];
+export type Movie = RadarrApi['schemas']['MovieResource'];
 
 // ─── pure helpers (jobs/arr-fallback-search/arr-fallback-search.test.ts) ──────
 
@@ -61,13 +52,13 @@ export function fallbackIds(movies: readonly Movie[], profileId: number): number
   return movies
     .filter((m) => m.qualityProfileId === profileId && m.monitored && m.isAvailable)
     .filter((m) => (m.movieFile?.quality?.quality?.resolution ?? 0) < 2160)
-    .map((m) => m.id);
+    .flatMap((m) => (m.id === undefined ? [] : [m.id]));
 }
 
 /** "Title (Year) — 1080p" lines for the log, for the ids given, in the library's order. */
 export function fallbackTitles(movies: readonly Movie[], ids: readonly number[]): string[] {
   return movies
-    .filter((m) => ids.includes(m.id))
+    .filter((m) => m.id !== undefined && ids.includes(m.id))
     .map((m) => `${m.title} (${m.year}) — ${m.movieFile?.quality?.quality?.name ?? 'no file'}`);
 }
 
