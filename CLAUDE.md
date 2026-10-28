@@ -41,7 +41,7 @@ disappear. Confirm before anything destructive:
    not be run again: `deploy-system` re-enables `plex-watch` on every run. `plex-watch` and
    `qbittorrent-nox` are disabled, not masked: their unit files are in
    `/etc/systemd/system`, where `systemctl mask` refuses. Anything needed from pms-local is
-   ported here and adapted, as `jobs/arr-reclaim/arr-reclaim.sh` ports `plex-watch`.
+   ported here and adapted, as `jobs/arr-reclaim/arr-reclaim.ts` ports `plex-watch`.
 4. **`/opt/appdata/plex` is the live Plex database**, not a cache. `docker compose down`
    is safe (config is a bind mount), but deleting or re-seeding that directory loses the
    library and watch history. The container must keep identity `f3860770…`; one that

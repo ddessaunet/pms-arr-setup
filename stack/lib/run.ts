@@ -10,8 +10,13 @@
 //   code 127   the command does not exist
 //   128 + n    killed by signal n
 // Secrets go in through stdin, never argv (argv is visible in ps).
+//
+// lines() is the other way in, for a command that runs for good (inotifywait
+// -m): its stdout one line at a time, as it comes, each read with a timeout,
+// as bash's `read -t`.
 
 import { constants } from 'node:os';
+import { err } from './log.ts';
 
 export interface RunOptions {
   /** Kill it after this long (default: never). */
@@ -77,4 +82,80 @@ export const run: Run = async (argv, opts = {}) => {
   } finally {
     for (const t of timers) clearTimeout(t);
   }
+};
+
+/** What LineSource.next gives when no line came in time. */
+export const TIMEOUT = Symbol('timeout');
+
+/** A running command's stdout, line by line. */
+export interface LineSource {
+  /** The next line, without its newline; TIMEOUT when none came within timeoutMs; null at the end. */
+  next(timeoutMs: number): Promise<string | typeof TIMEOUT | null>;
+  /** Stops the command. */
+  close(): void;
+}
+
+export type Lines = (argv: readonly string[]) => LineSource;
+
+/**
+ * Starts a command and reads its stdout as lines. Its stderr is this process's
+ * (the journal, under systemd), and its stdin is /dev/null. A last line without
+ * a newline is dropped, as `read` returns failure on it; the end comes when the
+ * command closes its stdout. A command that cannot start ends at once, with a
+ * line on stderr.
+ */
+export const lines: Lines = (argv) => {
+  const queue: string[] = [];
+  let ended = false;
+  // Who waits in next(), if anyone (an object: TypeScript narrows a plain let to null).
+  const waiter: { wake: (() => void) | null } = { wake: null };
+  let proc: Bun.Subprocess<'ignore', 'pipe', 'inherit'> | undefined;
+  try {
+    proc = Bun.spawn([...argv], { stdin: 'ignore', stdout: 'pipe', stderr: 'inherit' });
+  } catch (e) {
+    err(`${argv[0]}: ${(e as Error).message}`);
+    ended = true;
+  }
+  if (proc) {
+    const stdout = proc.stdout;
+    void (async () => {
+      const decoder = new TextDecoder();
+      let buf = '';
+      try {
+        for await (const chunk of stdout) {
+          buf += decoder.decode(chunk, { stream: true });
+          for (let i = buf.indexOf('\n'); i >= 0; i = buf.indexOf('\n')) {
+            queue.push(buf.slice(0, i));
+            buf = buf.slice(i + 1);
+          }
+          waiter.wake?.();
+        }
+      } finally {
+        ended = true;
+        waiter.wake?.();
+      }
+    })();
+  }
+  return {
+    async next(timeoutMs) {
+      if (queue.length === 0 && !ended) {
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(() => {
+            waiter.wake = null;
+            resolve();
+          }, timeoutMs);
+          waiter.wake = () => {
+            clearTimeout(timer);
+            waiter.wake = null;
+            resolve();
+          };
+        });
+      }
+      if (queue.length > 0) return queue.shift()!;
+      return ended ? null : TIMEOUT;
+    },
+    close() {
+      proc?.kill();
+    },
+  };
 };

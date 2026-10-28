@@ -1,7 +1,7 @@
 // stack/lib/run.test.ts — exit codes, output, stdin, timeouts, as timeout(1) has them.
 
 import { describe, expect, test } from 'bun:test';
-import { run } from './run.ts';
+import { lines, run, TIMEOUT } from './run.ts';
 
 describe('run', () => {
   test('output and exit code', async () => {
@@ -48,5 +48,34 @@ describe('run', () => {
   test('env and cwd', async () => {
     const r = await run(['sh', '-c', 'printf "%s %s" "$X" "$PWD"'], { env: { X: 'y' }, cwd: '/tmp' });
     expect(r.stdout).toBe('y /tmp');
+  });
+});
+
+describe('lines', () => {
+  test('each line as it comes, then the end', async () => {
+    const src = lines(['sh', '-c', 'echo one; echo "two  words"; sleep 0.2; printf "three\\npartial"']);
+    expect(await src.next(2000)).toBe('one');
+    expect(await src.next(2000)).toBe('two  words');
+    expect(await src.next(2000)).toBe('three');
+    expect(await src.next(2000)).toBeNull(); // a last line without a newline is dropped, as read does
+    expect(await src.next(2000)).toBeNull();
+  });
+
+  test('no line in time is TIMEOUT, and the line still comes after', async () => {
+    const src = lines(['sh', '-c', 'sleep 0.3; echo late']);
+    expect(await src.next(50)).toBe(TIMEOUT);
+    expect(await src.next(2000)).toBe('late');
+  });
+
+  test('close stops the command', async () => {
+    const src = lines(['sleep', '30']);
+    const t0 = Date.now();
+    src.close();
+    expect(await src.next(5000)).toBeNull();
+    expect(Date.now() - t0).toBeLessThan(2000);
+  });
+
+  test('a missing command ends at once', async () => {
+    expect(await lines(['/nonexistent/cmd']).next(5000)).toBeNull();
   });
 });

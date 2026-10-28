@@ -151,14 +151,14 @@ export class MockControlApi implements ControlApi {
           ? [
               'task: [test] stack/run-tests.sh',
               'PASS  stack/layout.test.sh',
-              'FAIL  jobs/arr-reclaim/arr-reclaim.test.sh: keeps a torrent whose file was moved',
+              'FAIL  jobs/arr-reclaim/arr-reclaim.test.ts: keeps a torrent whose file was moved',
               'test: 1 suite failed',
             ]
           : [
               'task: [test] stack/run-tests.sh',
               'PASS  stack/layout.test.sh',
               'PASS  stack/deploy.test.sh',
-              'PASS  jobs/arr-reclaim/arr-reclaim.test.sh',
+              'PASS  jobs/arr-reclaim/arr-reclaim.test.ts',
               'PASS  bun test',
             ],
         fail: failTest,
