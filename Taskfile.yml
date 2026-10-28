@@ -33,6 +33,7 @@ includes:
   pms-update:          { taskfile: jobs/pms-update,          dir: jobs/pms-update }
   lan-address:         { taskfile: jobs/lan-address,         dir: jobs/lan-address }
   stack-status:        { taskfile: jobs/stack-status,        dir: jobs/stack-status }
+  stack-api:           { taskfile: jobs/stack-api,           dir: jobs/stack-api }
   # Not an app: the docs website's source. apps/docs serves what `site:build` writes.
   site:                { taskfile: site,                     dir: site, optional: true }
 

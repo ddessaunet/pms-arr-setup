@@ -46,8 +46,9 @@ install: a launcher for [`stack-status.ts`](stack-status.ts), which holds the jo
 
 ## Traps
 
-- **The files are readable by anyone on the LAN**, like the apps themselves, which skip
-  login for local addresses. Every string goes through `publish()`: `redact()`, then a leak guard:
+- **Redact as if the files were public.** nginx serves them to the signed-in owner only
+  (`jobs/stack-api`), but the redaction is the layer that doesn't depend on that. Every
+  string goes through `publish()`: `redact()`, then a leak guard:
   - secrets from `.env`, by key name (`*_KEY`, `*_PASS`, `*_TOKEN`, …);
   - Seerr's and Bazarr's API keys, and Plex's token;
   - anything shaped like a token, key, password, `Authorization:` header or `user:pass@`.

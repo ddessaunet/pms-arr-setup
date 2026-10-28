@@ -1,6 +1,7 @@
 # docs
 
-This repo's documentation website, on the LAN. It has four pages, the
+This repo's documentation website, on the LAN, behind the Plex server owner's sign-in. It
+has four pages, the
 [stack dashboard](../../site/src/content/docs/index.mdx), the
 [logs](../../site/src/content/docs/logs.mdx), the
 [quality-profiles map](../../site/src/content/docs/quality-profiles.mdx) and the
@@ -25,21 +26,27 @@ website's source, and `apps/docs` is the container that serves the built website
 - `/control/` is a **mock** of a control section: Deploy now with its streaming log, what is
   running (from `/live/`), restart, run a job now, a drift check, and the history. Every
   action is simulated in the browser and changes nothing; nginx still serves files only.
-- No login, like the other apps. The live data is written by `jobs/stack-status` with every
-  secret masked before it reaches the page.
+- **Sign in first.** Every page and `/live/` file goes to `/login/` until the Plex account
+  that owns the server signs in there ([`jobs/stack-api`](../../jobs/stack-api/README.md)
+  runs it; nginx asks it before serving anything). Sign out is at the right of the header.
+  The live data is still written by `jobs/stack-status` with every secret masked.
 
 ## Secrets
 
-None. The dashboard's files hold no secret: `jobs/stack-status` masks them and refuses to
-publish a document that still has one. They do show container logs, torrent names and
-addresses to anyone on the LAN, as the apps themselves do.
+None of its own. The dashboard's files hold no secret: `jobs/stack-status` masks them and
+refuses to publish a document that still has one. They show container logs, torrent names
+and addresses, to the signed-in owner only. The session cookie is stack-api's.
 
 ## Settings
 
 [`nginx.conf`](nginx.conf), mounted read-only. The content is the install's `site/dist`,
 which `task deploy` replaces with the source's build. `/live/` is `/opt/appdata/docs-status`, mounted read-only:
 the dashboard's `status.json`, `logs.json` and `drift.json`, never cached and never in the
-access log (the page polls every 30 s).
+access log (the page polls every 30 s). `/api` is `/opt/appdata/stack-api/run`, mounted
+read-only: stack-api's socket. nginx proxies `/api/` to it and asks its
+`/api/auth/check` (`auth_request`) before every page and `/live/` file; `/login/`,
+`/_astro/` and the favicon skip the check, and a 401 (or stack-api away) sends a page to
+`/login/?next=…` and `/live/` a JSON 401.
 
 The site's look is [`DESIGN.md`](../../DESIGN.md) (Pacman: pixel headings, a plain sans for
 prose, maze-blue walls and pellet-dotted lines on one dark theme), implemented in
@@ -69,6 +76,11 @@ used on it are committed in `.agents/skills/` (listed in `skills-lock.json`).
   build leaves the published site as it was.
 - **Mount `site/`, never `site/dist`.** The build and the install swap `dist` for a new
   folder, and a bind of the old one would keep serving it.
+- **While stack-api is down, the site is locked**: the gate fails closed, so every page
+  goes to `/login/`, which says stack-api is not answering. Check `task stack-api:status`.
+- **Create `/opt/appdata/stack-api/run` as yourself before the first `up` with the `/api`
+  mount**, as for `/live` below: `install -d -m 755 /opt/appdata/stack-api
+  /opt/appdata/stack-api/run`.
 - **Create `/opt/appdata/docs-status` as yourself before the first `up` with the `/live`
   mount**, or Docker creates it root-owned and `jobs/stack-status` cannot write:
   `install -d -m 755 /opt/appdata/docs-status`.

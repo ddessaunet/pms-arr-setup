@@ -114,7 +114,7 @@ always a word and a mark**; colour only reinforces it. Badge text on its fill:
 
 ## Controls
 
-The control page (`/control/`) is the only place with buttons.
+Buttons live on the control page (`/control/`), the login page and the header's Sign out.
 
 - **A button is a maze cell:** text-strong in Space Mono on the accent fill (#141C5C,
   14.6:1), a 2px primary wall that turns Pinky under the pointer, and the site's Pinky focus
@@ -123,6 +123,13 @@ The control page (`/control/`) is the only place with buttons.
 - **Deploy steps are a row of pellets,** each a word and a mark like the levels: waiting ·,
   running ◐ (Pinky wall), done ● (success), failed ✕ (danger wall, danger-text), skipped –
   (dashed).
+- **The login page** (`/login/`) is a splash: one double-walled panel (the deploy panel's
+  maze wall) with Pinky's ghost, an "Owner only" heading in Pinky, and the Sign in with
+  Plex button. Its message line is text-muted, or the level tones' text (danger-text,
+  warning-text) on the raised surface when the sign-in failed or expired, always as a
+  sentence.
+- **Sign out** is a small maze-cell button at the right of the header, on every page but
+  the login page.
 - **The Mock tag** is warning-text on warning-low with a warning border, as the Degraded
   badge, beside a sentence saying nothing on the page changes the server. It goes when a
   real control backend replaces the mock.

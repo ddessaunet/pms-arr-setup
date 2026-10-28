@@ -47,10 +47,11 @@ SYS_PREFIX="${SYS_PREFIX:-}"
 
 # What an install leaves out: git, development, and what the install keeps of
 # its own (.env, the marker, Task's cache, site/). A leading / anchors at the
-# root. Unit files are rendered, not copied. The TypeScript runs on Bun alone:
-# the install gets the .ts sources, never the dev tools (package.json and its
-# lock, tsconfig, Vite+'s config, node_modules), the generated API types (used
-# by `import type` only) or the tests.
+# root. Unit files are rendered, not copied. The TypeScript runs on Bun: the
+# install gets the .ts sources, never the dev tools (package.json and its lock,
+# tsconfig, Vite+'s config, node_modules), the generated API types (used by
+# `import type` only) or the tests. Of node_modules it gets only the runtime
+# dependencies, copied apart (copy_deps).
 EXCLUDES=(
     /.git /.gitignore /.github/ /.claude/ /.agents/ /skills-lock.json /.task/
     /CLAUDE.md /DESIGN.md /docs/ /site/
@@ -83,6 +84,50 @@ rsync_tree() { # extra rsync flags...
 # second of the last one, which rsync's size-and-mtime check would call unchanged.
 site_changes() { # published dist
     rsync -rlpt --delete --checksum --dry-run --itemize-changes "$SRC/site/dist/" "$1/" | grep -v '^\.d' || true
+}
+
+# ─── runtime dependencies ─────────────────────────────────────────────────────
+# package.json's "dependencies" (Hono, for jobs/stack-api). Each has none of
+# its own (stack/lib/rules.test.ts checks it), so its folder under
+# node_modules is all of it. rsync_tree skips node_modules/; these are copied
+# one by one, and anything else in the install's node_modules is removed.
+runtime_deps() { jq -r '.dependencies // {} | keys[]' "$SRC/package.json"; }
+
+# The top-level names under node_modules the deps occupy ('@scope' for '@scope/x').
+dep_tops() { runtime_deps | sed 's#/.*##' | sort -u; }
+
+# One line per difference between the source's runtime deps and the install's.
+deps_changes() {
+    local d top
+    while IFS= read -r d; do
+        [[ -n "$d" ]] || continue
+        if [[ ! -f "$SRC/node_modules/$d/package.json" ]]; then
+            echo "node_modules/$d is missing in the source (task bun:install)"; continue
+        fi
+        rsync -rlpt --delete --dry-run --itemize-changes "$SRC/node_modules/$d/" "$DEST/node_modules/$d/" \
+            | awk -v d="node_modules/$d/" '$1 !~ /^[.c]d/ {print d $2}'
+    done < <(runtime_deps)
+    for top in "$DEST"/node_modules/*; do
+        [[ -e "$top" ]] || continue
+        grep -qxF "${top##*/}" < <(dep_tops) || echo "node_modules/${top##*/} is not a runtime dependency"
+    done
+}
+
+copy_deps() {
+    local d top changed
+    while IFS= read -r d; do
+        [[ -n "$d" ]] || continue
+        [[ -f "$SRC/node_modules/$d/package.json" ]] \
+            || die "$SRC/node_modules/$d is missing: run task bun:install (task deploy's lint does)."
+        mkdir -p "$DEST/node_modules/$d"
+        # Captured first: grep -q would stop reading and could kill rsync mid-copy.
+        changed="$(rsync -rlpt --delete --itemize-changes "$SRC/node_modules/$d/" "$DEST/node_modules/$d/")"
+        if grep -v '^\.d' <<<"$changed" | grep -q .; then echo "copied node_modules/$d"; fi
+    done < <(runtime_deps)
+    for top in "$DEST"/node_modules/*; do
+        [[ -e "$top" ]] || continue
+        grep -qxF "${top##*/}" < <(dep_tops) || { rm -rf "$top"; echo "removed node_modules/${top##*/}"; }
+    done
 }
 
 render() { # template → stdout
@@ -131,6 +176,10 @@ check() {
     if [[ -d "$SRC/site/dist" ]] && [[ -n "$(site_changes "$DEST/site/dist")" ]]; then
         echo "OUT OF DATE: site/dist"; rc=1
     fi
+    while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        echo "OUT OF DATE: $line"; rc=1
+    done < <(deps_changes)
     [[ -f "$DEST/.env" ]] || { echo "MISSING: $DEST/.env"; rc=1; }
     [[ "$rc" == 0 ]] && echo "ok: $DEST matches $SRC"
     return "$rc"
@@ -257,6 +306,7 @@ main() {
 
     [[ "$(id -u)" -ne 0 ]] || die "Run this as yourself, not as root — it asks for sudo where it needs it."
     command -v rsync >/dev/null || die "rsync is not installed (sudo apt install rsync)."
+    command -v jq >/dev/null || die "jq is not installed (sudo apt install jq)."
     PMS_USER="$(id -un)"; PMS_GROUP="$(id -gn)"
     resolve_dest "$asked"
 
@@ -272,6 +322,7 @@ main() {
     echo "Installing $SRC → $DEST"
     make_dest
     copy_tree
+    copy_deps
     publish_site
     seed_env || exit $?
     write_marker

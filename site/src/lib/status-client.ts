@@ -4,6 +4,7 @@
 // script (logs-client.ts).
 
 import { el, q, qa } from './dom.ts';
+import { signInIfSignedOut } from './session.ts';
 import {
   ageSeconds,
   formatAgo,
@@ -155,6 +156,7 @@ function render() {
 async function poll() {
   try {
     const res = await fetch(STATUS_URL, { cache: 'no-store' });
+    if (signInIfSignedOut(res)) return;
     if (!res.ok) throw new Error(String(res.status));
     const next = parseStatus(await res.json());
     if (!next) throw new Error('unreadable');

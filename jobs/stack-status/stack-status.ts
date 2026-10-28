@@ -29,8 +29,9 @@ import { makeHttp, type Http } from '../../stack/lib/http.ts';
 import { readBazarrKey, readSeerrKey } from '../../stack/lib/keys.ts';
 import { tryLock } from '../../stack/lib/lock.ts';
 import { out, strftime, type Log } from '../../stack/lib/log.ts';
-import { plexPrefsPath, readPlexToken } from '../../stack/lib/plex.ts';
+import { PLEX_IDENTITY, plexPrefsPath, readPlexToken } from '../../stack/lib/plex.ts';
 import { qbtLogin } from '../../stack/lib/qbittorrent.ts';
+import { leaks, redact, REDACTED } from '../../stack/lib/redact.ts';
 import { run, type Run } from '../../stack/lib/run.ts';
 
 // ─── what is checked (stack-status.test.ts pins these against the repo) ──────
@@ -62,7 +63,6 @@ export const APP_PORT: Readonly<Record<string, number>> = {
 };
 /** On the arr network only, reached at the container's IP. */
 export const FLARESOLVERR_PORT = 8191;
-export const PLEX_IDENTITY = 'f3860770aca2ec05cf2566b02ff81a83d4dbb157';
 /** The jobs whose journal is shown, and the timers whose state is. */
 export const LOG_UNITS = [
   'lan-address',
@@ -110,8 +110,6 @@ export const LINE_MAX = 500; // characters per line
 const T_CMD = 10_000; // ms per docker/systemctl/journalctl call
 const T_CONFIGURE = 600_000; // ms per configure.sh --check in the drift run
 const T_DEPLOY = 120_000;
-
-export const REDACTED = '‹redacted›';
 
 // ─── jq's habits ──────────────────────────────────────────────────────────────
 // The documents keep the shapes and strings the bash/jq version wrote:
@@ -224,59 +222,10 @@ export function secretsList(values: readonly string[]): string[] {
   return unique.sort((a, b) => cpLength(b) - cpLength(a));
 }
 
-// The shapes that carry a secret, masked after the literal ones, in this order.
-// Each keeps its `k` group and replaces what follows; a URL's user:password@
-// keeps its @.
-const SHAPES: readonly [RegExp, string][] = [
-  [/(?<k>x-plex-token[=:]\s*)[^&\s"'<>]+/gi, `$<k>${REDACTED}`],
-  [/(?<k>plexonlinetoken=")[^"]*/gi, `$<k>${REDACTED}`],
-  [
-    /(?<k>(api[_-]?key|access[_-]?token|token|passw(or)?d|pwd|secret)["']?\s*[:=]\s*["']?)[^&\s"',;<>]+/gi,
-    `$<k>${REDACTED}`,
-  ],
-  [/(?<k>authorization:\s*)\S+(\s+[^\s,;]+)?/gi, `$<k>${REDACTED}`],
-  [/(?<k>temporary password is provided for this session:\s*)\S+/gi, `$<k>${REDACTED}`],
-  [/(?<k>:\/\/)[^/\s:@]+:[^/\s@]+@/g, `$<k>${REDACTED}@`],
-  [/(?<k>\bSID=)[^;\s]+/g, `$<k>${REDACTED}`],
-  [/(?<k>\bcookie:\s*).+/gi, `$<k>${REDACTED}`],
-];
-
-/** The masking of one string: literal secrets first, then the shapes. */
-export function mask(s: string, secrets: readonly string[]): string {
-  let r = s;
-  for (const x of secrets) if (r.includes(x)) r = r.split(x).join(REDACTED);
-  for (const [re, keep] of SHAPES) r = r.replace(re, keep);
-  return r;
-}
-
-/** Every string in a document masked; keys and other values kept. */
-export function redact(doc: unknown, secrets: readonly string[]): unknown {
-  if (typeof doc === 'string') return mask(doc, secrets);
-  if (Array.isArray(doc)) return doc.map((x) => redact(x, secrets));
-  if (doc !== null && typeof doc === 'object')
-    return Object.fromEntries(Object.entries(doc).map(([k, v]) => [k, redact(v, secrets)]));
-  return doc;
-}
-
-/** How many secrets are still in a text (0 = safe to publish): grep -F -o's count. */
-export function leaks(text: string, secrets: readonly string[]): number {
-  let n = 0;
-  for (let i = 0; i < text.length;) {
-    let best = -1;
-    let len = 0;
-    for (const x of secrets) {
-      const j = text.indexOf(x, i);
-      if (j !== -1 && (best === -1 || j < best || (j === best && x.length > len))) {
-        best = j;
-        len = x.length;
-      }
-    }
-    if (best === -1) break;
-    n++;
-    i = best + len;
-  }
-  return n;
-}
+// Redaction lives in stack/lib/redact.ts (stack-api shares it); and the Plex
+// identity in stack/lib/plex.ts. Both re-exported for this job's tests.
+export { leaks, mask, redact, REDACTED } from '../../stack/lib/redact.ts';
+export { PLEX_IDENTITY } from '../../stack/lib/plex.ts';
 
 // ─── containers ──────────────────────────────────────────────────────────────
 
@@ -628,15 +577,16 @@ export function classifyTimer(name: string, show: Show, lt: ListTimers): Item {
   };
 }
 
-export function classifyWatcher(show: Show, now: number): Item {
-  const s: Obj = show['arr-reclaim.service'] ?? {};
+/** A long-running service: ok while it runs, down otherwise, with what that costs. */
+function classifyService(show: Show, name: string, running: string, cost: string, now: number): Item {
+  const s: Obj = show[`${name}.service`] ?? {};
   const since = toNum(String(alt(s.ActiveEnterTimestamp, '')).replace(/^@/, '')) ?? null;
-  const base = { id: 'service:arr-reclaim', kind: 'service', label: 'arr-reclaim' };
+  const base = { id: `service:${name}`, kind: 'service', label: name };
   if (s.ActiveState === 'active' && s.SubState === 'running')
     return {
       ...base,
       level: 'ok',
-      summary: `watching the library, up ${since !== null ? ago(since, now) : '?'}`,
+      summary: `${running}, up ${since !== null ? ago(since, now) : '?'}`,
       reasons: [],
       facts: { active: true, since },
     };
@@ -644,11 +594,18 @@ export function classifyWatcher(show: Show, now: number): Item {
   return {
     ...base,
     level: 'down',
-    summary: `not running (${state}): deleted media keeps its torrent`,
-    reasons: [{ level: 'down', text: `arr-reclaim.service is ${state}` }],
+    summary: `not running (${state}): ${cost}`,
+    reasons: [{ level: 'down', text: `${name}.service is ${state}` }],
     facts: { active: false, since: null },
   };
 }
+
+export const classifyWatcher = (show: Show, now: number): Item =>
+  classifyService(show, 'arr-reclaim', 'watching the library', 'deleted media keeps its torrent', now);
+
+/** stack-api: while it is down, nginx's gate sends every page to the login page. */
+export const classifyStackApi = (show: Show, now: number): Item =>
+  classifyService(show, 'stack-api', 'signing in the owner', 'the site shows only its login page', now);
 
 /** One `df -P -B1` line. */
 export function classifyDisk(path: string, line: string, warn: number): Item {
@@ -870,8 +827,9 @@ async function probePlex(c: Ctx): Promise<Probe> {
   return plexProbe(r.code, r.seconds, r.body.replaceAll('\n', ''));
 }
 
+// /login/, not /: every other page sends a signed-out caller there (stack-api's gate).
 async function probeDocs(c: Ctx): Promise<Probe> {
-  const r = await c.deps.fetch(`http://127.0.0.1:8088/`, {}, c.tHttp);
+  const r = await c.deps.fetch(`http://127.0.0.1:8088/login/`, {}, c.tHttp);
   return httpProbe(r.code, r.seconds, 8088);
 }
 
@@ -1026,7 +984,7 @@ async function fastRun(c: Ctx): Promise<boolean> {
   const inspect = await deps.run(['docker', 'inspect', ...STATUS_APPS], { timeoutMs: T_CMD });
   const containers = containersJson(inspect.stdout);
 
-  const units = ['arr-reclaim.service', ...TIMERS.flatMap((t) => [`${t}.timer`, `${t}.service`])];
+  const units = ['arr-reclaim.service', 'stack-api.service', ...TIMERS.flatMap((t) => [`${t}.timer`, `${t}.service`])];
   // Probes in parallel; each request is capped by STACK_STATUS_T_HTTP.
   const [probes, sources, show, timers, ip, dfLine] = await Promise.all([
     Promise.all([
@@ -1096,6 +1054,7 @@ async function fastRun(c: Ctx): Promise<boolean> {
   });
   const host = [
     classifyWatcher(show, now),
+    classifyStackApi(show, now),
     ...TIMERS.map((t) => classifyTimer(t, show, timers)),
     classifyDisk(c.disk, dfLine, DISK_WARN),
     classifyLan(ip, lanState, LAN_APPS),

@@ -37,6 +37,7 @@ MANIFEST=(
     "jobs/pms-update/pms-update.service:/etc/systemd/system/pms-update.service:644"
     "jobs/pms-update/pms-update.timer:/etc/systemd/system/pms-update.timer:644"
     "jobs/arr-reclaim/arr-reclaim.service:/etc/systemd/system/arr-reclaim.service:644"
+    "jobs/stack-api/stack-api.service:/etc/systemd/system/stack-api.service:644"
     "jobs/arr-fallback-search/arr-fallback-search.service:/etc/systemd/system/arr-fallback-search.service:644"
     "jobs/arr-fallback-search/arr-fallback-search.timer:/etc/systemd/system/arr-fallback-search.timer:644"
     "jobs/lan-address/lan-address.service:/etc/systemd/system/lan-address.service:644"
@@ -49,10 +50,12 @@ MANIFEST=(
 TIMER="pms-update.timer"
 NATIVE_PLEX_UNIT="plexmediaserver.service"
 
-# The long-running watcher: enabled and restarted on EVERY deploy, not only
-# when its unit changes — it is also stale when jobs/arr-reclaim/arr-reclaim.ts changes,
-# which no unit file shows. (The same reasoning as pms-local's plex-watch.)
-WATCHER="arr-reclaim.service"
+# The long-running services: enabled and restarted on EVERY deploy, not only
+# when a unit changes — each is also stale when its .ts changes, which no unit
+# file shows. (The same reasoning as pms-local's plex-watch.)
+#   arr-reclaim  the library watcher
+#   stack-api    the docs site's sign-in and request status (nginx asks it)
+SERVICES=(arr-reclaim.service stack-api.service)
 
 # Timers armed on every deploy. Unlike the updater's, they do not depend on
 # where Plex runs. stack/deploy.test.sh fails if a MANIFEST timer other than the
@@ -69,6 +72,7 @@ ALWAYS_TIMERS=(arr-fallback-search.timer lan-address.timer stack-status.timer st
 EXECS=(
     "jobs/pms-update/pms-update.service|$REPO/jobs/pms-update/update-stack.sh"
     "jobs/arr-reclaim/arr-reclaim.service|$REPO/jobs/arr-reclaim/arr-reclaim.sh watch"
+    "jobs/stack-api/stack-api.service|$REPO/jobs/stack-api/stack-api.sh"
     "jobs/arr-fallback-search/arr-fallback-search.service|$REPO/jobs/arr-fallback-search/arr-fallback-search.sh"
     "jobs/lan-address/lan-address.service|$REPO/jobs/lan-address/lan-address.sh"
     "jobs/stack-status/stack-status.service|$REPO/jobs/stack-status/stack-status.sh"
@@ -149,12 +153,14 @@ check() {
                 echo "ok: $TIMER disarmed (Plex is native — pms-local's plex-update.timer owns updates)"
             fi
         fi
-        if systemctl is-enabled --quiet "$WATCHER" 2>/dev/null && systemctl is-active --quiet "$WATCHER"; then
-            echo "ok: $WATCHER enabled and running"
-        else
-            echo "WATCHER DOWN: $WATCHER is not enabled and running — task deploy"; rc=1
-        fi
         local t
+        for t in "${SERVICES[@]}"; do
+            if systemctl is-enabled --quiet "$t" 2>/dev/null && systemctl is-active --quiet "$t"; then
+                echo "ok: $t enabled and running"
+            else
+                echo "SERVICE DOWN: $t is not enabled and running — task deploy"; rc=1
+            fi
+        done
         for t in "${ALWAYS_TIMERS[@]}"; do
             if systemctl is-enabled --quiet "$t" 2>/dev/null; then
                 echo "ok: $t armed"
@@ -263,9 +269,11 @@ arm() {
         fi
     done
 
-    sudo systemctl enable "$WATCHER"
-    sudo systemctl restart "$WATCHER"
-    echo "enabled and restarted $WATCHER"
+    for t in "${SERVICES[@]}"; do
+        sudo systemctl enable "$t"
+        sudo systemctl restart "$t"
+        echo "enabled and restarted $t"
+    done
 }
 
 verify() {

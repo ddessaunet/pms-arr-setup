@@ -1,0 +1,18 @@
+---
+// Replaces Starlight's SocialIcons (the site lists none) with the sign-out
+// button: every page but the login page is behind the owner's Plex sign-in
+// (jobs/stack-api). Its script is lib/sign-out-client.ts.
+const onLogin = Astro.url.pathname.startsWith('/login');
+---
+
+{
+  !onLogin && (
+    <button type="button" class="ctl-btn ctl-btn-small sign-out" data-sign-out>
+      Sign out
+    </button>
+  )
+}
+
+<script>
+  import '../../lib/sign-out-client.ts';
+</script>

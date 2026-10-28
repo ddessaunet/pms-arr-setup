@@ -114,7 +114,7 @@ const golden = parseStatus(
 assert.ok(golden);
 const now = (golden.generatedAtEpoch + 60) * 1000;
 
-test('running: every container with its facts, then the watcher; one-shot apps left out', () => {
+test('running: every container with its facts, then the services; one-shot apps left out', () => {
   const rows = runningRows(golden, { plex: 'Plex' }, now);
   assert.ok(!rows.some((r) => r.id === 'recyclarr'));
   const plex = rows.find((r) => r.id === 'plex');
@@ -125,10 +125,10 @@ test('running: every container with its facts, then the watcher; one-shot apps l
   assert.equal(bazarr?.state, 'restarting');
   assert.equal(bazarr?.restarts, '5');
   assert.equal(rows.find((r) => r.id === 'decluttarr')?.state, 'running (unhealthy)');
-  const last = rows.at(-1);
-  assert.equal(last?.kind, 'service');
-  assert.equal(last?.target, 'arr-reclaim');
-  assert.equal(last?.state, 'active');
+  assert.deepEqual(
+    rows.filter((r) => r.kind === 'service').map((r) => `${r.target} ${r.state}`),
+    ['arr-reclaim active', 'stack-api active'],
+  );
 });
 
 test('jobs: every timer, then recyclarr on demand', () => {

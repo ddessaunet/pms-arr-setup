@@ -7,6 +7,7 @@
 import { BusyError, type ControlApi, type ControlEvent, type RunRecord } from './control-api.ts';
 import { MockControlApi } from './control-mock.ts';
 import { driftRows, jobRows, runningRows } from './control-view.ts';
+import { signInIfSignedOut } from './session.ts';
 import {
   ageSeconds,
   clock,
@@ -374,6 +375,7 @@ function tick() {
 async function poll() {
   try {
     const res = await fetch(STATUS_URL, { cache: 'no-store' });
+    if (signInIfSignedOut(res)) return;
     if (!res.ok) throw new Error(String(res.status));
     const next = parseStatus(await res.json());
     if (!next) throw new Error('unreadable');
