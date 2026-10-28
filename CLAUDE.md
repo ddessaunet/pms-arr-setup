@@ -212,8 +212,9 @@ disappear. Confirm before anything destructive:
   `sudo bun` (sudo's `PATH` lacks both). `task --list` shows every task. From a non-login
   shell, load them first: `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"` and
   `export PATH="$HOME/.proto/shims:$HOME/.proto/bin:$PATH"`.
-- **The API-heavy scripts are moving to TypeScript on Bun**, one PR per step
-  ([docs/bun-migration.md](docs/bun-migration.md), its checklist). A ported script keeps
+- **The API-heavy scripts are TypeScript on Bun**
+  ([docs/bun-migration.md](docs/bun-migration.md) has the design and how they got there);
+  the install, deploy and test plumbing in `stack/` stays bash. A script keeps
   its `.sh` path as a launcher (`stack/lib/bun.sh`, then `exec` the `.ts` beside it):
   units, `deploy.sh` and other scripts name that path. `package.json` holds dev tools only
   (TypeScript, Vite+); the install never gets them or `node_modules`, and Bun runs with

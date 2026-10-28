@@ -2,15 +2,13 @@
 
 # Bun migration
 
-Porting the API-heavy bash scripts to TypeScript on [Bun](https://bun.com), for
+The API-heavy bash scripts were ported to TypeScript on [Bun](https://bun.com), for
 readability: about 3,700 lines of bash, most of it calling app APIs and reshaping JSON
 through `jq --arg` strings, with helpers copied between scripts (`env_get` five times, the
-qBittorrent login rule three, the Plex token reader three). One PR per step. Bash and
-TypeScript live side by side until the last one, and nothing on the box changes behaviour
-except where a step says so.
-
-Tick these as steps merge, and commit the tick, as in [Phases](phases.md). If the list
-looks stale, check the repo and the box rather than trusting it.
+qBittorrent login rule three, the Plex token reader three). One PR per step, with bash and
+TypeScript side by side until the last, and nothing on the box changing behaviour except
+where a step says so. It is done: the checklist below is the record, and the rest of this
+page is how the TypeScript fits together.
 
 - [x] Step 0 — foundation: toolchain, `stack/lib/bun.sh`, the shared `stack/lib/*.ts` with tests (2026-10-23: no script ported; `task lint test` and the site's checks pass)
 - [x] Step 1 — `arr-fallback-search` (2026-10-26: `--dry-run` matches the bash one on the box; Radarr types hand-written, generation left to step 2b)
@@ -24,7 +22,7 @@ looks stale, check the repo and the box rather than trusting it.
 - [x] Step 5 — `lan-address` (2026-10-27: `--dry-run` matches the bash one on the box, against the live state and a scratch one with stale, missing and two-address lines, `--force` included; it reads the addresses through `net.ts`, as the configure scripts have since step 2; `servarr.sh` now has no runtime user)
 - [x] Step 6 — `pms-update` (2026-10-27: `--dry-run` over all nine services matches the bash one on the box line for line, Plex's stream gate included, and so do a single service and a bad flag; recreate, the health wait and the rollback are tested against a fake docker, and run for real on the next update)
 - [x] Step 7 — `arr-reclaim`, rehearsed (2026-10-27: `--audit` matches the bash one on the box; `record` writes the live ledger's copies byte for byte as the bash does, including after re-recording dropped rows; a shadow `watch --dry-run` on a scratch library, beside the bash unit, logged deletes, a rename and a second link as the bash would and changed nothing; the lock is shared with util-linux `flock`. Audit parity was compared once, not over days: `task arr-reclaim:watch-dry` shadows the real library before or after the switch)
-- [ ] Step 8 — cleanup: `servarr.sh` deleted, shellcheck targets trimmed, docs pass
+- [x] Step 8 — cleanup: `servarr.sh` deleted, shellcheck targets trimmed, docs pass (2026-10-28: `servarr.sh` deleted, with `env.test.ts` and `servarr.test.ts` now holding the values it returned; shellcheck's globs already cover only what is left, launchers and the `stack/` plumbing; CLAUDE.md, the READMEs and this page describe the finished state)
 
 ---
 
@@ -34,7 +32,7 @@ Ported: `jobs/{stack-status,arr-reclaim,lan-address,pms-update,arr-fallback-sear
 `apps/{plex,seerr,bazarr,prowlarr,qbittorrent}/configure.sh` and
 `stack/lib/{servarr,arr-configure}.sh`.
 
-Staying bash: `stack/{install,deploy,preflight,start,installed,run-tests}.sh`,
+Bash, on purpose: `stack/{install,deploy,preflight,start,installed,run-tests}.sh`,
 `stack/lib/pms-home.sh`, `apps/recyclarr/run.sh` and the Radarr/Sonarr wrappers. They
 move files, run systemd and docker, and are as readable in bash as they would be in
 anything else.
@@ -73,9 +71,10 @@ anything else.
 - **Seams by dependency injection**: a `Deps` object (http, run, clock, paths) passed to
   `main`. Tests pass fakes rather than mocking modules, and set `TZ` for the clock.
 - **Locks are shared.** `stack/lib/lock.ts` takes `flock(2)` through `bun:ffi` on the same
-  lock files, so a bash and a TypeScript run of a job exclude each other while both exist
-  (`lock.test.ts` checks it against util-linux `flock`, both ways).
-- **Watching stays `inotifywait`**, through `Bun.spawn`. `fs.watch` only reports `rename`,
+  lock files the bash jobs used, so a job rolled back to bash, or a `flock` by hand, and the
+  TypeScript one exclude each other (`lock.test.ts` checks it against util-linux `flock`,
+  both ways).
+- **Watching stays `inotifywait`**, through `run.ts`'s `lines()`. `fs.watch` only reports `rename`,
   so it can't tell a delete from a move, and a move must keep its torrent (traps 3 and 9).
 
 ### The shared library
@@ -90,15 +89,16 @@ anything else.
 | `exit.ts` | `EXIT`, `UsageError`, `runMain` | — |
 | `run.ts` | `Bun.spawn` with timeout (124) and stdin; `lines()`, a long-running command's output line by line | `timeout`, `$(…)`, `read -t` |
 | `http.ts` | `fetch` with curl's habits | `curl -s --max-time … -w '%{http_code}'` |
-| `servarr.ts` | `api`, `waitReady`, apply/verify host and resource | `stack/lib/servarr.sh` |
+| `servarr.ts` | `api`, `waitReady`, apply/verify host and resource | `stack/lib/servarr.sh` (deleted in step 8) |
 | `qbittorrent.ts` | the login rule (204, or 200 `Ok.`), once, and a session | `qbt_login_ok` (×3) |
 | `plex.ts` | the token from `Preferences.xml` | `prefs_token` / `plex_token` |
 | `net.ts` | the box's LAN IPv4 addresses | `lan_ips` |
-| `keys.ts` | `seerrKey`, `bazarrKey` | `seerr_key`, `bazarr_key` (stack-status keeps a bash copy of each until step 4) |
+| `keys.ts` | `seerrKey`, `bazarrKey` | `seerr_key`, `bazarr_key` |
 | `lock.ts` | `flock(2)`, now or with a timeout | `flock -n` / `flock -w` |
 
-`env.ts`, `servarr.ts`, `plex.ts` and `keys.ts` are tested against the bash functions
-themselves, on the same inputs.
+`env.ts`, `servarr.ts`, `plex.ts` and `keys.ts` were tested against the bash functions
+themselves, on the same inputs, while those existed; their tests now hold the values the
+bash returned.
 
 ### API types
 

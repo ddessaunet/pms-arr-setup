@@ -1,7 +1,7 @@
 // stack/lib/env.ts — reads one key from .env without sourcing it.
 //
-// The same rules as env_get in stack/lib/servarr.sh, which every bash script
-// copies (env.test.ts runs both and compares):
+// The same rules as env_get, which every bash script copied (env.test.ts keeps
+// what it returned):
 //   - the last `KEY=` line wins; a line must start with the key
 //   - nothing is unquoted or trimmed: KEY="a b" reads as "a b" with the quotes
 //   - no .env, or no such line, reads as ""
