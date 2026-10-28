@@ -1,12 +1,13 @@
 # docs
 
 This repo's documentation website, on the LAN, behind the Plex server owner's sign-in. It
-has four pages, the
+has five pages, the
 [stack dashboard](../../site/src/content/docs/index.mdx), the
 [logs](../../site/src/content/docs/logs.mdx), the
+[requests](../../site/src/content/docs/requests.mdx), the
 [quality-profiles map](../../site/src/content/docs/quality-profiles.mdx) and the
 [control page](../../site/src/content/docs/control.mdx), in Starlight's doc
-layout: a sidebar between them, and each page's contents beside it (on the map, down to
+layout (and the [login page](../../site/src/content/docs/login.mdx), on its own): a sidebar between them, and each page's contents beside it (on the map, down to
 each profile).
 
 ## Role
@@ -23,6 +24,9 @@ website's source, and `apps/docs` is the container that serves the built website
 - `http://<box>:8088/` is the **stack dashboard**: a link to every service (built from the
   address you opened it on, so it follows the box), each one's status, the host's jobs, and the
   logs worth checking. `/quality-profiles/` is the profile map.
+- `/requests/` is the **request doctor**: every open Seerr request, why it has no file yet,
+  and the next step. *Analyse* searches the indexers for one and says why each release was
+  refused (jobs/stack-api answers it; it never changes the apps).
 - `/control/` is a **mock** of a control section: Deploy now with its streaming log, what is
   running (from `/live/`), restart, run a job now, a drift check, and the history. Every
   action is simulated in the browser and changes nothing; nginx still serves files only.

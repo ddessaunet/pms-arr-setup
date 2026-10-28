@@ -22,6 +22,7 @@ export default defineConfig({
       sidebar: [
         { label: 'Stack', link: '/' },
         { label: 'Logs', link: '/logs/' },
+        { label: 'Requests', link: '/requests/' },
         { label: 'Quality profiles', link: '/quality-profiles/' },
         { label: 'Control', link: '/control/' },
       ],

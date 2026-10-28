@@ -90,7 +90,7 @@
 /* Cards and tables side by side, and long log lines, need more than Starlight's
    45rem prose column; only the pages that show them (the profile map, the
    dashboard, the logs, the control page) get the room. */
-:root:has(.profile-map, .dash-grid, .dash-logs, .ctl-panel) { --sl-content-width: 72rem; }
+:root:has(.profile-map, .dash-grid, .dash-logs, .ctl-panel, .req-list) { --sl-content-width: 72rem; }
 
 /* A faint grid of pellets behind everything. */
 body {
@@ -545,3 +545,13 @@ mobile-starlight-toc a[aria-current='true']::after { background-color: var(--pac
 .login-msg[data-level='degraded'] { color: var(--sl-color-orange-high); }
 .login-msg a { color: var(--sl-color-white); }
 .sign-out { margin-inline-start: 0.5rem; }
+
+/* ── requests (/requests/) ────────────────────────────────────────────────────
+   One dashboard card per open request: the verdict's level badge, its sentence,
+   the next step after a "Next" label, the search's details as reasons. */
+.req { display: grid; gap: 0.75rem; }
+.req-list { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); }
+.req-summary { color: var(--sl-color-white); font-size: var(--sl-text-sm); }
+.req-next { color: var(--sl-color-gray-1); font-size: var(--sl-text-sm); }
+.req-next .ctl-label { margin-right: 0.35rem; color: var(--pac-pink); }
+.req-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; margin-top: auto; }

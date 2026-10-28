@@ -177,8 +177,11 @@ disappear. Confirm before anything destructive:
     is `/live/`, the files `jobs/stack-status` writes (trap 19). `/control/` is a **mock**:
     its views read `/live/`, but deploy, restart, run-job and drift check are simulated in
     the browser (`site/src/lib/control-mock.ts`) behind `ControlApi` (`control-api.ts`),
-    which a real control backend would implement. Every page but `/login/` is behind the
-    owner's Plex sign-in (trap 20).
+    which a real control backend would implement. `/requests/` is the request doctor:
+    `jobs/stack-api` reads Seerr, Radarr/Sonarr and Prowlarr, and the verdicts and their
+    advice come from `stack/lib/request-doctor.ts`, which names profiles and caps from
+    `arr-policy.ts` (keep it in step when trap 11 changes). Every page but `/login/` is
+    behind the owner's Plex sign-in (trap 20).
 18. **The box is wired-only, at `10.0.0.50`**, reserved for `eno1` on the mesh router
     (`10.0.0.1`, `10.0.0.0/22`) since 2026-10-17. Its Wi‑Fi (`wlp2s0`) is out of netplan
     on purpose; don't add it back. On the same subnet as `eno1`, each NIC answered ARP for
