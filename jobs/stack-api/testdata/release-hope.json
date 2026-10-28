@@ -1,0 +1,456 @@
+[
+  {
+    "title": "Hopeu.2026.1080p.AMZN.WEB-DL.DD+5.1.H.264-playWEB",
+    "quality": {
+      "quality": {
+        "name": "WEBDL-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 10136122818,
+    "seeders": 1030,
+    "indexer": "Knaben (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "WEBDL-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hopeu.2026.1080p.AMZN.WEB-DL.DD+5.1.H.264-playWEB",
+    "quality": {
+      "quality": {
+        "name": "WEBDL-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 10139834162,
+    "seeders": 1015,
+    "indexer": "The Pirate Bay (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "WEBDL-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope.2026.MULTi.VFQ.1080p.WEBRip.EAC3.5.1.x264-GL0P.mkv",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 8085275934,
+    "seeders": 71,
+    "indexer": "Knaben (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "7.5 GB is larger than maximum allowed 6.1 GB (for Hope)",
+      "Original Language (Korean) is wanted, but found French",
+      "WEBRip-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope.2026.MULTi.VFQ.1080p.WEBRip.EAC3.5.1.x264-GL0P.mkv",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 8080601263,
+    "seeders": 9,
+    "indexer": "The Pirate Bay (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "7.5 GB is larger than maximum allowed 6.1 GB (for Hope)",
+      "Original Language (Korean) is wanted, but found French",
+      "WEBRip-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope.2026.1080p.WEBRip.Korean.10Bit.DDP5.1.x265-NeoNoir",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 2825734145,
+    "seeders": 3167,
+    "indexer": "1337x (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats DD+, x265 (no HDR/DV) have score -8250 below Movie's profile minimum 0",
+      "WEBRip-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope.2026.1080p.WEBRip.Korean.10Bit.DDP5.1.x265-NeoNoir",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 2823940997,
+    "seeders": 3067,
+    "indexer": "Knaben (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats DD+, x265 (no HDR/DV) have score -8250 below Movie's profile minimum 0",
+      "WEBRip-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope (2026) (1080p AMZN WEB-DL x265 10bit EAC3 5.1 Korean Silence) [QxR]",
+    "quality": {
+      "quality": {
+        "name": "WEBDL-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 7211582949,
+    "seeders": 1631,
+    "indexer": "1337x (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats AMZN, DD+, x265 (no HDR/DV) have score -8250 below Movie's profile minimum 0",
+      "WEBDL-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope (2026) (1080p AMZN WEB-DL x265 10bit EAC3 5.1 Korean Silence) [QxR]",
+    "quality": {
+      "quality": {
+        "name": "WEBDL-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 7237019893,
+    "seeders": 1110,
+    "indexer": "Knaben (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats AMZN, DD+, x265 (no HDR/DV) have score -8250 below Movie's profile minimum 0",
+      "WEBDL-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope (2026) (1080p AMZN WEB-DL x265 10bit EAC3 5.1 Korean Silence) [QxR]",
+    "quality": {
+      "quality": {
+        "name": "WEBDL-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 7234108271,
+    "seeders": 1108,
+    "indexer": "The Pirate Bay (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats AMZN, DD+, x265 (no HDR/DV) have score -8250 below Movie's profile minimum 0",
+      "WEBDL-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope.2026.1080p.WEBRip.Korean.10Bit.DDP5.1.x265-NeoNoir",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 2818777623,
+    "seeders": 12,
+    "indexer": "The Pirate Bay (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats DD+, x265 (no HDR/DV) have score -8250 below Movie's profile minimum 0",
+      "WEBRip-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope.Hopeu.2026.1080p.AMZN.WEB-DL.KOREAN.DDP5.1.H264.MP4-BTM",
+    "quality": {
+      "quality": {
+        "name": "WEBDL-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 10154519292,
+    "seeders": 6,
+    "indexer": "The Pirate Bay (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats AMZN, DD+, LQ have score -8250 below Movie's profile minimum 0",
+      "WEBDL-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope 2026 1080p Korean WEB-DL HEVC x265 5.1 BONE",
+    "quality": {
+      "quality": {
+        "name": "WEBDL-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 2160830258,
+    "seeders": 1243,
+    "indexer": "1337x (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats x265 (no HDR/DV) have score -10000 below Movie's profile minimum 0",
+      "WEBDL-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope 2026 1080p Korean WEB-DL HEVC x265 5.1 BONE",
+    "quality": {
+      "quality": {
+        "name": "WEBDL-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 2138579194,
+    "seeders": 1830,
+    "indexer": "Knaben (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats x265 (no HDR/DV) have score -10000 below Movie's profile minimum 0",
+      "WEBDL-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope 2026 1080p Korean WEB-DL HEVC x265 5.1 BONE",
+    "quality": {
+      "quality": {
+        "name": "WEBDL-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 2138579194,
+    "seeders": 1830,
+    "indexer": "The Pirate Bay (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats x265 (no HDR/DV) have score -10000 below Movie's profile minimum 0",
+      "WEBDL-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hope.2026.KOREAN.1080p.WEBRip.x265-KONTRAST",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 4472134696,
+    "seeders": 65,
+    "indexer": "1337x (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats x265 (no HDR/DV) have score -10000 below Movie's profile minimum 0",
+      "WEBRip-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hopeu (2026) 1080p WEBRip 5.1 x264 -YTS",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 3103113871,
+    "seeders": 100,
+    "indexer": "YTS (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats LQ have score -10000 below Movie's profile minimum 0",
+      "WEBRip-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hopeu (2026) 1080p WEBRip 5.1 10Bit x265 -YTS",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 2813203579,
+    "seeders": 100,
+    "indexer": "Knaben (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats LQ, x265 (no HDR/DV) have score -20000 below Movie's profile minimum 0",
+      "WEBRip-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hopeu (2026) 1080p WEBRip 5.1 10Bit x265 -YTS",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 2813203579,
+    "seeders": 100,
+    "indexer": "YTS (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats LQ, x265 (no HDR/DV) have score -20000 below Movie's profile minimum 0",
+      "WEBRip-1080p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Hopeu (2026) 720p WEBRip x264 -YTS",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-720p",
+        "resolution": 720
+      }
+    },
+    "size": 1513975972,
+    "seeders": 100,
+    "indexer": "YTS (Prowlarr)",
+    "mappedMovieId": 148,
+    "approved": false,
+    "rejections": [
+      "Custom Formats LQ have score -10000 below Movie's profile minimum 0",
+      "WEBRip-720p is not wanted in profile"
+    ]
+  },
+  {
+    "title": "Runner (2026) [1080p] [WEBRip] [5.1]",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 1954888865,
+    "seeders": 3462,
+    "indexer": "The Pirate Bay (Prowlarr)",
+    "mappedMovieId": 133,
+    "approved": false,
+    "rejections": [
+      "WEBRip-1080p is not wanted in profile",
+      "Wrong movie"
+    ]
+  },
+  {
+    "title": "Runner 2026 1080p WEB-DL HEVC x265 5.1 BONE",
+    "quality": {
+      "quality": {
+        "name": "WEBDL-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 1604101756,
+    "seeders": 944,
+    "indexer": "The Pirate Bay (Prowlarr)",
+    "mappedMovieId": 133,
+    "approved": false,
+    "rejections": [
+      "Custom Formats x265 (no HDR/DV) have score -10000 below Movie's profile minimum 0",
+      "WEBDL-1080p is not wanted in profile",
+      "Wrong movie"
+    ]
+  },
+  {
+    "title": "The Invite (2026) [1080p] [WEBRip] [5.1]",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 2120860166,
+    "seeders": 3395,
+    "indexer": "The Pirate Bay (Prowlarr)",
+    "mappedMovieId": 66,
+    "approved": false,
+    "rejections": [
+      "WEBRip-1080p is not wanted in profile",
+      "Existing file on disk is of equal or higher preference: WEBDL-2160p v1",
+      "Wrong movie"
+    ]
+  },
+  {
+    "title": "Coyote vs. Acme (2026) [1080p] [WEBRip] [5.1]",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 2037086423,
+    "seeders": 2264,
+    "indexer": "The Pirate Bay (Prowlarr)",
+    "mappedMovieId": 138,
+    "approved": false,
+    "rejections": [
+      "WEBRip-1080p is not wanted in profile",
+      "Wrong movie"
+    ]
+  },
+  {
+    "title": "Coyote.vs.Acme.2026.1080p.WEBRip.10Bit.DDP5.1.x265-NeoNoir",
+    "quality": {
+      "quality": {
+        "name": "WEBRip-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 1989591609,
+    "seeders": 916,
+    "indexer": "The Pirate Bay (Prowlarr)",
+    "mappedMovieId": 138,
+    "approved": false,
+    "rejections": [
+      "Custom Formats DD+, x265 (no HDR/DV) have score -8250 below Movie's profile minimum 0",
+      "WEBRip-1080p is not wanted in profile",
+      "Wrong movie"
+    ]
+  },
+  {
+    "title": "Coyote.vs.Acme.2026.1080p.DCPRIP.HEVC.x265.RMTeam",
+    "quality": {
+      "quality": {
+        "name": "HDTV-1080p",
+        "resolution": 1080
+      }
+    },
+    "size": 1639238719,
+    "seeders": 3202,
+    "indexer": "The Pirate Bay (Prowlarr)",
+    "mappedMovieId": 138,
+    "approved": false,
+    "rejections": [
+      "Custom Formats x265 (no HDR/DV) have score -10000 below Movie's profile minimum 0",
+      "HDTV-1080p is not wanted in profile",
+      "Wrong movie"
+    ]
+  }
+]

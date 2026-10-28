@@ -1,13 +1,26 @@
 // jobs/stack-api/stack-api.test.ts — the sign-in, the session and the gate,
-// against a fake plex.tv and an in-memory store; and the service itself, on a
-// scratch socket.
+// against a fake plex.tv and an in-memory store; the request doctor's routes
+// against fake apps (and a real release search's answer, testdata/); and the
+// service itself, on a scratch socket.
 
 import { afterAll, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync, statSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { HttpRequest, HttpResponse } from '../../stack/lib/http.ts';
+import type { RequestsDoc } from '../../stack/lib/request-doctor.ts';
 import { makeApp, PIN_TTL, RateLimit, SESSION_COOKIE, type AppDeps } from './app.ts';
+import {
+  addRequestRoutes,
+  failingIndexers,
+  openRequests,
+  parseHistory,
+  parseQueue,
+  parseReleases,
+  parseSeerrRequests,
+  parseSeries,
+  seasonToSearch,
+} from './requests.ts';
 import { main } from './stack-api.ts';
 import { sessionHash, Store } from './store.ts';
 
@@ -282,5 +295,222 @@ describe('the service', () => {
     });
     expect(code).toBe(0);
     expect(lines.join('\n')).toContain("the docs site's backend");
+  });
+});
+
+// ─── the request doctor's routes (requests.ts) ────────────────────────────────
+
+describe('requests', () => {
+  const HOPE = JSON.parse(readFileSync(join(import.meta.dir, 'testdata/release-hope.json'), 'utf8')) as unknown[];
+  const repo = mkdtempSync(join(tmpdir(), 'stack-api-repo-'));
+  writeFileSync(
+    join(repo, '.env'),
+    'RADARR_API_KEY=radarr-key-123\nSONARR_API_KEY=sonarr-key-123\nPROWLARR_API_KEY=prowlarr-key\n',
+  );
+  afterAll(() => rmSync(repo, { recursive: true, force: true }));
+
+  const seerrRequests = {
+    results: [
+      {
+        id: 37,
+        status: 2,
+        type: 'movie',
+        createdAt: '2026-10-27T23:19:20.000Z',
+        requestedBy: { displayName: 'owner' },
+        media: { mediaType: 'movie', tmdbId: 1058424, status: 3, externalServiceId: 148 },
+        seasons: [],
+      },
+      {
+        id: 36,
+        status: 5,
+        type: 'movie',
+        createdAt: '2026-10-25T15:17:44.000Z',
+        requestedBy: { displayName: 'owner' },
+        media: { mediaType: 'movie', tmdbId: 1, status: 5, externalServiceId: 147 },
+        seasons: [],
+      },
+      {
+        id: 35,
+        status: 2,
+        type: 'tv',
+        createdAt: '2026-10-22T22:46:55.000Z',
+        requestedBy: { displayName: 'owner' },
+        media: { mediaType: 'tv', tmdbId: 196322, status: 4, externalServiceId: 4 },
+        seasons: [{ seasonNumber: 2 }],
+      },
+    ],
+  };
+  let searches = 0;
+  let radarrDown = false;
+  const routes: Record<string, unknown> = {
+    'http://127.0.0.1:5055/api/v1/request?take=200&skip=0&filter=all&sort=added': seerrRequests,
+    'http://127.0.0.1:7878/api/v3/qualityprofile': [{ id: 7, name: 'UHD Bluray + WEB' }],
+    'http://127.0.0.1:8989/api/v3/qualityprofile': [{ id: 7, name: 'WEB-1080p' }],
+    'http://127.0.0.1:9696/api/v1/health': [],
+    'http://127.0.0.1:7878/api/v3/movie/148': {
+      id: 148,
+      title: 'Hope',
+      year: 2026,
+      monitored: true,
+      hasFile: false,
+      qualityProfileId: 7,
+      runtime: 157,
+      isAvailable: true,
+      status: 'released',
+    },
+    'http://127.0.0.1:7878/api/v3/queue?movieIds=148&pageSize=50': { records: [] },
+    'http://127.0.0.1:7878/api/v3/history/movie?movieId=148': [],
+    'http://127.0.0.1:8989/api/v3/series/4': {
+      id: 4,
+      title: 'Dark Matter (2024)',
+      year: 2024,
+      monitored: true,
+      qualityProfileId: 7,
+      runtime: 50,
+    },
+    'http://127.0.0.1:8989/api/v3/episode?seriesId=4': [
+      { seasonNumber: 2, episodeNumber: 9, airDateUtc: '2026-10-23T04:00:00Z', hasFile: true, monitored: true },
+      { seasonNumber: 2, episodeNumber: 10, airDateUtc: '2026-10-30T04:00:00Z', hasFile: false, monitored: true },
+    ],
+    'http://127.0.0.1:8989/api/v3/queue?seriesIds=4&pageSize=50': { records: [] },
+    'http://127.0.0.1:8989/api/v3/history/series?seriesId=4': [],
+  };
+  const keysSeen = new Set<string>();
+
+  function reqApp() {
+    const d = deps();
+    d.now = () => Date.parse('2026-10-28T12:00:00Z');
+    d.http = async (url, req) => {
+      keysSeen.add(`${new URL(url).port} ${req.headers?.['X-Api-Key']}`);
+      if (url.startsWith('http://127.0.0.1:7878') && radarrDown)
+        return { status: 0, text: '', headers: new Headers(), error: 'refused' };
+      if (url === 'http://127.0.0.1:7878/api/v3/release?movieId=148') {
+        searches++;
+        return answer(200, HOPE);
+      }
+      if (url in routes) return answer(200, routes[url]);
+      return answer(404, {});
+    };
+    const a = makeApp(d);
+    addRequestRoutes(a, { ...d, env: {}, repo, appdata: repo, analyses: new RateLimit(2, 3600_000) });
+    d.store.addSession('s', { id: 1, username: 'owner' }, d.now(), 3600_000);
+    return a;
+  }
+  const cookie = { cookie: `${SESSION_COOKIE}=s` };
+  beforeEach(() => {
+    searches = 0;
+    radarrDown = false;
+  });
+
+  test('signed out: 401', async () => expect((await get(reqApp(), '/api/requests')).status).toBe(401));
+
+  test('the open requests, newest first, with verdicts; the available ones counted', async () => {
+    const doc = (await (await get(reqApp(), '/api/requests', cookie)).json()) as RequestsDoc;
+    expect(doc.open.map((r) => `${r.id} ${r.title} ${r.verdict.code} ${r.canAnalyse}`)).toEqual([
+      '37 Hope not-analysed true',
+      '35 Dark Matter (2024) waiting-air false',
+    ]);
+    expect([doc.available, doc.errors]).toEqual([1, []]);
+    expect(keysSeen.has('7878 radarr-key-123')).toBe(true);
+  });
+
+  test('analyse: one release search, summarised, kept, and the verdict it leads to', async () => {
+    const a = reqApp();
+    const r = await post(a, '/api/requests/37/analyse', cookie);
+    const row = (await r.json()) as RequestsDoc['open'][number];
+    expect(r.status).toBe(200);
+    expect(searches).toBe(1);
+    expect(row.verdict.code).toBe('no-4k');
+    expect(row.verdict.next).toContain('4K HDR or 1080p');
+    expect([row.releases?.total, row.releases?.matched, row.releases?.approved]).toEqual([25, 19, 0]);
+    // Kept: the list shows it without searching again.
+    const doc = (await (await get(a, '/api/requests', cookie)).json()) as RequestsDoc;
+    expect(doc.open[0]?.verdict.code).toBe('no-4k');
+    expect(searches).toBe(1);
+    expect(logs.some((l) => l.includes('25 result(s), 19 for it, 0 acceptable'))).toBe(true);
+  });
+
+  test('analyse: nothing to search for a series with every aired episode in', async () => {
+    expect((await post(reqApp(), '/api/requests/35/analyse', cookie)).status).toBe(409);
+  });
+
+  test('analyse: an unknown request, and the hourly limit', async () => {
+    const a = reqApp();
+    expect((await post(a, '/api/requests/999/analyse', cookie)).status).toBe(404);
+    expect((await post(a, '/api/requests/37/analyse', cookie)).status).toBe(200);
+    expect((await post(a, '/api/requests/37/analyse', cookie)).status).toBe(200);
+    expect((await post(a, '/api/requests/37/analyse', cookie)).status).toBe(429);
+  });
+
+  test('analyse needs a same-origin POST', async () => {
+    const r = await post(reqApp(), '/api/requests/37/analyse', {
+      ...cookie,
+      origin: 'http://evil.test',
+      'sec-fetch-site': 'cross-site',
+    });
+    expect(r.status).toBe(403);
+    expect(searches).toBe(0);
+  });
+
+  test('Radarr away: that request is unknown, and the page says why; no key in it', async () => {
+    radarrDown = true;
+    const r = await get(reqApp(), '/api/requests', cookie);
+    const text = await r.text();
+    const doc = JSON.parse(text) as RequestsDoc;
+    expect(doc.open.find((x) => x.id === 37)?.verdict.code).toBe('app-unreachable');
+    expect(doc.errors).toEqual(['Radarr not answering on :7878 (refused)']);
+    expect(text).not.toContain('radarr-key-123');
+  });
+});
+
+describe('parsing', () => {
+  test('openRequests drops available, completed and declined', () => {
+    const all = parseSeerrRequests({
+      results: [
+        { id: 1, status: 2, createdAt: '2026-01-01', media: { status: 3 } },
+        { id: 2, status: 5, createdAt: '2026-01-02', media: { status: 3 } },
+        { id: 3, status: 3, createdAt: '2026-01-03', media: { status: 2 } },
+        { id: 4, status: 2, createdAt: '2026-01-04', media: { status: 5 } },
+        { id: 5, status: 1, createdAt: '2026-01-05', media: { status: 2 } },
+      ],
+    });
+    expect(openRequests(all).map((r) => r.id)).toEqual([5, 1]);
+  });
+  test('releases: matched by the mapped id, and not when the app says it is another title', () => {
+    const rs = parseReleases(
+      [
+        { title: 'a', mappedMovieId: 148, rejections: [] },
+        { title: 'b', mappedMovieId: 9, rejections: [] },
+        { title: 'c', mappedMovieId: 148, rejections: ['Wrong movie'] },
+      ],
+      'radarr',
+      148,
+    );
+    expect(rs.map((r) => `${r.title} ${r.matched}`)).toEqual(['a true', 'b false', 'c false']);
+  });
+  test('queue messages flattened; history message from data', () => {
+    expect(
+      parseQueue({ records: [{ statusMessages: [{ title: 'x.mkv', messages: ['No audio'] }] }] })[0]?.messages,
+    ).toEqual(['x.mkv', 'No audio']);
+    expect(parseHistory([{ eventType: 'downloadFailed', data: { message: 'boom' } }])[0]?.message).toBe('boom');
+  });
+  test("Prowlarr's indexer checks only", () =>
+    expect(
+      failingIndexers([
+        { source: 'IndexerStatusCheck', type: 'warning', message: 'Indexers unavailable: 1337x' },
+        { source: 'UpdateCheck', type: 'warning', message: 'update' },
+      ]),
+    ).toEqual(['Indexers unavailable: 1337x']));
+  test('the season a series search covers', () => {
+    const t = parseSeries(
+      { id: 4, title: 'x' },
+      [
+        { seasonNumber: 1, episodeNumber: 1, airDateUtc: '2026-01-01T00:00:00Z', hasFile: false },
+        { seasonNumber: 2, episodeNumber: 1, airDateUtc: '2026-02-01T00:00:00Z', hasFile: false },
+      ],
+      new Map(),
+    );
+    const q = parseSeerrRequests({ results: [{ id: 1, type: 'tv', seasons: [{ seasonNumber: 2 }], media: {} }] })[0];
+    expect(t && q && seasonToSearch(t, q, Date.parse('2026-10-28T00:00:00Z'))).toBe(2);
   });
 });

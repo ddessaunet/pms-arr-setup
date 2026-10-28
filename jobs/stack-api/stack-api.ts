@@ -1,5 +1,5 @@
 // jobs/stack-api/stack-api.ts — the docs site's backend: the Plex sign-in that
-// gates the whole site, and (later) request status and control.
+// gates the whole site, and the request doctor (requests.ts); later, control.
 //
 //   jobs/stack-api/stack-api.sh    serve until stopped (stack-api.service)
 //
@@ -7,8 +7,9 @@
 // /opt/appdata/stack-api/run/api.sock, which apps/docs mounts read-only at /api
 // and nginx proxies /api/ to. nginx asks /api/auth/check before serving any
 // page or /live/ file, so while this is down the site shows only its login
-// page, which says so (the gate fails closed). The routes are in app.ts, and
-// what it keeps (sessions, pending PINs) in store.ts, next to the socket's
+// page, which says so (the gate fails closed). The routes are in app.ts (the
+// sign-in) and requests.ts (the request doctor), and what it keeps (sessions,
+// pending PINs, the last release searches) in store.ts, next to the socket's
 // folder: /opt/appdata/stack-api/stack-api.sqlite.
 //
 // Environment: APPDATA (else .env's, else /opt/appdata), STACK_API_SOCKET to
@@ -25,7 +26,8 @@ import { runMain } from '../../stack/lib/exit.ts';
 import { makeHttp, type Http } from '../../stack/lib/http.ts';
 import { stamped, type Log } from '../../stack/lib/log.ts';
 import { PLEX_IDENTITY } from '../../stack/lib/plex.ts';
-import { makeApp, PIN_TTL } from './app.ts';
+import { makeApp, PIN_TTL, RateLimit } from './app.ts';
+import { addRequestRoutes } from './requests.ts';
 import { Store } from './store.ts';
 
 const USAGE = 'usage: stack-api.sh';
@@ -76,6 +78,16 @@ export async function main(argv: readonly string[], deps: Deps): Promise<number>
     log,
     serverId: PLEX_IDENTITY,
     random: (n) => new Uint8Array(randomBytes(n)),
+  });
+  addRequestRoutes(app, {
+    http: deps.http,
+    store,
+    now: Date.now,
+    log,
+    env,
+    repo: deps.repo,
+    appdata,
+    analyses: new RateLimit(10, 3600_000),
   });
 
   // A socket left by a crash would make listen() fail.

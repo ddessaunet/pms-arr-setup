@@ -6,11 +6,14 @@
 //             id is refused (and when, so an old one expires here too)
 //   sessions  signed-in browsers: the SHA-256 of the cookie, never the cookie,
 //             and never a Plex token
+//   releases  the last release search per title ('radarr:148'), summarised
+//             (request-doctor.ts), so a search's answer outlives a restart
 //
 // Times are epoch milliseconds, from the caller's clock.
 
 import { Database } from 'bun:sqlite';
 import { createHash, randomUUID } from 'node:crypto';
+import type { ReleaseSummary } from '../../stack/lib/request-doctor.ts';
 
 export interface Session {
   accountId: number;
@@ -40,6 +43,7 @@ export class Store {
         expires INTEGER NOT NULL,
         last_seen INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS releases (key TEXT PRIMARY KEY, searched_at INTEGER NOT NULL, summary TEXT NOT NULL);
     `);
   }
 
@@ -101,6 +105,20 @@ export class Store {
 
   dropSession(token: string): void {
     this.db.query(`DELETE FROM sessions WHERE hash = ?`).run(sessionHash(token));
+  }
+
+  putReleases(key: string, summary: ReleaseSummary): void {
+    this.db
+      .query(`INSERT OR REPLACE INTO releases (key, searched_at, summary) VALUES (?, ?, ?)`)
+      .run(key, summary.searchedAt, JSON.stringify(summary));
+  }
+
+  /** The last search's summary for a title, unless it is older than `since`. */
+  releases(key: string, since: number): ReleaseSummary | null {
+    const row = this.db
+      .query<{ summary: string }, [string, number]>(`SELECT summary FROM releases WHERE key = ? AND searched_at > ?`)
+      .get(key, since);
+    return row ? (JSON.parse(row.summary) as ReleaseSummary) : null;
   }
 
   /** Expired sessions and PINs older than pinTtlMs. */
