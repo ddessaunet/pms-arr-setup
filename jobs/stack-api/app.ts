@@ -9,7 +9,8 @@
 //   GET  /api/auth/pin/:id    poll it: pending · expired · denied (not the owner) ·
 //                             ok, which sets the session cookie
 //   POST /api/auth/logout     end the session
-//   everything else under /api/ needs a session (401 without one)
+//   everything else under /api/ needs a session (401 without one): the
+//   request doctor's routes (requests.ts) are added by stack-api.ts
 //
 // Only the account that owns this Plex server (PLEX_IDENTITY) gets a session.
 // The Plex token is used to find out who that is and then dropped. Cookies
