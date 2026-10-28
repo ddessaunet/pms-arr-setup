@@ -3,8 +3,9 @@ version: '3'
 # site/ — the docs website (Starlight), the source of what apps/docs serves.
 # Not an app: it has no container. `build` writes site/dist; `task deploy`
 # builds it and copies it into the install, whose site/dist apps/docs (nginx)
-# serves. Built on the host: node from nvm (.nvmrc), pnpm from Homebrew
-# (package.json pins the version, so nvm's own pnpm switches to it).
+# serves. Built on the host with Bun, the same one the scripts run on
+# (.bun-version; proto or Homebrew): it installs the packages, as bun.lock
+# says, and runs Astro and Vite+ under `bun --bun`, so node is not needed.
 # Lint, format and tests are Vite+ (`vp`, configured in vite.config.ts); the
 # build is Astro's own.
 
@@ -13,47 +14,45 @@ env:
 
 tasks:
   install:
-    desc: Install the site's packages, exactly as pnpm-lock.yaml says
+    desc: Install the site's packages, exactly as bun.lock says
     preconditions:
-      - sh: command -v node
-        msg: node is not on PATH. nvm loads from ~/.profile; run `. "$(brew --prefix nvm)/nvm.sh"` in this shell.
-      - sh: command -v pnpm
-        msg: pnpm is not installed (brew install pnpm).
-    sources: [package.json, pnpm-lock.yaml, pnpm-workspace.yaml]
-    generates: [node_modules/.modules.yaml]
+      - sh: command -v bun
+        msg: bun is not on PATH (proto install bun, then proto pin bun <version> --to global; see the README).
+    sources: [package.json, bun.lock]
+    generates: [node_modules/.bin/astro, node_modules/.bin/vp]
     cmds:
-      - pnpm install --frozen-lockfile
+      - bun install --frozen-lockfile
 
   dev:
     desc: Live preview on :4321, reachable from the LAN (publishes nothing)
     deps: [install]
     cmds:
-      - pnpm exec astro dev --host {{.CLI_ARGS}}
+      - bun --bun astro dev --host {{.CLI_ARGS}}
 
   lint:
     desc: Lint the site and check its formatting (changes nothing; task site:fmt fixes the formatting)
     deps: [install]
     cmds:
-      - pnpm exec vp check
+      - bun --bun vp check
 
   fmt:
     desc: Rewrite the site's files in its format
     deps: [install]
     cmds:
-      - pnpm exec vp fmt
+      - bun --bun vp fmt
 
   test:
     desc: The site's unit tests — reading the profiles and checking them against recyclarr.yml
     deps: [install]
     cmds:
-      - pnpm exec vp test
+      - bun --bun vp test
 
   check:
     desc: Prove the site builds, into a scratch folder (publishes nothing)
     deps: [install]
     cmds:
       - defer: rm -rf .dist-check
-      - pnpm exec astro build --outDir .dist-check
+      - bun --bun astro build --outDir .dist-check
 
   build:
     desc: Build, then swap the result into site/dist (task deploy publishes it)
@@ -64,7 +63,7 @@ tasks:
       # beside it, and swap only once the build succeeded.
       - defer: rm -rf .dist-next   # a failed build's leftovers
       - rm -rf .dist-next
-      - pnpm exec astro build --outDir .dist-next
+      - bun --bun astro build --outDir .dist-next
       - |
         rm -rf .dist-prev
         if [ -d dist ]; then mv dist .dist-prev; fi

@@ -153,10 +153,9 @@ tasks:
         if: '[ ! -e .pms-install ]'
       - task: test
         if: '[ ! -e .pms-install ]'
+      # The site builds with the same Bun that lint and test just needed.
       - task: site:build
-        if: '[ ! -e .pms-install ] && command -v node >/dev/null && command -v pnpm >/dev/null'
-      - cmd: 'echo "warning: node or pnpm is not on PATH, so the docs site is not rebuilt" >&2'
-        if: '[ ! -e .pms-install ] && ! { command -v node >/dev/null && command -v pnpm >/dev/null; }'
+        if: '[ ! -e .pms-install ]'
       - cmd: stack/install.sh {{.CLI_ARGS}}
         if: '[ ! -e .pms-install ]'
       - cmd: stack/deploy.sh

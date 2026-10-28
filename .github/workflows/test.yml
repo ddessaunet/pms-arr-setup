@@ -93,16 +93,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # The version comes from package.json's packageManager.
-      - uses: pnpm/action-setup@v6
+      # The site builds on the same Bun as the scripts (.bun-version); site:install
+      # installs its packages from site/bun.lock.
+      - uses: oven-sh/setup-bun@v2
         with:
-          package_json_file: site/package.json
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: site/.nvmrc
-          cache: pnpm
-          cache-dependency-path: site/pnpm-lock.yaml
+          bun-version-file: .bun-version
 
       - uses: go-task/setup-task@v2
         with:
