@@ -1,0 +1,16 @@
+---
+title: Requests
+description: Every open Seerr request, why it has no file yet, and what to do about it.
+tableOfContents: false
+---
+
+import RequestsList from '../../components/RequestsList.astro';
+
+<div class="not-content">
+  <RequestsList />
+</div>
+
+Each open request is checked against Seerr, Radarr or Sonarr, and Prowlarr every time the page loads (kept for a
+minute): approved, monitored, out yet, downloading, failed. **Analyse** searches every indexer for it, as Interactive
+Search does, and says why each release was refused; the summary is kept for 6 hours. Nothing here changes the apps:
+the next step is yours. `jobs/stack-api` answers the page; the verdicts come from `stack/lib/request-doctor.ts`.

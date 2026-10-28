@@ -96,8 +96,9 @@ stand in for them.
 - **No previous / next:** the sidebar already links every page.
 - **The menu button** (under 50rem) is a small maze cell, its wall Pinky while the menu is
   open.
-- **Content width:** 45rem for prose. The dashboard, the profile map and the control page,
-  which lay cards and tables side by side, and the logs, with their long lines, get 72rem.
+- **Content width:** 45rem for prose. The dashboard, the requests, the profile map and the
+  control page, which lay cards and tables side by side, and the logs, with their long
+  lines, get 72rem.
 
 ## Status levels
 
@@ -128,6 +129,11 @@ Buttons live on the control page (`/control/`), the login page and the header's 
   Plex button. Its message line is text-muted, or the level tones' text (danger-text,
   warning-text) on the raised surface when the sign-in failed or expired, always as a
   sentence.
+- **Requests** (`/requests/`) are the dashboard's cards: the title in pixels, the
+  verdict's level badge (word and mark, as the status levels), its sentence in text-strong,
+  then the next step after a Pinky "Next" label, and the search's details as reasons. The
+  ones that need something come first. Analyse is a small maze-cell button; while one
+  search runs, every Analyse is disabled and the running one says "Searching…".
 - **Sign out** is a small maze-cell button at the right of the header, on every page but
   the login page.
 - **The Mock tag** is warning-text on warning-low with a warning border, as the Degraded

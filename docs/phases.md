@@ -27,7 +27,7 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Address check — `lan-address.timer` re-applies the apps' address settings when DHCP moves the box (2026-10-08: first run applied all five at .66/.86; a stale Seerr entry re-applied only Seerr; after the 18:29 reboot it ran at +2 min, addresses unchanged, nothing applied)
 - [x] Stack dashboard — the docs site's front page: every service's link and status, the host's jobs, redacted logs (`jobs/stack-status`) (2026-10-08: both timers armed; runs every 2 min in ~3 s, overall OK, 16 log sources read, 0 secrets in the output; the first settings check found all six apps matching)
 - [x] Install directory — the stack runs from `/opt/arr-setup`, installed from the repo by `task deploy`; the clone can move freely (2026-10-19: installed from `777aef7`, `.env` carried over; all six units run from the install, `arr-reclaim` restarted there and watching, every timer armed, the first `stack-status` run from it succeeded; `docs` and `decluttarr` recreated with their files under `/opt/arr-setup`, `:8088` and `/live/` answer 200; the install matches the clone and `task check` is clean. The move-the-clone check was not run)
-- [ ] Sign-in — the docs site behind the Plex server owner's sign-in (`jobs/stack-api`, nginx's `auth_request`)
+- [ ] Sign-in and request doctor — the docs site behind the Plex server owner's sign-in (`jobs/stack-api`, nginx's `auth_request`), and `/requests/`: why each open request has no file yet
 
 Run `stack/preflight.sh` before each of Phases 0–1b. It is read-only.
 
@@ -1276,7 +1276,7 @@ task docs:up decluttarr:up
 The old deploy points the units back at the clone. `/opt/arr-setup` is then inert and can
 be removed.
 
-## Sign-in — the docs site behind the Plex server owner's sign-in
+## Sign-in and request doctor — the site behind the owner's sign-in, and `/requests/`
 
 The site shows container logs, torrent names and addresses, and is about to get a request
 doctor and real controls. `jobs/stack-api` (a Bun service on a Unix socket) runs Plex's PIN
@@ -1323,6 +1323,10 @@ From the main clone, after the merge. It needs sudo, so it's yours to run:
 - `sudo systemctl stop stack-api`: every page goes to `/login/`, which says stack-api is not
   answering. `sudo systemctl start stack-api` and sign in again (the session is kept).
 - The dashboard lists `stack-api` among the host's services, ok.
+- `/requests/` lists every open Seerr request with a verdict. On one that says "Searched when
+  it was added, and nothing was grabbed", *Analyse* answers within a couple of minutes with
+  why (on 2026-10-28 Hope (2026) was "No 4K release yet: all 19 are 1080p or 720p"), and
+  `task stack-api:logs` shows `analyse: request …`. Nothing in Radarr changes.
 
 **Rollback**
 

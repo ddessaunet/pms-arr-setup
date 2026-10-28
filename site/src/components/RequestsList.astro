@@ -1,0 +1,14 @@
+---
+// The requests page's list: filled by lib/requests-client.ts from
+// jobs/stack-api's /api/requests (behind the sign-in).
+---
+
+<section class="req" aria-label="Open requests">
+  <p class="ctl-meta" data-requests-meta aria-live="polite">Loading…</p>
+  <ul class="dash-reasons" data-requests-errors></ul>
+  <div class="req-list" data-requests></div>
+</section>
+
+<script>
+  import '../lib/requests-client.ts';
+</script>
