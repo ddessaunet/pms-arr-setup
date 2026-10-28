@@ -112,9 +112,8 @@ bash returned.
   The weekly updater moves the apps on, so being behind is normal: regenerate when a
   port needs it. Checked in under `stack/lib/api/`, imported with `import type` only
   (`rules.test.ts`), and left out of the install.
-- **Step 1** (arr-fallback-search) reads a handful of fields from two Radarr endpoints,
-  so it keeps hand-written narrow types beside its code. Radarr's and Sonarr's are
-  generated since step 3, so they can give way to those whenever it is next touched.
+- **Step 1** (arr-fallback-search) began with hand-written narrow types for the two
+  Radarr endpoints it reads; since 2026-10-28 it uses the generated Radarr ones too.
 - **Bazarr** (Swagger 2.0 only), **qBittorrent** and **Plex** (no spec): hand-written
   narrow types.
 - Small runtime guards check the fields each script relies on. Seerr writes keep narrow
