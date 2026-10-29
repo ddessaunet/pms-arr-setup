@@ -246,6 +246,10 @@ disappear. Confirm before anything destructive:
   the only way to use the generated API types in `stack/lib/api/` (`task types:gen`). Commands
   go through `stack/lib/run.ts` (never `Bun.$`), HTTP through `stack/lib/http.ts`, and a
   `main` through `runMain` (never `process.exit()`). Output formats stay the bash ones.
+- **A PR that changes what the site shows has screenshots in its description**, of each
+  state it changes: the `pr-screenshots` skill (`.claude/skills/pr-screenshots/SKILL.md`)
+  says how. They are rendered headlessly with made-up data (`site/screenshots/scenes.ts`),
+  never of the live, signed-in site: the repo is public.
 - CI (`.github/workflows/test.yml`) runs `task lint test` and `task site:lint site:test site:check`
   on every PR and every push to `main`. It calls the same tasks, so a check added to
   them runs there too; it pins shellcheck to the box's version (0.11.0), and Bun to

@@ -18,6 +18,8 @@ site/node_modules/
 site/dist/
 site/.astro/
 site/.dist-*/
+# task site:screenshot's pictures: they go to the pr-screenshots branch, not here.
+site/.screenshots/
 
 # Task's record of which tasks are up to date (sources/generates).
 .task/

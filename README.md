@@ -61,6 +61,7 @@ stack/                what the whole stack shares
                       launcher), *.ts (the TypeScript scripts' shared library, each with a test)
   install.sh          copy this tree into the install directory, then run its deploy.sh
   start.sh  preflight.sh  deploy.sh  run-tests.sh  installed.sh
+  pr-screenshots.sh   publish task site:screenshot's pictures for a PR description
   layout.test.sh      the app contract, below
 docs/                 the runbook and the updater (Markdown, read in the repo)
 ```
@@ -250,6 +251,7 @@ both.
 | `task stack-status:dry` / `:run` / `:audit` | The dashboard's data: print it / write it now / count what it masks, and confirm no secret is left. |
 | `task site:build` | Build the docs website into the source's `site/dist`; `task deploy` publishes it on `:8088`. |
 | `task site:check` / `site:test` / `site:dev` | Prove it builds / its unit tests / a live preview on `:4321`. These run on Bun, like the scripts. |
+| `task site:screenshot -- [scene…]` / `site:screenshot:install` | Screenshots of the site with made-up data (`site/screenshots/scenes.ts`), into `site/.screenshots/`, for a PR description (`stack/pr-screenshots.sh` publishes them) / download the headless Chromium it runs. |
 | `task site:lint` / `site:fmt` | Lint and format-check the site (changes nothing) / rewrite its files in its format. Both are Vite+ (`site/vite.config.ts`). |
 
 `qbt:` is an alias for `qbittorrent:`.

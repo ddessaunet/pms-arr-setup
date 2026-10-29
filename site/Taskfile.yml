@@ -54,6 +54,23 @@ tasks:
       - defer: rm -rf .dist-check
       - bun --bun astro build --outDir .dist-check
 
+  screenshot:
+    desc: 'Screenshots of the site with made-up data, for PR descriptions: -- [scene…] (site/screenshots/scenes.ts; --list names them)'
+    deps: [install]
+    preconditions:
+      - sh: ls -d "$HOME"/.cache/ms-playwright/chromium_headless_shell-* >/dev/null 2>&1
+        msg: Playwright has no Chromium yet (task site:screenshot:install).
+    cmds:
+      - bun --bun screenshots/shoot.ts {{.CLI_ARGS}}
+
+  screenshot:install:
+    desc: Download the headless Chromium task site:screenshot runs (~120 MB, into ~/.cache/ms-playwright; no sudo)
+    deps: [install]
+    cmds:
+      - bunx --bun playwright install chromium-headless-shell
+      # Its one library the box lacks; installing it is the owner's (sudo).
+      - cmd: ldconfig -p | grep -q libasound.so.2 || echo 'Chromium also needs libasound.so.2 - sudo apt install libasound2t64'
+
   build:
     desc: Build, then swap the result into site/dist (task deploy publishes it)
     deps: [install]
