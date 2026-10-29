@@ -19,6 +19,11 @@
 // This script owns ALL language profiles: Bazarr replaces the whole list on a
 // write, so a profile added in the WebUI is removed by the next apply.
 //
+// Plex is reached one of two ways. With an API key (what PLEX_TOKEN sets), by
+// plex.ip/port/ssl, which this script owns. With Plex OAuth (a WebUI sign-in,
+// or Bazarr's own migration from the key), by plex.server_url; Bazarr then
+// clears ip/port/ssl at every start, so under OAuth they are left to it.
+//
 // Exit: 0 applied and verified (or no drift; a FAILING connection only warns) ·
 // 1 drift, or a step failed · 2 usage · 3 not reachable, or not configured.
 
@@ -73,8 +78,12 @@ export const opensubtitlesOn = (s: Secrets): boolean => s.osUser !== '' && s.osP
 export const providers = (s: Secrets): string[] =>
   opensubtitlesOn(s) ? ['opensubtitlescom', ...FREE_PROVIDERS] : [...FREE_PROVIDERS];
 
+/** How Bazarr reaches Plex with an API key; unused, and cleared at start, under OAuth. */
+export const PLEX_CONNECTION = ['plex.ip', 'plex.port', 'plex.ssl'] as const;
+
 /**
  * Every owned setting, as {"section.key": value}. Only these are ever written.
+ * Under Plex OAuth (plexOAuth), not PLEX_CONNECTION: Bazarr owns those then.
  * auth.password is the md5 Bazarr stores; formBody sends the plain one.
  * only_monitored stays off: most of the library is unmonitored (Phase 8 imported
  * it that way), and those titles need subtitles as much as new ones.
@@ -84,8 +93,8 @@ export const providers = (s: Secrets): string[] =>
  * Not radarr/sonarr.base_url: a written "/" is stored as "", which would read
  * back as drift forever, and the default already works.
  */
-export function wantSettings(s: Secrets): Record<string, Json> {
-  return {
+export function wantSettings(s: Secrets, oauth = false): Record<string, Json> {
+  const want: Record<string, Json> = {
     'general.use_radarr': true,
     'radarr.ip': 'radarr',
     'radarr.port': 7878,
@@ -122,6 +131,8 @@ export function wantSettings(s: Secrets): Record<string, Json> {
     'auth.password': createHash('md5').update(s.pass).digest('hex'),
     ...(opensubtitlesOn(s) ? { 'opensubtitlescom.username': s.osUser, 'opensubtitlescom.password': s.osPass } : {}),
   };
+  if (oauth) for (const k of PLEX_CONNECTION) delete want[k];
+  return want;
 }
 
 export function wantProfiles() {
@@ -164,6 +175,9 @@ function getpath(obj: unknown, path: readonly string[]): unknown {
   }
   return cur;
 }
+
+/** Bazarr reaches Plex by OAuth, according to a GET /system/settings response. */
+export const plexOAuth = (got: unknown): boolean => getpath(got, ['plex', 'auth_method']) === 'oauth';
 
 /** Owned keys whose value differs in a GET /system/settings response, in want's order. */
 export function settingsDrift(got: unknown, want: Readonly<Record<string, Json>>): string[] {
@@ -327,9 +341,9 @@ export async function main(argv: readonly string[], deps: Deps): Promise<number>
 
   // ─── apply ──────────────────────────────────────────────────────────────────
   const applySettings = async (): Promise<boolean> => {
-    const want = wantSettings(secrets);
     const s = await bzGet('/system/settings');
     if (!s.ok) return (failHttp('read settings', s), false);
+    const want = wantSettings(secrets, plexOAuth(s.json));
     const drift = settingsDrift(s.json, want);
     const l = await bzGet('/system/languages');
     if (!l.ok) return (failHttp('read languages', l), false);
@@ -356,6 +370,8 @@ export async function main(argv: readonly string[], deps: Deps): Promise<number>
     return true;
   };
 
+  // Storing the token switches Bazarr to API-key auth (from OAuth too), so it
+  // goes before the settings, which then own plex.ip/port/ssl again.
   const applyPlexToken = async (): Promise<boolean> => {
     if (await plexTokenOk()) return (log('  Plex token already set'), true);
     const w = await bz('POST', '/plex/apikey', `apikey=${uri(plexToken)}`);
@@ -396,13 +412,14 @@ export async function main(argv: readonly string[], deps: Deps): Promise<number>
     let ok = true;
     const s = await bzGet('/system/settings');
     if (!s.ok) return (log('  FAIL  read settings'), false);
-    const drift = settingsDrift(s.json, wantSettings(secrets));
+    const oauth = plexOAuth(s.json);
+    const drift = settingsDrift(s.json, wantSettings(secrets, oauth));
     if (drift.length > 0) {
       log(`  DRIFT    settings: ${drift.join(' ')}`);
       ok = false;
     } else
       log(
-        `  ok       settings: Radarr/Sonarr, default profile, providers ${providers(secrets).join(',')}, Plex refresh, form login`,
+        `  ok       settings: Radarr/Sonarr, default profile, providers ${providers(secrets).join(',')}, Plex refresh${oauth ? ' (OAuth)' : ''}, form login`,
       );
     if (!opensubtitlesOn(secrets))
       log('  warn     OpenSubtitles.com off — set OPENSUBTITLES_USER/PASS in .env for its catalogue');
@@ -475,7 +492,7 @@ export async function main(argv: readonly string[], deps: Deps): Promise<number>
   log(`  up: ${text((status.json as { data?: { bazarr_version?: unknown } } | undefined)?.data?.bazarr_version)}`);
 
   if (mode === 'apply') {
-    const applied = (await applySettings()) && (await applyPlexToken()) && (await applyProfilesToTitles());
+    const applied = (await applyPlexToken()) && (await applySettings()) && (await applyProfilesToTitles());
     if (!applied) return 1;
   }
   log('Read-back:');

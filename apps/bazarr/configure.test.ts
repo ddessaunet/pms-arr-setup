@@ -14,6 +14,9 @@
 //   versions; GET /api/plex/webhook/list succeeds only with a valid Plex token
 // - podnapisi no longer exists, and subdivx became subx (API key required)
 // - POST /api/movies (radarrid, profileid pairs) gives titles a profile
+// - under Plex OAuth (plex.auth_method "oauth", seen on the box from Bazarr's own
+//   migration) it uses plex.server_url and clears plex.ip at every start; POST
+//   /api/plex/apikey sets auth_method back to "apikey"
 
 import { afterAll, describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
@@ -27,6 +30,8 @@ import {
   enabledLangs,
   formBody,
   main,
+  PLEX_CONNECTION,
+  plexOAuth,
   profilesDrift,
   settingsDrift,
   unprofiled,
@@ -119,6 +124,25 @@ describe('want_settings', () => {
     expect([WO['opensubtitlescom.username'], WO['opensubtitlescom.password']]).toEqual(['me', 'pw']));
   test('only one of the account fields → off', () =>
     expect('opensubtitlescom.username' in wantSettings({ ...SECRETS, osUser: 'me' })).toBe(false));
+  const WA = wantSettings(SECRETS, true);
+  test('under OAuth: no ip/port/ssl (Bazarr clears them at start)', () =>
+    expect(PLEX_CONNECTION.filter((k) => k in WA)).toEqual([]));
+  test('…the rest of Plex still owned', () =>
+    expect([WA['general.use_plex'], WA['plex.movie_library'], WA['plex.update_movie_library']]).toEqual([
+      true,
+      ['Movies'],
+      true,
+    ]));
+});
+
+describe('plex_oauth', () => {
+  test('auth_method oauth → OAuth', () => expect(plexOAuth({ plex: { auth_method: 'oauth' } })).toBe(true));
+  test('apikey, missing or no plex section → not', () =>
+    expect([plexOAuth({ plex: { auth_method: 'apikey' } }), plexOAuth({ plex: {} }), plexOAuth({})]).toEqual([
+      false,
+      false,
+      false,
+    ]));
 });
 
 // ─── drift ────────────────────────────────────────────────────────────────────
@@ -275,6 +299,18 @@ function configured(): State {
   return s;
 }
 
+/** As the box has it after Bazarr's OAuth migration and a restart: ip cleared. */
+function configuredOAuth(): State {
+  const s = configured();
+  s.settings.plex = {
+    ...s.settings.plex,
+    auth_method: 'oauth',
+    ip: '',
+    server_url: 'https://10-0-0-50.example.plex.direct:32400',
+  };
+  return s;
+}
+
 function fakeBazarr(state: State) {
   const posts: { path: string; form: URLSearchParams }[] = [];
   let statusCalls = 0;
@@ -323,6 +359,7 @@ function fakeBazarr(state: State) {
         }
         case '/plex/apikey':
           state.plexToken = form.get('apikey') ?? '';
+          (state.settings.plex ??= {}).auth_method = 'apikey';
           return reply(200);
         case '/movies':
         case '/series': {
@@ -409,7 +446,7 @@ describe('main', () => {
   test('apply on the configured box writes nothing', async () => {
     const r = await run([], configured());
     expect(r.code).toBe(0);
-    expect(r.lines.slice(2, 4)).toEqual(['  settings already set', '  Plex token already set']);
+    expect(r.lines.slice(2, 4)).toEqual(['  Plex token already set', '  settings already set']);
     expect(r.posts).toEqual([]);
   });
 
@@ -417,14 +454,15 @@ describe('main', () => {
     const s = fresh();
     const r = await run([], s);
     expect(r.code).toBe(0);
-    const set = r.lines[2] ?? '';
+    expect(r.lines[2]).toBe('  Plex token set (stored encrypted)');
+    const set = r.lines[3] ?? '';
     expect(set).toStartWith('  settings set: general.use_radarr radarr.ip ');
+    expect(set).toContain(' plex.ip ');
     expect(set).toContain(' radarr.apikey (hidden) ');
     expect(set).toContain(' auth.password (hidden) ');
     expect(set).toEndWith(" languages:es en profile:'Spanish + English'");
     expect(set).not.toContain('rk');
-    expect(r.lines.slice(3, 6)).toEqual([
-      '  Plex token set (stored encrypted)',
+    expect(r.lines.slice(4, 6)).toEqual([
       "  'Spanish + English' given to 2 movie(s) that had no profile",
       "  'Spanish + English' given to 1 series that had no profile",
     ]);
@@ -440,15 +478,42 @@ describe('main', () => {
     s.settings.radarr!.port = 7879;
     const r = await run([], s);
     expect(r.code).toBe(0);
-    expect(r.lines[2]).toBe('  settings set: radarr.port');
+    expect(r.lines[3]).toBe('  settings set: radarr.port');
     expect(r.posts.map((p) => p.form.toString())).toEqual(['settings-radarr-port=7878']);
+  });
+
+  test('under OAuth, a cleared plex.ip is no drift', async () => {
+    const r = await run(['--check'], configuredOAuth());
+    expect(r.code).toBe(0);
+    expect(r.lines).toContain(
+      '  ok       settings: Radarr/Sonarr, default profile, providers subtis,yifysubtitles,subtitulamostv,gestdown, Plex refresh (OAuth), form login',
+    );
+    expect(r.lines.at(-1)).toBe('No drift.');
+  });
+
+  test('…and apply writes nothing, ip and server_url as Bazarr left them', async () => {
+    const s = configuredOAuth();
+    const r = await run([], s);
+    expect(r.code).toBe(0);
+    expect(r.posts).toEqual([]);
+    expect([s.settings.plex?.ip, s.settings.plex?.auth_method]).toEqual(['', 'oauth']);
+  });
+
+  test('a refused OAuth token: the key is stored, then plex.ip is set for it', async () => {
+    const s = configuredOAuth();
+    s.plexToken = 'old';
+    const r = await run([], s);
+    expect(r.code).toBe(0);
+    expect(r.lines.slice(2, 4)).toEqual(['  Plex token set (stored encrypted)', '  settings set: plex.ip']);
+    expect(s.settings.plex?.auth_method).toBe('apikey');
+    expect(r.lines.at(-1)).toBe('No drift.');
   });
 
   test('a WebUI profile is replaced by the one profile', async () => {
     const s = configured();
     s.profiles = [...s.profiles, { profileId: 2, name: 'Extra', cutoff: null, items: [{ language: 'fr' }] }];
     const r = await run([], s);
-    expect(r.lines[2]).toBe("  settings set: profile:'Spanish + English'");
+    expect(r.lines[3]).toBe("  settings set: profile:'Spanish + English'");
     expect(JSON.parse(r.posts[0]?.form.get('languages-profiles') ?? '')).toEqual(wantProfiles());
   });
 
