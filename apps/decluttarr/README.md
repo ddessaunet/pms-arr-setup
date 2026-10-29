@@ -22,10 +22,10 @@ network.
 
 ## Settings
 
-[`config.yaml`](config.yaml), mounted read-only, turns on three jobs: `remove_stalled`,
-`remove_slow` (under 500 KB/s) and `remove_metadata_missing`. Each removes a download after
-three strikes, with a check every 10 minutes. [`config.test.ts`](config.test.ts) pins that
-list.
+[`config.yaml`](config.yaml), mounted read-only, turns on four jobs: `remove_stalled`,
+`remove_slow` (under 500 KB/s) and `remove_metadata_missing`, each after three strikes with a
+check every 10 minutes, and `remove_failed_imports`, which clears fake downloads on the
+first check. [`config.test.ts`](config.test.ts) pins that list and those patterns.
 
 ## Tasks
 
@@ -43,10 +43,16 @@ reading its release notes.
   seeding torrents or upgrades.
 - **`remove_failed_imports` must keep its narrow patterns.** Without `message_patterns` it
   matches `*`, and would remove (with its data) and blocklist every download stuck for any
-  reason, path problems included. It only clears executable fakes: the app's "Found
-  executable file" warning, and "No files found are eligible for import in" a path ending
-  in a name qBittorrent excludes. A folder that held an `.exe` and an `.nfo` is left for a
-  person, since its message ends in the folder's name.
+  reason, path problems included. It only clears fakes:
+  - executables: the app's "Found executable file" warning, and "No files found are
+    eligible for import in" a path ending in a name qBittorrent excludes;
+  - a download that is one `.7z`, `.zip` or `.rar` file: "Invalid video file, unsupported
+    extension: '.7z'". Nothing here unpacks, so even a genuine one could not be imported.
+    qBittorrent still downloads archives, so the fake is downloaded first and removed with
+    its data on the next check.
+
+  A folder that held an `.exe` and an `.nfo`, or a folder of archives (a split RAR set),
+  is left for a person, since its message ends in the folder's name.
 - **Its `detect_deletions` watcher starts even when it isn't listed**, so it gets no media
   mounts at all: it removes torrents through the qBittorrent API.
 - **`remove_slow` pauses** while qBittorrent runs above 80% of its download limit.

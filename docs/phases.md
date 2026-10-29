@@ -706,6 +706,7 @@ Why that release was picked (a `/release` search, 2026-09-29):
 | 4K ranking | Bluray-2160p, WEB-DL-2160p and WEBRip-2160p in **one group**, so score (TRaSH's release-group tiers) decides; tiered groups are the well-seeded ones | `apps/recyclarr/recyclarr.yml` |
 | replacement | **Decluttarr**: a queued download stalled (no connections), under **500 KB/s**, or stuck on metadata for 3 checks in a row, 10 min apart, is removed, blocklisted, and searched again (~30–40 min) | `apps/decluttarr/config.yaml` |
 | executable fakes | **qBittorrent never downloads** `*.exe` and other executables. An exe-only fake (2026-10-08: "Scrubs … S02E04 … CAKES", 886 MB of Windows program) then finishes empty, and **Decluttarr's `remove_failed_imports`** removes and blocklists it on its next check, so the app searches again. Narrow patterns only: a folder that held an `.exe` and an `.nfo` stays queued for a person | `apps/qbittorrent/excluded.ts`, `apps/decluttarr/config.yaml` |
+| archive fakes | A download that is **one `.7z`/`.zip`/`.rar`** (2026-10-23: "Scrubs … S02E06 … EZTV 7z", one 821 MB 7-zip) gets "Invalid video file, unsupported extension: '.7z'"; nothing unpacks, so it could never import. **Decluttarr's `remove_failed_imports`** removes and blocklists it on its next check. qBittorrent still downloads archives (its exclusions are global, and `manual` torrents keep theirs); a folder of archives stays queued for a person | `apps/decluttarr/config.yaml` |
 | qBittorrent | global download limit **64 MiB/s** (~537 Mbit/s, just under the 600 Mbit/s line; first set at 5 MiB/s from a wrong ~50 Mbit/s estimate, corrected 2026-09-30), so Decluttarr's slow check pauses while the line is busy rather than blaming a swarm; a stalled download no longer holds one of the 3 active slots | `qbt-configure.sh` |
 
 **What Decluttarr never does.** It works on the Radarr/Sonarr **queue** only, i.e. downloads
@@ -714,7 +715,7 @@ download was never imported, so it never reaches `arr-reclaim`'s import history
 (CLAUDE.md trap 9). A replaced *upgrade* leaves the old library file where it is. Only
 four jobs are listed, because listing a job turns it on; `remove_orphans` and
 `remove_unmonitored` would delete seeding torrents or upgrades. `remove_failed_imports` acts
-only on the executable-fake messages, never its default `*`. `apps/decluttarr/config.test.ts`
+only on the executable- and archive-fake messages, never its default `*`. `apps/decluttarr/config.test.ts`
 pins the list and those patterns.
 
 **Do**
@@ -787,6 +788,7 @@ pins the list and those patterns.
 - `task qbittorrent:check` reports `excluded_file_names_enabled` and `excluded_file_names`
   ok. On an exe-only fake, Decluttarr's log has `remove_failed_imports triggered removal`
   with "No files found are eligible for import in …/X.exe", and the release is blocklisted.
+  On a single-archive fake it is "Invalid video file, unsupported extension: '.7z'".
 
 **Rollback**
 
