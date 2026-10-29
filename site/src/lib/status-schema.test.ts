@@ -20,6 +20,6 @@ test('the job’s golden status.json matches the schema', () => {
 test('…and the page can read it', () => {
   const s = parseStatus(golden);
   assert.ok(s);
-  assert.equal(s.apps.length, 11);
+  assert.equal(s.apps.length, 12);
   assert.ok(s.host.some((h) => h.id === 'lan'));
 });

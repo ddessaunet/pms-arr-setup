@@ -29,7 +29,11 @@ website's source, and `apps/docs` is the container that serves the built website
   refused (jobs/stack-api answers it; it never changes the apps).
 - `/control/` is a **mock** of a control section: Deploy now with its streaming log, what is
   running (from `/live/`), restart, run a job now, a drift check, and the history. Every
-  action is simulated in the browser and changes nothing; nginx still serves files only.
+  action is simulated in the browser and changes nothing.
+- `/maintainerr/` is [Maintainerr](../maintainerr/README.md) itself, proxied to
+  `maintainerr:6246` on the `arr` network behind the same sign-in. It has no login of its
+  own, so this is its only door. While it is down that path answers 503 and the rest of the
+  site carries on (its upstream is resolved per request).
 - **Sign in first.** Every page and `/live/` file goes to `/login/` until the Plex account
   that owns the server signs in there ([`jobs/stack-api`](../../jobs/stack-api/README.md)
   runs it; nginx asks it before serving anything). Sign out is at the right of the header.

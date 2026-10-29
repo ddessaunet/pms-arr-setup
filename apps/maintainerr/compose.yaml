@@ -1,0 +1,42 @@
+# maintainerr — library cleanup. Included by the root compose.yaml (project `pms`).
+#
+# Rules over Plex watch history, Radarr, Sonarr and Seerr build collections that
+# show on the Plex home screen ("Leaving soon"), with a "Leaving {date}" poster
+# overlay. After a grace period a collection's action runs through Radarr/Sonarr,
+# and arr-reclaim then frees the torrent data. Its rules and connections come
+# from apps/maintainerr/configure.sh; every action stays "Do nothing" until the
+# owner switches it there (README.md).
+#
+# It has NO login, and anyone who reaches it can delete the library. So it
+# publishes no LAN port: the browser gets it at :8088/maintainerr/, through the
+# docs nginx and its Plex owner sign-in (BASE_PATH below). The loopback port is
+# for configure.sh and stack-status on this host only.
+#
+# Pinned: a release can change what a rule matches (3.13.0 turned a section
+# with no operator from AND into OR). Bump the tag by hand, after reading the
+# release notes, and run `task maintainerr:check` before letting it act.
+#
+# No media mounts: it deletes through Radarr/Sonarr, never on disk. Plex (host
+# network) is reached through the host gateway.
+#
+# First run: create its data directory as yourself, or Docker creates it
+# root-owned and Maintainerr (running as PUID:PGID) cannot write:
+#   install -d -m 755 /opt/appdata/maintainerr
+# then sign in with Plex once in its Settings, and run apps/maintainerr/configure.sh.
+
+services:
+  maintainerr:
+    image: ghcr.io/maintainerr/maintainerr:3.30.2
+    container_name: maintainerr
+    user: ${PUID:?set PUID in .env}:${PGID:?set PGID in .env}
+    environment:
+      TZ: ${TZ:?set TZ in .env}
+      BASE_PATH: /maintainerr
+    ports:
+      - "127.0.0.1:6246:6246"
+    volumes:
+      - ${APPDATA:?set APPDATA in .env}/maintainerr:/opt/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [arr]
+    restart: unless-stopped

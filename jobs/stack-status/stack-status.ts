@@ -41,6 +41,7 @@ export const STATUS_APPS = [
   'decluttarr',
   'docs',
   'flaresolverr',
+  'maintainerr',
   'plex',
   'prowlarr',
   'qbittorrent',
@@ -54,6 +55,7 @@ export const ON_DEMAND_APPS: readonly string[] = ['recyclarr'];
 export const APP_PORT: Readonly<Record<string, number>> = {
   bazarr: 6767,
   docs: 8088,
+  maintainerr: 6246,
   plex: 32400,
   prowlarr: 9696,
   qbittorrent: 8081,
@@ -74,7 +76,7 @@ export const LOG_UNITS = [
 ];
 export const TIMERS = ['pms-update', 'arr-fallback-search', 'lan-address', 'stack-status', 'stack-status-drift'];
 /** The apps with a configure.sh, as Taskfile.yml's CONFIGURED. */
-export const DRIFT_APPS = ['qbittorrent', 'prowlarr', 'radarr', 'sonarr', 'seerr', 'bazarr', 'plex'];
+export const DRIFT_APPS = ['qbittorrent', 'prowlarr', 'radarr', 'sonarr', 'seerr', 'bazarr', 'plex', 'maintainerr'];
 /** The apps whose settings name the box's LAN addresses (jobs/lan-address). */
 const LAN_APPS = ['qbittorrent', 'prowlarr', 'radarr', 'sonarr', 'seerr'];
 /**
@@ -96,6 +98,8 @@ export const PUBLIC_ENV_KEYS = [
   'PROWLARR_USER',
   'ARR_USER',
   'OPENSUBTITLES_USER',
+  // Names the chat; sends nothing without MAINTAINERR_TELEGRAM_BOT_TOKEN.
+  'MAINTAINERR_TELEGRAM_CHAT_ID',
 ];
 export const SECRET_KEY_RE = /_(KEY|PASS|PASSWORD|TOKEN|SECRET|CLAIM)$/;
 
@@ -833,6 +837,12 @@ async function probeDocs(c: Ctx): Promise<Probe> {
   return httpProbe(r.code, r.seconds, 8088);
 }
 
+// Under its BASE_PATH, on the loopback port (it has no login: no LAN port).
+async function probeMaintainerr(c: Ctx): Promise<Probe> {
+  const r = await c.deps.fetch(`http://127.0.0.1:6246/maintainerr/api/health/ready`, {}, c.tHttp);
+  return httpProbe(r.code, r.seconds, 6246);
+}
+
 async function probeFlaresolverr(c: Ctx, ip: unknown): Promise<Probe> {
   if (typeof ip !== 'string' || ip === '') return { ...NO_PROBE };
   const r = await c.deps.fetch(`http://${ip}:${FLARESOLVERR_PORT}/`, {}, c.tHttp);
@@ -995,9 +1005,10 @@ async function fastRun(c: Ctx): Promise<boolean> {
       probeSeerr(c),
       probePlex(c),
       probeDocs(c),
+      probeMaintainerr(c),
       probeQbittorrent(c),
       probeFlaresolverr(c, containers.flaresolverr?.ips[0]),
-    ]).then(([radarr, sonarr, prowlarr, bazarr, seerr, plex, docs, qbittorrent, flaresolverr]) => ({
+    ]).then(([radarr, sonarr, prowlarr, bazarr, seerr, plex, docs, maintainerr, qbittorrent, flaresolverr]) => ({
       radarr,
       sonarr,
       prowlarr,
@@ -1005,6 +1016,7 @@ async function fastRun(c: Ctx): Promise<boolean> {
       seerr,
       plex,
       docs,
+      maintainerr,
       qbittorrent,
       flaresolverr,
     })),

@@ -2,7 +2,8 @@
 //
 //   apps/<app>/compose.yaml     which apps exist, and the port each publishes
 //   site/src/data/services.yml  what each one is, its web path, and the port of
-//                               an app on the host network (Plex)
+//                               an app on the host network (Plex) or one served
+//                               through another app (Maintainerr, through docs)
 //
 // Pure (strings in, data out) so `task site:test` runs it without Astro.
 // Anything that disagrees throws, and a throw fails `astro build`: the page
@@ -74,8 +75,15 @@ export function buildServices(composeById: Record<string, string>, servicesText:
   return listed.map((id) => {
     const e = apps[id];
     const pub = published(id, composeById[id]);
+    // A loopback port is for this host's scripts; the page links to the app
+    // through another one (Maintainerr, through docs' sign-in), named here.
     if (pub.loopback) {
-      throw new Error(`apps/${id}/compose.yaml binds its port to 127.0.0.1: the LAN cannot reach it`);
+      if (e.port === undefined) {
+        throw new Error(
+          `apps/${id}/compose.yaml binds its port to 127.0.0.1: the LAN cannot reach it; give the port it is served through in services.yml`,
+        );
+      }
+      return { id, label: e.label, role: e.role, port: e.port, path: e.path };
     }
     if (pub.port !== null && e.port !== undefined) {
       throw new Error(

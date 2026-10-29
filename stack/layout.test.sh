@@ -44,6 +44,7 @@ ok() { # label cmd...
 # in this repo, configure/check. The exceptions say why.
 #   recyclarr   one-shot tool: no logs/up/update, its own preview/sync
 #   decluttarr  pinned image (bump the tag by hand): no update
+#   maintainerr pinned image, like decluttarr, and its settings live here
 SERVICE_TASKS="logs ps up"
 UPDATE_TASKS="update update:dry"
 CONFIGURE_TASKS="check configure"
@@ -52,6 +53,7 @@ expect_tasks() { # app → sorted task names
     case "$1" in
         recyclarr)  t="preview sync" ;;
         decluttarr) t="$SERVICE_TASKS" ;;
+        maintainerr) t="$SERVICE_TASKS $CONFIGURE_TASKS" ;;
         *)          t="$SERVICE_TASKS $UPDATE_TASKS"
                     [[ -f "apps/$1/configure.sh" ]] && t+=" $CONFIGURE_TASKS" ;;
     esac

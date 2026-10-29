@@ -547,6 +547,7 @@ const INSPECT_ALL = [
   ...INSPECT,
   runOk('docs'),
   runOk('flaresolverr', '172.19.0.4'),
+  runOk('maintainerr'),
   runOk('plex'),
   runOk('prowlarr'),
   runOk('qbittorrent'),
@@ -614,6 +615,7 @@ function fakes() {
     if (/:8989\/.*\/status$/.test(url)) return r('{"version":"4.0.20"}', 200, 0.01);
     if (url.endsWith(':32400/identity')) return r(ID_OK, 200, 0.005);
     if (url.endsWith(':8088/login/')) return r('<html>', 200, 0.002);
+    if (url.endsWith(':6246/maintainerr/api/health/ready')) return r('{"status":"ok"}', 200, 0.004);
     if (url === 'http://172.19.0.4:8191/') return r('{"msg":"FlareSolverr is ready!","version":"3.5.2"}', 200, 0.003);
     return r('', 0, 0);
   };
@@ -706,12 +708,12 @@ describe('fast_run', () => {
   test('fast_run exits 0 on a degraded stack', () => expect(code).toBe(0));
   test('schema, overall, counts', () =>
     expect(`${S.schema} ${S.overall} ${JSON.stringify(S.counts)}`).toBe(
-      '1 down {"degraded":2,"down":3,"n/a":1,"ok":15}',
+      '1 down {"degraded":2,"down":3,"n/a":1,"ok":16}',
     ));
   test('one item per app, in order', () => expect(S.apps.map((a) => a.id)).toEqual([...STATUS_APPS]));
   test("apps' levels", () =>
     expect(S.apps.map((a) => `${a.id}:${a.level}`).join(' ')).toBe(
-      'bazarr:down decluttarr:down docs:ok flaresolverr:ok plex:ok prowlarr:ok qbittorrent:ok radarr:ok recyclarr:n/a seerr:down sonarr:degraded',
+      'bazarr:down decluttarr:down docs:ok flaresolverr:ok maintainerr:ok plex:ok prowlarr:ok qbittorrent:ok radarr:ok recyclarr:n/a seerr:down sonarr:degraded',
     ));
   test('host levels', () =>
     expect(S.host.map((h) => `${h.id}:${h.level}`).join(' ')).toBe(
@@ -723,7 +725,7 @@ describe('fast_run', () => {
   });
   test('LAN addresses for the page', () =>
     expect((S.lan as { addr: string }[]).map((a) => a.addr).join(' ')).toBe('192.168.0.86 192.168.0.66'));
-  test('logs: every unit and container (not recyclarr)', () => expect(L.sources).toHaveLength(16));
+  test('logs: every unit and container (not recyclarr)', () => expect(L.sources).toHaveLength(17));
   test('logs: secrets in log lines masked', () =>
     expect(readFileSync(join(s.outDir, 'logs.json'), 'utf8').includes('zzz999')).toBe(false));
   test('the documents are mode 644', () =>
@@ -799,10 +801,11 @@ describe('main', () => {
       'seerr ok',
       'bazarr drift',
       'plex ok',
+      'maintainerr ok',
     ]);
     expect(Object.keys(d.apps[0])).toEqual(['id', 'rc', 'seconds', 'result', 'lines']);
     expect(s.lines).toEqual([
-      'settings check: qbittorrent ok, prowlarr warn, radarr ok, sonarr ok, seerr ok, bazarr drift, plex ok, deploy ok',
+      'settings check: qbittorrent ok, prowlarr warn, radarr ok, sonarr ok, seerr ok, bazarr drift, plex ok, maintainerr ok, deploy ok',
     ]);
   });
 
@@ -867,8 +870,9 @@ describe('pinned against the repo', () => {
       test('plex runs on the host network (32400)', () =>
         expect(read('apps/plex/compose.yaml')).toContain('network_mode: host'));
     else
+      // maintainerr's is loopback only: it has no login (apps/maintainerr/compose.yaml).
       test(`${a} probes its published port ${port}`, () =>
-        expect(read(`apps/${a}/compose.yaml`)).toMatch(new RegExp(`^\\s+- "${port}:[0-9]+"`, 'm')));
+        expect(read(`apps/${a}/compose.yaml`)).toMatch(new RegExp(`^\\s+- "(127\\.0\\.0\\.1:)?${port}:[0-9]+"`, 'm')));
   }
   test("plex identity is CLAUDE.md's", () =>
     expect(read('CLAUDE.md')).toContain(`identity \`${PLEX_IDENTITY.slice(0, 8)}…\``));

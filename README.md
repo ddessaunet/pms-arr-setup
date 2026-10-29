@@ -80,6 +80,7 @@ serves the built website.
 | [recyclarr](apps/recyclarr/README.md) | — | TRaSH quality profiles, on demand. |
 | [decluttarr](apps/decluttarr/README.md) | — | Replaces stalled or crawling downloads. |
 | [bazarr](apps/bazarr/README.md) | 6767 | Spanish and English subtitles. |
+| [maintainerr](apps/maintainerr/README.md) | 8088 `/maintainerr/` (no port of its own) | "Leaving soon" shelves in Plex; clears old, unwatched titles once its actions are on. |
 | [docs](apps/docs/README.md) | 8088 | This repo's docs website, behind the owner's Plex sign-in: the stack dashboard (links, status), its logs and the quality-profiles map. |
 
 | job | runs | role |

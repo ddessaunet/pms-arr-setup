@@ -21,6 +21,7 @@ test('the repo as it is: every app, with its port', () => {
   assert.equal(by.docs.port, 8088, 'the host side, not nginx-unprivileged’s 8080');
   for (const id of ['radarr', 'sonarr', 'prowlarr', 'seerr', 'bazarr']) assert.ok(by[id].port, id);
   for (const id of ['flaresolverr', 'recyclarr', 'decluttarr']) assert.equal(by[id].port, null, id);
+  assert.deepEqual([by.maintainerr.port, by.maintainerr.path], [8088, '/maintainerr/'], 'through the docs sign-in');
 });
 
 test('services.yml order is the page order', () => {
@@ -58,9 +59,11 @@ test('a host-network app without a port throws', () => {
   assert.throws(() => buildServices(COMPOSE, none), /plex runs on the host network/);
 });
 
-test('a port bound to 127.0.0.1 throws', () => {
+test('a port bound to 127.0.0.1 throws, unless services.yml names the one it is served through', () => {
   const lo = { ...COMPOSE, docs: COMPOSE.docs.replace('"8088:8080"', '"127.0.0.1:8088:8080"') };
   assert.throws(() => buildServices(lo, SERVICES), /binds its port to 127.0.0.1/);
+  const through = SERVICES.replace('{ label: Docs,', '{ label: Docs, port: 9999,');
+  assert.equal(buildServices(lo, through).find((s) => s.id === 'docs')?.port, 9999);
 });
 
 test('a compose file without its own service throws', () => {
