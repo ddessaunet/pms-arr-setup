@@ -1,4 +1,5 @@
-# stack-api.service — the docs site's backend: the Plex sign-in and request status.
+# stack-api.service — the docs site's backend: the Plex sign-in, request status
+# and Ask AI (Ollama on 127.0.0.1:11434).
 #
 # Source of truth is this file. `task deploy`
 # installs it, enables it and restarts it; `task deploy:check` reports drift.
@@ -41,7 +42,7 @@ ProtectKernelTunables=yes
 ProtectControlGroups=yes
 RestrictSUIDSGID=yes
 LockPersonality=yes
-# Its socket, the apps on 127.0.0.1, and plex.tv.
+# Its socket, the apps and Ollama on 127.0.0.1, and plex.tv.
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 
 Nice=5

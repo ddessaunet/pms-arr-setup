@@ -4,7 +4,7 @@ The docs site's backend. It runs the **Plex sign-in that gates the whole site**:
 (in [apps/docs](../../apps/docs/README.md)) asks it before serving any page or `/live/`
 file, and only the account that owns this Plex server gets in. Behind that it runs the
 **request doctor** (`/requests/`): why each open Seerr request has no file yet, and what
-to do about it. Later, the `/control/` page's actions will be its routes too.
+to do about it, and Ask AI, which has a model say the same in plain words. Later, the `/control/` page's actions will be its routes too.
 
 ## Role
 
@@ -35,6 +35,22 @@ to do about it. Later, the `/control/` page's actions will be its routes too.
   search asks every indexer, FlareSolverr's included, so it runs only when asked: one at
   a time, at most 10 an hour, and its summary is kept 6 hours (in the SQLite file). It
   never grabs, and nothing here writes to Seerr, Radarr, Sonarr or Prowlarr.
+- **Ask AI** has a model put one request's facts into a few sentences and a next step:
+  the doctor's verdict, the title in Radarr/Sonarr, its queue and history, the last
+  search's summary, and the policy from `arr-policy.ts` (prompt in
+  [`stack/lib/request-ai.ts`](../../stack/lib/request-ai.ts), clients in
+  [`stack/lib/ai.ts`](../../stack/lib/ai.ts)). The facts are redacted before the prompt is
+  built, so no key reaches a model. Only when asked, one at a time, at most
+  `AI_MAX_PER_HOUR` (20) an hour. It runs in the background: `POST
+  /api/requests/:id/advise` answers 202 at once, and the page polls `GET` on the same
+  path (running, done, failed, idle) and finds a running one again after a reload. The
+  answer is kept (SQLite, up to 7 days) and shown while the verdict and the last search
+  are the same ones it was about.
+- **Which models**: `AI_MODELS` in the install's `.env` is the allowlist the page's picker
+  shows (`ollama/qwen2.5:3b,ollama/llama3.2,…`; `off` for none), `AI_MODEL` the default.
+  stack-api refuses any model not on it, so a paid one is reachable only once listed.
+  Read at start: `sudo systemctl restart stack-api` after a change. A paid API is one more
+  client in `ai.ts`, with its key in `.env` (`*_KEY`, secret by name).
 - **Built on [Hono](https://hono.dev)**, the stack's one runtime dependency. `stack/install.sh`
   copies `node_modules/hono` into the install (it has no dependencies of its own), and only
   `jobs/stack-api/` may import it (`stack/lib/rules.test.ts`).
@@ -71,6 +87,15 @@ change to the code alone doesn't show in the unit file.
 - **An Analyse is a real search.** It is the same request as Interactive Search: every
   indexer is asked, and a FlareSolverr one starts a headless Chromium. That is why it is
   a button and not a timer.
+- **Ollama is native, not a container**: `ollama.service` on `127.0.0.1:11434`, outside
+  compose and `pms-update`, so it updates itself (or not) and `task check` doesn't see it.
+  On this box it runs on the CPU (an i7-2600 without AVX2; the GTX 560 is too old):
+  qwen2.5:3b reads the prompt at ~5 tokens/s and writes at ~2.5, so an answer takes
+  minutes and holds the cores a Plex transcode wants. That is why it is a button, one at
+  a time, in the background (past nginx's 180 s), and why the prompt is compact JSON.
+  Ollama reuses the shared system prompt between asks while the model stays loaded
+  (`keep_alive` 10 min), so a second ask is quicker. A 7B model (mistral) is slower still. A model it has not pulled answers "run: ollama pull …"; a model's answer can be
+  wrong, and the page says to check it.
 - **Never log cookies or tokens.** The journal says who signed in or was refused, nothing
   that would let someone else in.
 - **Signing out everywhere:** stop the service and delete the `sessions` rows (or the whole

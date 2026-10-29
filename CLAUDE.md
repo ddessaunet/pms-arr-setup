@@ -184,7 +184,10 @@ disappear. Confirm before anything destructive:
     which a real control backend would implement. `/requests/` is the request doctor:
     `jobs/stack-api` reads Seerr, Radarr/Sonarr and Prowlarr, and the verdicts and their
     advice come from `stack/lib/request-doctor.ts`, which names profiles and caps from
-    `arr-policy.ts` (keep it in step when trap 11 changes). Every page but `/login/` is
+    `arr-policy.ts` (keep it in step when trap 11 changes). Its **Ask AI** asks a model
+    (`stack/lib/ai.ts`; native Ollama on `127.0.0.1:11434`, not compose) only on a click,
+    one at a time, in the background (minutes on this CPU; the page polls), from redacted
+    facts, and only models on `.env`'s `AI_MODELS`. Every page but `/login/` is
     behind the owner's Plex sign-in (trap 20).
 18. **The box is wired-only, at `10.0.0.50`**, reserved for `eno1` on the mesh router
     (`10.0.0.1`, `10.0.0.0/22`) since 2026-10-17. Its Wi‑Fi (`wlp2s0`) is out of netplan

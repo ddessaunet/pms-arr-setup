@@ -8,12 +8,16 @@
 //             and never a Plex token
 //   releases  the last release search per title ('radarr:148'), summarised
 //             (request-doctor.ts), so a search's answer outlives a restart
+//   advice    the last Ask AI answer per request, with the fingerprint of what
+//             it was about (request-ai.ts): shown only while that is unchanged
 //
 // Times are epoch milliseconds, from the caller's clock.
 
 import { Database } from 'bun:sqlite';
 import { createHash, randomUUID } from 'node:crypto';
-import type { ReleaseSummary } from '../../stack/lib/request-doctor.ts';
+import type { Advice, ReleaseSummary } from '../../stack/lib/request-doctor.ts';
+
+export const ADVICE_TTL = 7 * 24 * 3600_000; // ms an answer is kept at most
 
 export interface Session {
   accountId: number;
@@ -44,6 +48,12 @@ export class Store {
         last_seen INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS releases (key TEXT PRIMARY KEY, searched_at INTEGER NOT NULL, summary TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS advice (
+        request_id INTEGER PRIMARY KEY,
+        fingerprint TEXT NOT NULL,
+        at INTEGER NOT NULL,
+        advice TEXT NOT NULL
+      );
     `);
   }
 
@@ -121,9 +131,24 @@ export class Store {
     return row ? (JSON.parse(row.summary) as ReleaseSummary) : null;
   }
 
-  /** Expired sessions and PINs older than pinTtlMs. */
+  putAdvice(requestId: number, fingerprint: string, at: number, advice: Advice): void {
+    this.db
+      .query(`INSERT OR REPLACE INTO advice (request_id, fingerprint, at, advice) VALUES (?, ?, ?, ?)`)
+      .run(requestId, fingerprint, at, JSON.stringify(advice));
+  }
+
+  /** The last answer about a request, while it is still about the same facts. */
+  advice(requestId: number, fingerprint: string): Advice | null {
+    const row = this.db
+      .query<{ advice: string }, [number, string]>(`SELECT advice FROM advice WHERE request_id = ? AND fingerprint = ?`)
+      .get(requestId, fingerprint);
+    return row ? (JSON.parse(row.advice) as Advice) : null;
+  }
+
+  /** Expired sessions, PINs older than pinTtlMs, and answers older than ADVICE_TTL. */
   prune(now: number, pinTtlMs: number): void {
     this.db.query(`DELETE FROM sessions WHERE expires <= ?`).run(now);
     this.db.query(`DELETE FROM pins WHERE created <= ?`).run(now - pinTtlMs);
+    this.db.query(`DELETE FROM advice WHERE at <= ?`).run(now - ADVICE_TTL);
   }
 }

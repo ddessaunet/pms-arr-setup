@@ -5,25 +5,42 @@
 //   POST /api/requests/:id/analyse   search the indexers for it now (Radarr's
 //                                    or Sonarr's /release), keep the summary
 //                                    6 h, and answer its new verdict
+//   POST /api/requests/:id/advise    { model? }: start asking a model
+//                                    (stack/lib/ai.ts) to put its facts into
+//                                    words; 202, the answer comes later
+//   GET  /api/requests/:id/advise    where it stands: running, done (the
+//                                    answer, kept while those facts are
+//                                    unchanged), failed, or idle
 //
 // The verdicts are stack/lib/request-doctor.ts's; this file only reads. It
 // never writes to Seerr, Radarr, Sonarr or Prowlarr. A release search is the
 // costly part: it asks every indexer (the FlareSolverr ones run a headless
 // Chromium), so it runs only when asked, one at a time, at most 10 an hour.
+// Asking a model is costly too (this box's CPU-only Ollama takes minutes, a
+// paid one spends money), so it is the same: only when asked, one at a time,
+// at most AI_MAX_PER_HOUR an hour, and only models on AI_MODELS' list. It runs
+// in the background, past nginx's 180 s, and the page polls for it.
 // Everything else is cheap local reads, kept for a minute.
 
 import type { Hono } from 'hono';
+import type { AiProvider } from '../../stack/lib/ai.ts';
 import type { App } from '../../stack/lib/arr-policy.ts';
 import { envGet, type Env as ProcessEnv } from '../../stack/lib/env.ts';
 import { is2xx, jsonOf, type Http } from '../../stack/lib/http.ts';
 import { readSeerrKey } from '../../stack/lib/keys.ts';
 import type { Log } from '../../stack/lib/log.ts';
 import { redact } from '../../stack/lib/redact.ts';
+import { advicePrompt, fingerprint } from '../../stack/lib/request-ai.ts';
 import {
   MEDIA_STATUS,
   REQUEST_STATUS,
   report,
   summariseReleases,
+  type Advice,
+  type AdviseState,
+  type AiInfo,
+  type AiJob,
+  type AiModel,
   type ArrTitle,
   type Episode,
   type Facts,
@@ -31,6 +48,7 @@ import {
   type QueueItem,
   type Release,
   type ReleaseSummary,
+  type RequestReport,
   type RequestsDoc,
   type SeerrRequest,
 } from '../../stack/lib/request-doctor.ts';
@@ -39,6 +57,8 @@ import type { Store } from './store.ts';
 
 const T_READ = 10_000; // ms per local read
 const T_SEARCH = 150_000; // ms for a release search (nginx waits 180 s)
+const T_ADVISE = 900_000; // ms for a model's answer (a CPU-only Ollama takes minutes)
+const FAILED_TTL = 600_000; // ms a failed answer's reason is reported
 const LIST_TTL = 60_000; // ms the request list is reused
 export const RELEASES_TTL = 6 * 3600_000; // ms a release search is shown
 
@@ -52,6 +72,11 @@ export interface RequestsDeps {
   repo: string;
   appdata: string;
   analyses: RateLimit;
+  /** The models Ask AI may use (AI_MODELS); null when AI is off. */
+  ai: AiInfo | null;
+  /** The client for one of them. */
+  provider: (m: AiModel) => AiProvider | null;
+  advices: RateLimit;
 }
 
 type Obj = Record<string, unknown>;
@@ -305,6 +330,9 @@ export function addRequestRoutes(app: Hono<Env>, d: RequestsDeps): void {
   const read = makeReader(d);
   let listCache: { at: number; doc: RequestsDoc; facts: Map<number, Facts> } | null = null;
   let searching = false;
+  /** The answer being written (one at a time), and why recent ones failed. */
+  let job: AiJob | null = null;
+  const failed = new Map<number, { error: string; at: number }>();
 
   async function build(): Promise<{ doc: RequestsDoc; facts: Map<number, Facts> }> {
     const now = d.now();
@@ -337,10 +365,14 @@ export function addRequestRoutes(app: Hono<Env>, d: RequestsDeps): void {
       if (f.arrError) errors.push(`${f.request.type === 'movie' ? 'Radarr' : 'Sonarr'} ${f.arrError}`);
     const doc: RequestsDoc = {
       generatedAt: new Date(now).toISOString(),
-      open: [...facts.values()].map((f) => report(f, now)),
+      open: [...facts.values()].map((f) => {
+        const r = report(f, now);
+        return { ...r, advice: d.store.advice(r.id, fingerprint(r)) };
+      }),
       available: all.filter((r) => r.mediaStatus === MEDIA_STATUS.available || r.status === REQUEST_STATUS.completed)
         .length,
       errors: [...new Set(errors)],
+      ai: d.ai,
     };
     return { doc, facts };
   }
@@ -361,7 +393,8 @@ export function addRequestRoutes(app: Hono<Env>, d: RequestsDeps): void {
       readSeerrKey(`${d.appdata}/seerr/settings.json`),
     ].filter((s) => s.length >= 4);
 
-  app.get('/api/requests', async (c) => c.json(redact((await current()).doc, secrets())));
+  // The job is live, not cached with the list.
+  app.get('/api/requests', async (c) => c.json(redact({ ...(await current()).doc, advising: job }, secrets())));
 
   app.post('/api/requests/:id/analyse', async (c) => {
     const id = Number(c.req.param('id'));
@@ -401,5 +434,75 @@ export function addRequestRoutes(app: Hono<Env>, d: RequestsDeps): void {
     const next = await current(true);
     const row = next.doc.open.find((x) => x.id === id);
     return row ? c.json(redact(row, secrets())) : c.json({ error: 'it is no longer open' }, 404);
+  });
+
+  app.post('/api/requests/:id/advise', async (c) => {
+    const ai = d.ai;
+    if (!ai) return c.json({ error: 'AI is off (AI_MODELS=off in .env)' }, 503);
+    const body: unknown = await c.req.json().catch(() => ({}));
+    const asked = isObj(body) && typeof body.model === 'string' && body.model ? body.model : ai.default;
+    const m = ai.models.find((x) => x.id === asked);
+    const client = m ? d.provider(m) : null;
+    if (!m || !client) return c.json({ error: `${asked} is not on AI_MODELS' list` }, 400);
+    const id = Number(c.req.param('id'));
+    const { facts, doc } = await current();
+    const f = facts.get(id);
+    const row = doc.open.find((x) => x.id === id);
+    if (!f || !row) return c.json({ error: 'no open request with that id' }, 404);
+    if (job) return c.json({ error: 'another answer is being written; try again when it is done' }, 409);
+    if (!d.advices.allow('advise', d.now()))
+      return c.json({ error: 'the hourly limit of AI answers is reached; try again later' }, 429);
+
+    const keys = secrets();
+    // The model sees the facts as the page would: masked, so no key can reach it.
+    const prompt = advicePrompt(redact(f, keys) as Facts, redact(row, keys) as RequestReport, d.now());
+    const print = fingerprint(row);
+    const started = d.now();
+    failed.delete(id);
+    d.log(`advise: request ${id} (${row.title}): asking ${m.provider} ${m.model}`);
+    const ask = async () => {
+      try {
+        const r = await client.complete(prompt, T_ADVISE);
+        const seconds = Math.round((d.now() - started) / 100) / 10;
+        if (!r.ok) {
+          d.log(`advise: request ${id}: ${r.error}`);
+          failed.set(id, { error: r.error, at: d.now() });
+          return;
+        }
+        const advice: Advice = {
+          text: redact(r.text, keys) as string,
+          provider: m.provider,
+          model: m.model,
+          at: new Date(d.now()).toISOString(),
+          seconds,
+        };
+        d.store.putAdvice(id, print, d.now(), advice);
+        // The list shows it from the store on its next build.
+        listCache = null;
+        d.log(
+          `advise: request ${id}: ${m.provider} ${m.model}, ${r.inTokens} in / ${r.outTokens} out tokens, ${seconds} s`,
+        );
+      } catch (e) {
+        d.log(`advise: request ${id}: ${e instanceof Error ? e.message : String(e)}`);
+        failed.set(id, { error: 'stack-api failed; see its journal', at: d.now() });
+      } finally {
+        job = null;
+      }
+    };
+    job = { id, model: m.model, startedAt: new Date(started).toISOString() };
+    void ask();
+    return c.json({ state: 'running', job } satisfies AdviseState, 202);
+  });
+
+  app.get('/api/requests/:id/advise', async (c) => {
+    const id = Number(c.req.param('id'));
+    if (job?.id === id) return c.json({ state: 'running', job } satisfies AdviseState);
+    const fail = failed.get(id);
+    if (fail && d.now() - fail.at < FAILED_TTL)
+      return c.json(redact({ state: 'failed', error: fail.error } satisfies AdviseState, secrets()));
+    const row = (await current()).doc.open.find((x) => x.id === id);
+    if (!row) return c.json({ error: 'no open request with that id' }, 404);
+    const state: AdviseState = row.advice ? { state: 'done', advice: row.advice } : { state: 'idle' };
+    return c.json(redact(state, secrets()));
   });
 }

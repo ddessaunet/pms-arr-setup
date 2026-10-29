@@ -1,14 +1,15 @@
 // jobs/stack-api/stack-api.test.ts — the sign-in, the session and the gate,
 // against a fake plex.tv and an in-memory store; the request doctor's routes
-// against fake apps (and a real release search's answer, testdata/); and the
-// service itself, on a scratch socket.
+// against fake apps (and a real release search's answer, testdata/), Ask AI
+// against a fake Ollama; and the service itself, on a scratch socket.
 
 import { afterAll, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { providerFor } from '../../stack/lib/ai.ts';
 import type { HttpRequest, HttpResponse } from '../../stack/lib/http.ts';
-import type { RequestsDoc } from '../../stack/lib/request-doctor.ts';
+import type { AdviseState, AiInfo, RequestsDoc } from '../../stack/lib/request-doctor.ts';
 import { makeApp, PIN_TTL, RateLimit, SESSION_COOKIE, type AppDeps } from './app.ts';
 import {
   addRequestRoutes,
@@ -80,10 +81,17 @@ beforeEach(() => {
 const app = () => makeApp(deps());
 const get = (a: ReturnType<typeof makeApp>, path: string, headers: Record<string, string> = {}) =>
   a.request(path, { headers: { host: '10.0.0.50:8088', ...headers } });
-const post = (a: ReturnType<typeof makeApp>, path: string, headers: Record<string, string> = {}) =>
+const post = (a: ReturnType<typeof makeApp>, path: string, headers: Record<string, string> = {}, body?: unknown) =>
   a.request(path, {
     method: 'POST',
-    headers: { host: '10.0.0.50:8088', origin: ORIGIN, 'sec-fetch-site': 'same-origin', ...headers },
+    headers: {
+      host: '10.0.0.50:8088',
+      origin: ORIGIN,
+      'sec-fetch-site': 'same-origin',
+      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+      ...headers,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
 const cookieOf = (r: Response) => /pms_session=([^;]+)/.exec(r.headers.get('set-cookie') ?? '')?.[1] ?? '';
 
@@ -281,7 +289,11 @@ describe('the service', () => {
     stop();
     expect(await running).toBe(0);
     expect(() => statSync(sock)).toThrow();
-    expect(lines).toEqual([`listening on ${sock}`, 'stopped']);
+    expect(lines).toEqual([
+      'AI: ollama/qwen2.5:3b (default ollama/qwen2.5:3b), at most 20 an hour',
+      `listening on ${sock}`,
+      'stopped',
+    ]);
   });
 
   test('-h prints the header', async () => {
@@ -342,6 +354,17 @@ describe('requests', () => {
   };
   let searches = 0;
   let radarrDown = false;
+  // The fake Ollama: what it was asked, and whether it answers now or waits to be let go.
+  let asked: { model: string; messages: { role: string; content: string }[] }[] = [];
+  let ollamaDown = false;
+  let hold: Promise<void> | null = null;
+  const AI: AiInfo = {
+    models: [
+      { id: 'ollama/qwen2.5:3b', provider: 'ollama', model: 'qwen2.5:3b' },
+      { id: 'ollama/llama3.2', provider: 'ollama', model: 'llama3.2' },
+    ],
+    default: 'ollama/qwen2.5:3b',
+  };
   const routes: Record<string, unknown> = {
     'http://127.0.0.1:5055/api/v1/request?take=200&skip=0&filter=all&sort=added': seerrRequests,
     'http://127.0.0.1:7878/api/v3/qualityprofile': [{ id: 7, name: 'UHD Bluray + WEB' }],
@@ -377,10 +400,23 @@ describe('requests', () => {
   };
   const keysSeen = new Set<string>();
 
-  function reqApp() {
+  function reqApp(opts: { ai?: AiInfo | null } = {}) {
+    store = new Store(':memory:'); // each app its own, so a test may make several
     const d = deps();
     d.now = () => Date.parse('2026-10-28T12:00:00Z');
     d.http = async (url, req) => {
+      if (url === 'http://127.0.0.1:11434/api/chat') {
+        if (ollamaDown) return { status: 0, text: '', headers: new Headers(), error: 'refused' };
+        const b = JSON.parse(String(req.body)) as (typeof asked)[number];
+        asked.push(b);
+        if (hold) await hold;
+        if (b.model === 'mistral') return answer(404, { error: "model 'mistral' not found" });
+        return answer(200, {
+          message: { role: 'assistant', content: `No 4K release yet.\n\nNext: switch it (${b.model}).` },
+          prompt_eval_count: 812,
+          eval_count: 64,
+        });
+      }
       keysSeen.add(`${new URL(url).port} ${req.headers?.['X-Api-Key']}`);
       if (url.startsWith('http://127.0.0.1:7878') && radarrDown)
         return { status: 0, text: '', headers: new Headers(), error: 'refused' };
@@ -392,7 +428,16 @@ describe('requests', () => {
       return answer(404, {});
     };
     const a = makeApp(d);
-    addRequestRoutes(a, { ...d, env: {}, repo, appdata: repo, analyses: new RateLimit(2, 3600_000) });
+    addRequestRoutes(a, {
+      ...d,
+      env: {},
+      repo,
+      appdata: repo,
+      analyses: new RateLimit(2, 3600_000),
+      ai: opts.ai === undefined ? AI : opts.ai,
+      provider: (m) => providerFor(m, { http: d.http, ollamaUrl: '' }),
+      advices: new RateLimit(2, 3600_000),
+    });
     d.store.addSession('s', { id: 1, username: 'owner' }, d.now(), 3600_000);
     return a;
   }
@@ -400,6 +445,9 @@ describe('requests', () => {
   beforeEach(() => {
     searches = 0;
     radarrDown = false;
+    asked = [];
+    ollamaDown = false;
+    hold = null;
   });
 
   test('signed out: 401', async () => expect((await get(reqApp(), '/api/requests')).status).toBe(401));
@@ -450,6 +498,110 @@ describe('requests', () => {
     });
     expect(r.status).toBe(403);
     expect(searches).toBe(0);
+  });
+
+  type Ask = ReturnType<typeof reqApp>;
+  /** POST /advise, then poll its GET until the answer is in (or failed). */
+  async function ask(a: Ask, id: number, body: unknown = {}) {
+    const r = await post(a, `/api/requests/${id}/advise`, cookie, body);
+    if (r.status !== 202) return { status: r.status, state: (await r.json()) as unknown };
+    for (;;) {
+      const s = (await (await get(a, `/api/requests/${id}/advise`, cookie)).json()) as AdviseState;
+      if (s.state !== 'running') return { status: 202, state: s };
+      await Bun.sleep(1);
+    }
+  }
+
+  test('advise: the default model, its answer kept and listed until the facts change', async () => {
+    const a = reqApp();
+    const { status, state } = await ask(a, 37);
+    expect(status).toBe(202);
+    const advice = (state as Extract<AdviseState, { state: 'done' }>).advice;
+    expect([advice.provider, advice.model, advice.text]).toEqual([
+      'ollama',
+      'qwen2.5:3b',
+      'No 4K release yet.\n\nNext: switch it (qwen2.5:3b).',
+    ]);
+    expect(asked.length).toBe(1);
+    const prompt = asked[0]?.messages.map((x) => x.content).join('\n') ?? '';
+    expect(prompt).toContain('<facts>');
+    expect(prompt).toContain('"title":"Hope"');
+    expect(prompt).not.toContain('radarr-key-123');
+    expect(logs.some((l) => l.includes('ollama qwen2.5:3b, 812 in / 64 out tokens'))).toBe(true);
+
+    let doc = (await (await get(a, '/api/requests', cookie)).json()) as RequestsDoc;
+    expect([doc.ai?.default, doc.advising]).toEqual(['ollama/qwen2.5:3b', null]);
+    expect(doc.open.find((x) => x.id === 37)?.advice?.model).toBe('qwen2.5:3b');
+    expect(doc.open.find((x) => x.id === 35)?.advice).toBeNull();
+    // A search changes the facts: the answer was about the old ones.
+    expect((await post(a, '/api/requests/37/analyse', cookie)).status).toBe(200);
+    doc = (await (await get(a, '/api/requests', cookie)).json()) as RequestsDoc;
+    expect(doc.open.find((x) => x.id === 37)?.advice).toBeNull();
+    expect(await (await get(a, '/api/requests/37/advise', cookie)).json()).toEqual({ state: 'idle' });
+  });
+
+  test('advise: a picked model, and only a listed one', async () => {
+    const a = reqApp();
+    expect((await ask(a, 35, { model: 'ollama/llama3.2' })).state).toMatchObject({ state: 'done' });
+    expect(asked[0]?.model).toBe('llama3.2');
+    expect(await ask(a, 35, { model: 'ollama/mistral' })).toEqual({
+      status: 400,
+      state: { error: "ollama/mistral is not on AI_MODELS' list" },
+    });
+    expect(asked.length).toBe(1);
+  });
+
+  test('advise: off, unknown request, the model away or missing', async () => {
+    expect((await ask(reqApp({ ai: null }), 37)).status).toBe(503);
+    expect((await ask(reqApp(), 999)).status).toBe(404);
+    expect((await get(reqApp(), '/api/requests/999/advise', cookie)).status).toBe(404);
+    ollamaDown = true;
+    expect((await ask(reqApp(), 37)).state).toEqual({
+      state: 'failed',
+      error: 'ollama is not answering at http://127.0.0.1:11434 (refused)',
+    });
+    ollamaDown = false;
+    const mistral = reqApp({
+      ai: { models: [{ id: 'ollama/mistral', provider: 'ollama', model: 'mistral' }], default: 'ollama/mistral' },
+    });
+    expect((await ask(mistral, 37)).state).toEqual({
+      state: 'failed',
+      error: 'ollama has no model mistral; run: ollama pull mistral',
+    });
+  });
+
+  test('advise: one at a time, listed while it runs, and the hourly limit', async () => {
+    const a = reqApp();
+    let letGo = () => {};
+    hold = new Promise((done) => (letGo = done));
+    const r = await post(a, '/api/requests/37/advise', cookie, {});
+    expect([r.status, await r.json()]).toEqual([
+      202,
+      { state: 'running', job: { id: 37, model: 'qwen2.5:3b', startedAt: '2026-10-28T12:00:00.000Z' } },
+    ]);
+    const doc = (await (await get(a, '/api/requests', cookie)).json()) as RequestsDoc;
+    expect(doc.advising?.id).toBe(37);
+    expect((await post(a, '/api/requests/35/advise', cookie, {})).status).toBe(409);
+    letGo();
+    hold = null;
+    while (((await (await get(a, '/api/requests/37/advise', cookie)).json()) as AdviseState).state === 'running')
+      await Bun.sleep(1);
+    expect((await ask(a, 35)).status).toBe(202);
+    expect((await ask(a, 35)).status).toBe(429);
+  });
+
+  test('advise needs a session and a same-origin POST', async () => {
+    expect((await post(reqApp(), '/api/requests/37/advise', {}, {})).status).toBe(401);
+    // What another site can send without a preflight (a form, or text/plain) is refused;
+    // a cross-site application/json POST needs a CORS preflight, which stack-api never grants.
+    const r = await post(
+      reqApp(),
+      '/api/requests/37/advise',
+      { ...cookie, origin: 'http://evil.test', 'sec-fetch-site': 'cross-site', 'content-type': 'text/plain' },
+      { model: 'ollama/qwen2.5:3b' },
+    );
+    expect(r.status).toBe(403);
+    expect(asked.length).toBe(0);
   });
 
   test('Radarr away: that request is unknown, and the page says why; no key in it', async () => {

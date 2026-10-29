@@ -13,13 +13,16 @@
 // folder: /opt/appdata/stack-api/stack-api.sqlite.
 //
 // Environment: APPDATA (else .env's, else /opt/appdata), STACK_API_SOCKET to
-// listen elsewhere (a test, or a second copy by hand).
+// listen elsewhere (a test, or a second copy by hand). Ask AI's, from the
+// environment or .env (stack/lib/ai.ts): AI_MODELS, AI_MODEL, OLLAMA_URL,
+// AI_MAX_PER_HOUR (default 20). Read at start: restart it after changing them.
 //
 // Exit: 0 stopped by SIGTERM/SIGINT · 2 usage · 3 cannot start (socket, store).
 
 import { chmodSync, mkdirSync, rmSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { join, resolve } from 'node:path';
+import { parseModels, providerFor } from '../../stack/lib/ai.ts';
 import { headerHelp, parseCli } from '../../stack/lib/cli.ts';
 import { envGet, type Env } from '../../stack/lib/env.ts';
 import { runMain } from '../../stack/lib/exit.ts';
@@ -32,6 +35,7 @@ import { Store } from './store.ts';
 
 const USAGE = 'usage: stack-api.sh';
 const PRUNE_EVERY = 3600_000; // ms
+const AI_PER_HOUR = 20; // Ask AI answers an hour, unless AI_MAX_PER_HOUR says otherwise
 
 export interface Deps {
   http: Http;
@@ -79,6 +83,16 @@ export async function main(argv: readonly string[], deps: Deps): Promise<number>
     serverId: PLEX_IDENTITY,
     random: (n) => new Uint8Array(randomBytes(n)),
   });
+  const conf = (k: string) => envGet(k, { repo: deps.repo, env });
+  const ai = parseModels(conf('AI_MODELS'), conf('AI_MODEL'));
+  for (const w of ai.warnings) log(w);
+  const perHour = Number(conf('AI_MAX_PER_HOUR'));
+  const ollamaUrl = conf('OLLAMA_URL');
+  log(
+    ai.info
+      ? `AI: ${ai.info.models.map((m) => m.id).join(', ')} (default ${ai.info.default}), at most ${perHour > 0 ? perHour : AI_PER_HOUR} an hour`
+      : 'AI: off',
+  );
   addRequestRoutes(app, {
     http: deps.http,
     store,
@@ -88,6 +102,9 @@ export async function main(argv: readonly string[], deps: Deps): Promise<number>
     repo: deps.repo,
     appdata,
     analyses: new RateLimit(10, 3600_000),
+    ai: ai.info,
+    provider: (m) => providerFor(m, { http: deps.http, ollamaUrl }),
+    advices: new RateLimit(perHour > 0 ? Math.floor(perHour) : AI_PER_HOUR, 3600_000),
   });
 
   // A socket left by a crash would make listen() fail.
