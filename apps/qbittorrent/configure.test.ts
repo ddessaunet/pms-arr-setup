@@ -72,6 +72,12 @@ describe('want_prefs', () => {
     test(`never excludes .${e}`, () =>
       expect(String(W.excluded_file_names).toLowerCase().split('\n')).not.toContain(`*.${e}`));
   }
+  // Archives stay downloadable: the list is global, so hand-added torrents in
+  // `manual` would lose theirs. Decluttarr clears single-archive fakes instead.
+  for (const e of ['7z', 'zip', 'rar']) {
+    test(`never excludes .${e}`, () =>
+      expect(String(W.excluded_file_names).toLowerCase().split('\n')).not.toContain(`*.${e}`));
+  }
   test('EXCLUDED_EXTS is the list it sends', () => expect(EXCLUDED_EXTS).toHaveLength(9));
 });
 
