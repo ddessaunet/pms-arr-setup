@@ -90,6 +90,9 @@
      solid wedge). Hex for the same reason as the ghost. */
   --pac-plex-open: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 14' shape-rendering='crispEdges'><path fill='%23e5a00d' d='M0 0h4v1h-4zM1 1h4v1h-4zM2 2h4v1h-4zM3 3h4v1h-4zM4 4h4v1h-4zM5 5h4v1h-4zM6 6h4v1h-4zM6 7h4v1h-4zM5 8h4v1h-4zM4 9h4v1h-4zM3 10h4v1h-4zM2 11h4v1h-4zM1 12h4v1h-4zM0 13h4v1h-4z'/></svg>");
   --pac-plex-shut: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 14' shape-rendering='crispEdges'><path fill='%23e5a00d' d='M0 0h4v1h-4zM0 1h5v1h-5zM0 2h6v1h-6zM0 3h7v1h-7zM0 4h8v1h-8zM0 5h9v1h-9zM0 6h10v2h-10zM0 8h9v1h-9zM0 9h8v1h-8zM0 10h7v1h-7zM0 11h6v1h-6zM0 12h5v1h-5zM0 13h4v1h-4z'/></svg>");
+  /* The AI mark, a four-point sparkle (7×7). A mask, not an image: it takes the
+     text's colour, so it greys out and turns Pinky with the button. */
+  --pac-spark: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges'><path d='M3 0h1v7h-1zM0 3h7v1h-7zM2 2h3v3h-3z'/></svg>");
 }
 
 /* Cards and tables side by side, and long log lines, need more than Starlight's
@@ -586,10 +589,37 @@ mobile-starlight-toc a[aria-current='true']::after { background-color: var(--pac
 
 /* ── requests (/requests/) ────────────────────────────────────────────────────
    One dashboard card per open request: the verdict's level badge, its sentence,
-   the next step after a "Next" label, the search's details as reasons. */
+   the next step after a "Next" label, the search's details as reasons, and an
+   AI answer, when asked, as an inset block with a blue wall. */
 .req { display: grid; gap: 0.75rem; }
 .req-list { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); }
 .req-summary { color: var(--sl-color-white); font-size: var(--sl-text-sm); }
 .req-next { color: var(--sl-color-gray-1); font-size: var(--sl-text-sm); }
 .req-next .ctl-label { margin-right: 0.35rem; color: var(--pac-pink); }
-.req-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; margin-top: auto; }
+.req-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 1rem; }
+.req-foot { display: grid; gap: 0.4rem; margin-top: auto; }
+.req-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; }
+/* Two CSS pixels per sprite pixel, so its edges stay sharp. */
+.req-ai-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-inline-end: 0.45em;
+  vertical-align: -2px;
+  background: currentColor;
+  mask: var(--pac-spark) center / 14px 14px no-repeat;
+  forced-color-adjust: none;
+}
+.req-advice {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-inline-start: 3px solid var(--pac-blue);
+  border-radius: var(--pac-radius-sm);
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-gray-1);
+  font-size: var(--sl-text-sm);
+}
+.req-advice p { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.req-advice .ctl-label { color: var(--pac-pink); }
+.req-advice .req-advice-note { color: var(--sl-color-gray-2); font-size: var(--sl-text-xs); }
