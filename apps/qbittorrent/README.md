@@ -49,5 +49,9 @@ drift.
   blocklists it, and the app searches again. Its patterns follow the excluded names one for
   one, so add a type in both places, [`excluded.ts`](excluded.ts) and Decluttarr's config
   (`apps/decluttarr/config.test.ts` checks it).
+- **Archives are not excluded, on purpose.** The list is global, so a torrent added by hand
+  in `manual` would finish without its own `.zip`/`.rar`/`.7z`. A fake that is one archive
+  downloads in full, then Decluttarr clears it on Radarr/Sonarr's "unsupported extension"
+  message.
 - Native `qbittorrent-nox` (`:8080`/13761) is disabled since Phase 7a, not masked: its unit
   file is in `/etc/systemd/system`.

@@ -13,12 +13,17 @@
 // a throwaway Decluttarr v2.1.0 with a throwaway Radarr and qBittorrent 5.2. The
 // remove_failed_imports patterns were checked the same way (2026-10-08, Sonarr
 // 4.0.20, qBittorrent 5.2.4): exe-only torrents removed on the first pass, a
-// folder of .exe + .nfo and a video beside an .exe left alone.
+// folder of .exe + .nfo and a video beside an .exe left alone. The archive
+// patterns follow the live Sonarr's message for a single-.7z fake (2026-10-23)
+// and the same text in Radarr's and Sonarr's import code (ProcessFile).
 
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { EXCLUDED_EXTS } from '../qbittorrent/excluded.ts';
+
+/** Archive types whose single-file downloads remove_failed_imports clears. */
+const ARCHIVE_EXTS = ['7z', 'zip', 'rar'];
 
 const CONF = readFileSync(resolve(import.meta.dir, 'config.yaml'), 'utf8').split('\n');
 const COMPOSE = readFileSync(resolve(import.meta.dir, 'compose.yaml'), 'utf8').split('\n');
@@ -73,9 +78,26 @@ function composeBlock(): string[] {
   return [COMPOSE[start] ?? '', ...(end < 0 ? rest : rest.slice(0, end))];
 }
 
+/** Python's fnmatch.fnmatchcase: * any run, ? one character, [..] a set ([!..] negated). */
+function fnmatch(text: string, pattern: string): boolean {
+  let re = '';
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern[i] ?? '';
+    const close = c === '[' ? pattern.indexOf(']', i + 2) : -1;
+    if (c === '*') re += '.*';
+    else if (c === '?') re += '.';
+    else if (close > 0) {
+      const set = pattern.slice(i + 1, close).replace(/\\/g, '\\\\');
+      re += set.startsWith('!') ? `[^${set.slice(1)}]` : `[${set}]`;
+      i = close;
+    } else re += c.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+  }
+  return new RegExp(`^${re}$`, 's').test(text);
+}
+
 // ─── jobs ─────────────────────────────────────────────────────────────────────
 describe('jobs', () => {
-  test('exactly stalled, slow, missing metadata and executables — nothing else', () =>
+  test('exactly stalled, slow, missing metadata and fakes — nothing else', () =>
     expect(sectionKeys('jobs').sort()).toEqual([
       'remove_failed_imports',
       'remove_metadata_missing',
@@ -105,35 +127,78 @@ describe('jobs', () => {
 
 // remove_failed_imports with no message_patterns defaults to "*": it would then
 // remove (with its data) and blocklist every download stuck for any reason. So
-// the patterns are pinned: the executable warning, plus one "No files found …
-// in *.<ext>" per name qBittorrent excludes, and nothing that matches anything.
+// the patterns are pinned: the executable warning, one "No files found … in
+// *.<ext>" per name qBittorrent excludes, one "unsupported extension" per
+// archive type, and nothing that matches anything.
 describe('remove_failed_imports patterns', () => {
   const block = job('remove_failed_imports');
   const pats = block.flatMap((l) => {
     const m = /^ {6}- "(.*)"$/.exec(l);
     return m ? [m[1] ?? ''] : [];
   });
+  /** Either case, letter by letter: exe → [eE][xX][eE], 7z → 7[zZ]. */
+  const anyCase = (e: string) => [...e].map((c) => (/[a-z]/.test(c) ? `[${c}${c.toUpperCase()}]` : c)).join('');
   test('message_patterns is set', () => expect(block.filter((l) => l.includes('message_patterns:'))).toHaveLength(1));
   test('no catch-all pattern', () =>
-    expect(pats.filter((p) => ['*', '**', 'No files found are eligible for import in *'].includes(p))).toEqual([]));
+    expect(
+      pats.filter((p) =>
+        [
+          '*',
+          '**',
+          'No files found are eligible for import in *',
+          "Invalid video file, unsupported extension: '*'",
+          'Invalid video file, unsupported extension: *',
+        ].includes(p),
+      ),
+    ).toEqual([]));
   test("the app's executable warning", () =>
     expect(pats.filter((p) => p === 'Caution: Found executable file*')).toHaveLength(1));
-  // Each pattern for a name qBittorrent skips, in either case: *.[eE][xX][eE].
-  const want = EXCLUDED_EXTS.map(
-    (e) =>
-      `No files found are eligible for import in *.${[...e].map((c) => `[${c.toLowerCase()}${c.toUpperCase()}]`).join('')}`,
-  );
   test('one pattern per qBittorrent excluded name, nothing else', () =>
-    expect(pats.filter((p) => p.startsWith('No files found'))).toEqual(want));
+    expect(pats.filter((p) => p.startsWith('No files found'))).toEqual(
+      EXCLUDED_EXTS.map((e) => `No files found are eligible for import in *.${anyCase(e)}`),
+    ));
+  // Radarr/Sonarr say this for a download that is one file without a video
+  // extension. Archives only: nothing unpacks them, so none could be imported.
+  test('one pattern per archive type, nothing else', () =>
+    expect(pats.filter((p) => p.startsWith('Invalid video file'))).toEqual(
+      ARCHIVE_EXTS.map((e) => `Invalid video file, unsupported extension: '.${anyCase(e)}'`),
+    ));
   test('and no other kind of pattern', () =>
     expect(
       pats.filter(
         (p) =>
-          !/^(Caution: Found executable file\*|No files found are eligible for import in \*\.(\[[a-z][A-Z]\])+)$/.test(
+          !/^(Caution: Found executable file\*|No files found are eligible for import in \*\.(\[[a-z][A-Z]\])+|Invalid video file, unsupported extension: '\.(\[[a-z][A-Z]\]|[0-9])+')$/.test(
             p,
           ),
       ),
     ).toEqual([]));
+
+  // What they match, through Python's fnmatch as Decluttarr calls it (case-sensitive
+  // on Linux): the live fakes' messages go, anything else stays.
+  const removed = (msg: string) => pats.some((p) => fnmatch(msg, p));
+  for (const msg of [
+    "Invalid video file, unsupported extension: '.7z'",
+    "Invalid video file, unsupported extension: '.7Z'",
+    "Invalid video file, unsupported extension: '.zip'",
+    "Invalid video file, unsupported extension: '.RAR'",
+    'No files found are eligible for import in /mnt/data/torrents/tv/Scrubs.2026.S02E04.1080p.WEB.H264-CAKES.exe',
+    "Caution: Found executable file with extension: '.exe'",
+  ]) {
+    test(`removes: ${msg}`, () => expect(removed(msg)).toBe(true));
+  }
+  for (const msg of [
+    "Invalid video file, unsupported extension: '.mkv'",
+    "Invalid video file, unsupported extension: '.nfo'",
+    "Invalid video file, unsupported extension: '.001'",
+    "Invalid video file, unsupported extension: '.7z.001'",
+    "Invalid video file, unsupported extension: ''",
+    'No files found are eligible for import in /mnt/data/torrents/tv/Scrubs.2026.S02E06.1080p.WEB.H264-EZTV',
+    'No files found are eligible for import in /mnt/data/torrents/tv/Show.S01E01.7z',
+    'Episode file already imported at 2026-10-23 05:00:00',
+    'Not an upgrade for existing episode file(s)',
+  ]) {
+    test(`keeps: ${msg}`, () => expect(removed(msg)).toBe(false));
+  }
 });
 
 // ─── general ──────────────────────────────────────────────────────────────────

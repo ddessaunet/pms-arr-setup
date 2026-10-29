@@ -58,7 +58,8 @@ disappear. Confirm before anything destructive:
    hand go in its `manual` category: no app looks there, so they are never imported,
    replaced or removed, only stopped at the share limits. It never downloads executables
    (`*.exe` and others, `apps/qbittorrent/excluded.ts`): an exe-only fake finishes empty, and Decluttarr
-   (trap 14) clears it.
+   (trap 14) clears it. Archives stay downloadable (the list is global, and `manual`
+   torrents would lose theirs); Decluttarr clears a single-archive fake once it lands.
 7. **Prowlarr's settings come from `apps/prowlarr/configure.ts`**, and its API key from
    `.env` (`PROWLARR__AUTH__APIKEY`), which Phase 4 wires into Radarr and Sonarr. Changing
    the key means changing it everywhere. Indexers that go through FlareSolverr are listed
@@ -136,8 +137,11 @@ disappear. Confirm before anything destructive:
     `remove_metadata_missing` and `remove_failed_imports`; listing any job turns it on, and
     `remove_orphans` / `remove_unmonitored` would delete seeding torrents or upgrades, so
     `apps/decluttarr/config.test.ts` pins the list. `remove_failed_imports` defaults to
-    matching every message; its `message_patterns` are pinned to executable fakes only (one
-    per qBittorrent excluded name), and must never widen to `*`. What it removes was never
+    matching every message; its `message_patterns` are pinned to fakes only, and must never
+    widen to `*`: executables (one per qBittorrent excluded name), and a download that is a
+    single `.7z`/`.zip`/`.rar` (Radarr/Sonarr's `Invalid video file, unsupported extension:
+    '.7z'`; nothing unpacks, so none could be imported). A folder of archives or of an
+    `.exe` + `.nfo` gets another message and stays for a person. What it removes was never
     imported, so it never meets `arr-reclaim` (trap 9). `remove_slow` pauses while
     qBittorrent runs above 80% of its `dl_limit` (64 MiB/s, just under the 600 Mbit/s line);
     a limit of 0 means it never pauses. Its `detect_deletions` watcher starts even when
