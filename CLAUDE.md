@@ -184,7 +184,8 @@ disappear. Confirm before anything destructive:
     which a real control backend would implement. `/requests/` is the request doctor:
     `jobs/stack-api` reads Seerr, Radarr/Sonarr and Prowlarr, and the verdicts and their
     advice come from `stack/lib/request-doctor.ts`, which names profiles and caps from
-    `arr-policy.ts` (keep it in step when trap 11 changes). Every page but `/login/` is
+    `arr-policy.ts` (keep it in step when trap 11 changes). `/maintainerr/` is
+    Maintainerr itself, proxied (trap 21). Every page but `/login/` is
     behind the owner's Plex sign-in (trap 20).
 18. **The box is wired-only, at `10.0.0.50`**, reserved for `eno1` on the mesh router
     (`10.0.0.1`, `10.0.0.0/22`) since 2026-10-17. Its Wi‑Fi (`wlp2s0`) is out of netplan
@@ -219,6 +220,18 @@ disappear. Confirm before anything destructive:
     (fails closed: every page goes to `/login/`, which says so); the jobs carry on.
     Redirects use `$request_uri`, never `$uri` (decoded, so `%0d%0a` would split headers).
     It is built on Hono, the one runtime dependency (Conventions).
+21. **Maintainerr is the one scheduled deleter, and it has no login.** Its collections
+    are the Plex home screen's "Leaving soon" shelves; after their grace period a
+    collection's action runs through Radarr/Sonarr, `arr-reclaim` frees the torrent
+    (trap 9), and the Seerr request is cleared so the title can be asked for again. It
+    publishes `6246` on `127.0.0.1` only, for `configure.sh` and `stack-status`; the browser
+    gets it at `:8088/maintainerr/` through docs' nginx and its sign-in (trap 20), which is
+    why `docs` is on the `arr` network. Never give it a LAN port. Its connections,
+    Telegram alerts and rules come from `apps/maintainerr/configure.ts`; a rule edited in
+    the WebUI is drift. Every action is **Do nothing** until `ACTIONS_ON` there says
+    otherwise, and `configure.test.ts` pins that. The image is pinned: a release can change
+    what a rule matches (3.13.0 made a section with no operator OR), so read the release
+    notes and run `task maintainerr:check` before bumping it.
 
 ## Conventions
 

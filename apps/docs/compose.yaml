@@ -10,10 +10,12 @@
 # or worktree it would serve that tree's build.
 #
 # Unprivileged nginx (uid 101, port 8080 inside), read-only root filesystem.
-# Not on the arr network: the one thing it talks to is jobs/stack-api, over the
-# Unix socket in /opt/appdata/stack-api/run (mounted at /api). nginx asks it
-# before serving anything but the login page, so only the Plex server's owner
-# gets in; while stack-api is down, every page goes to the login page.
+# It talks to jobs/stack-api over the Unix socket in /opt/appdata/stack-api/run
+# (mounted at /api). nginx asks it before serving anything but the login page,
+# so only the Plex server's owner gets in; while stack-api is down, every page
+# goes to the login page. It is on the arr network for one app only: it serves
+# Maintainerr at /maintainerr/, behind that same gate, because Maintainerr has
+# no login of its own (apps/maintainerr/compose.yaml).
 #
 # /live is the dashboard's data, written every 2 minutes by jobs/stack-status
 # (redacted: it is readable by anyone on the LAN). Create the directory as
@@ -36,4 +38,5 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    networks: [arr]
     restart: unless-stopped

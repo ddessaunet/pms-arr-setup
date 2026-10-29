@@ -4,7 +4,8 @@
 #
 # The port comes from apps/<app>/compose.yaml: the host side of its first TCP
 # mapping. Give `port` here only for an app on the host network, which publishes
-# none (Plex). The page builds each link from the address it was opened on, so
+# none (Plex), or one bound to 127.0.0.1 and served through another app
+# (Maintainerr, which has no login, through docs' sign-in at /maintainerr/). The page builds each link from the address it was opened on, so
 # links follow the box if its address moves.
 apps:
   plex:         { label: Plex, role: Watch the library., path: /web, port: 32400 }
@@ -14,6 +15,7 @@ apps:
   qbittorrent:  { label: qBittorrent, role: Downloads and seeds. }
   prowlarr:     { label: Prowlarr, role: The indexers Radarr and Sonarr search. }
   bazarr:       { label: Bazarr, role: Spanish and English subtitles. }
+  maintainerr:  { label: Maintainerr, role: "Leaving soon: clears what has not been watched.", path: /maintainerr/, port: 8088 }
   docs:         { label: Docs, role: This site. }
   flaresolverr: { label: FlareSolverr, role: Opens Cloudflare-protected indexers for Prowlarr. }
   decluttarr:   { label: Decluttarr, role: "Replaces stalled, slow or fake downloads." }

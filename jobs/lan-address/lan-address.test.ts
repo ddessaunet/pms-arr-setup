@@ -259,12 +259,12 @@ describe('the units and the app list', () => {
     expect(unit).not.toMatch(/^MemoryDenyWriteExecute=yes/m));
   test('the timer fires after boot and every 5 minutes', () =>
     expect(timer.match(/^On(Boot|UnitActive)Sec=.*$/gm)).toEqual(['OnBootSec=2min', 'OnUnitActiveSec=5min']));
-  // Every app with a configure.sh, in Taskfile.yml's order, except Bazarr (no
-  // address) and Plex (pinned to an interface name, not an address).
-  test('the apps are CONFIGURED minus bazarr and plex', () => {
+  // Every app with a configure.sh, in Taskfile.yml's order, except Bazarr and
+  // Maintainerr (no address) and Plex (pinned to an interface name, not an address).
+  test('the apps are CONFIGURED minus bazarr, plex and maintainerr', () => {
     const configured = readFileSync(join(ROOT, 'Taskfile.yml'), 'utf8').match(/^ {2}CONFIGURED: (.*)$/m)![1]!;
     expect<string[]>([...LAN_ADDRESS_APPS]).toEqual(
-      configured.split(' ').filter((a) => a !== 'bazarr' && a !== 'plex'),
+      configured.split(' ').filter((a) => !['bazarr', 'plex', 'maintainerr'].includes(a)),
     );
   });
   for (const app of LAN_ADDRESS_APPS)

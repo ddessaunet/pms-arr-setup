@@ -27,6 +27,7 @@ includes:
   recyclarr:           { taskfile: apps/recyclarr,           dir: apps/recyclarr }
   decluttarr:          { taskfile: apps/decluttarr,          dir: apps/decluttarr }
   bazarr:              { taskfile: apps/bazarr,              dir: apps/bazarr }
+  maintainerr:         { taskfile: apps/maintainerr,         dir: apps/maintainerr }
   docs:                { taskfile: apps/docs,                dir: apps/docs }
   arr-reclaim:         { taskfile: jobs/arr-reclaim,         dir: jobs/arr-reclaim }
   arr-fallback-search: { taskfile: jobs/arr-fallback-search, dir: jobs/arr-fallback-search }
@@ -39,7 +40,7 @@ includes:
 
 vars:
   # The apps with a configure.sh, in the order trap 11 applies them.
-  CONFIGURED: qbittorrent prowlarr radarr sonarr seerr bazarr plex
+  CONFIGURED: qbittorrent prowlarr radarr sonarr seerr bazarr plex maintainerr
 
 tasks:
   start:

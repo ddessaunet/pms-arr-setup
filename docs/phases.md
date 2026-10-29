@@ -28,6 +28,8 @@ tell what has been done. If it looks stale, check the server rather than trustin
 - [x] Stack dashboard — the docs site's front page: every service's link and status, the host's jobs, redacted logs (`jobs/stack-status`) (2026-10-08: both timers armed; runs every 2 min in ~3 s, overall OK, 16 log sources read, 0 secrets in the output; the first settings check found all six apps matching)
 - [x] Install directory — the stack runs from `/opt/arr-setup`, installed from the repo by `task deploy`; the clone can move freely (2026-10-19: installed from `777aef7`, `.env` carried over; all six units run from the install, `arr-reclaim` restarted there and watching, every timer armed, the first `stack-status` run from it succeeded; `docs` and `decluttarr` recreated with their files under `/opt/arr-setup`, `:8088` and `/live/` answer 200; the install matches the clone and `task check` is clean. The move-the-clone check was not run)
 - [ ] Sign-in and request doctor — the docs site behind the Plex server owner's sign-in (`jobs/stack-api`, nginx's `auth_request`), and `/requests/`: why each open request has no file yet
+- [ ] Library cleanup — Maintainerr's "Leaving soon" shelves on the Plex home screen, with Telegram alerts; every action "Do nothing"
+- [ ] Library cleanup, deletes on — the actions switched on after a week of watching the shelves
 
 Run `stack/preflight.sh` before each of Phases 0–1b. It is read-only.
 
@@ -1346,3 +1348,100 @@ The old `nginx.conf` serves every page with no sign-in again, and the old deploy
 knows `stack-api.service`: stop and disable it by hand (`sudo systemctl disable --now
 stack-api`), then remove `/etc/systemd/system/stack-api.service` and
 `/opt/appdata/stack-api`.
+
+---
+
+## Library cleanup — "Leaving soon" shelves in Plex, then deletes
+
+`/mnt/data` runs at about 85%. The library holds almost all of it (on 2026-10-29: 537 GiB of
+films, twelve over 15 GiB, and 196 GiB of series), and torrents only 1.5 GiB of their own,
+so seeding limits free nothing. **Maintainerr** puts old and unwatched titles on shelves on
+the Plex home screen, with a "Leaving {date}" pill on the posters and Telegram alerts. Once
+its actions are on, it deletes them through Radarr/Sonarr, and `arr-reclaim` frees the
+torrent. [Its README](../apps/maintainerr/README.md) has the three rules; CLAUDE.md trap 21
+has why it is behind the docs sign-in.
+
+It goes in two steps, each with its checkbox: first every action is **Do nothing**, and
+after a week of watching the shelves and the alerts the actions go on.
+
+**Do**
+
+From the main clone, after the merge. It needs sudo, so it's yours to run:
+
+1. Optional, for alerts: create a Telegram bot (the README's Secrets) and put both values
+   in the install's `.env` (`/opt/arr-setup/.env`):
+
+   ```
+   MAINTAINERR_TELEGRAM_BOT_TOKEN=…
+   MAINTAINERR_TELEGRAM_CHAT_ID=…
+   ```
+
+2. Create its data directory as yourself (Docker would create it root-owned):
+
+   ```bash
+   install -d -m 755 /opt/appdata/maintainerr
+   ```
+
+3. Install. `task deploy` restarts `docs` for its new `nginx.conf`:
+
+   ```bash
+   task deploy
+   ```
+
+4. From the install, create Maintainerr, and recreate docs for the `arr` network (a restart
+   keeps the old networks):
+
+   ```bash
+   cd /opt/arr-setup && task maintainerr:up docs:up
+   ```
+
+5. Apply its settings. No browser sign-in is needed; the Plex token is `.env`'s:
+
+   ```bash
+   cd /opt/arr-setup && task maintainerr:configure
+   ```
+
+**Verify**
+
+- `task maintainerr:check` ends with `No drift. Every action is "Do nothing".`, and Plex,
+  Radarr, Sonarr and Seerr test `ok`.
+- Signed out, `curl -sI http://10.0.0.50:8088/maintainerr/` is a 302 to `/login/`. Signed
+  in, `http://10.0.0.50:8088/maintainerr/` is its WebUI, and *Collections* lists the three
+  groups, each with *Do nothing*.
+- `curl -s http://10.0.0.50:6246/` from another machine fails: no LAN port.
+- `docker stop maintainerr`: the dashboard still loads, and
+  `/maintainerr/` answers "Maintainerr is not answering". Then `docker start maintainerr`.
+- The Telegram agent's Test button in Maintainerr's notification settings sends a message.
+- After its first rules run (or one started from the Rules page), the Plex home screen has
+  the "Leaving Soon - …" rows, with "Leaving {date}" on the posters. Titles reach the
+  14-day mark and stay. `task arr-reclaim:audit` removes nothing it would not have before.
+- The dashboard lists Maintainerr, ok, and the hourly settings check includes it.
+
+**Switching the actions on** (the second checkbox), after a week in which the shelves held
+only what you would delete:
+
+1. Add any title to keep forever to `KEEP` in `apps/maintainerr/configure.ts`.
+2. Set `ACTIONS_ON = true` there and in the test pinned to it, then commit.
+3. `task deploy`, then `cd /opt/arr-setup && task maintainerr:configure`.
+
+The next handling run deletes what is due. Each delete is a Telegram message, a Radarr or
+Sonarr history entry, and an `arr-reclaim` line (`task arr-reclaim:logs`).
+
+**Rollback**
+
+To stop deletes, set `ACTIONS_ON` back to `false` and apply. That is immediate and keeps
+the shelves. A deleted title comes back by requesting it in Seerr.
+
+To remove Maintainerr, check out the commit before this one in the clone, `task deploy`,
+then:
+
+```bash
+docker rm -f maintainerr
+```
+
+```bash
+cd /opt/arr-setup && task docs:up
+```
+
+Its collections stay in Plex until deleted there. `/opt/appdata/maintainerr` holds its
+database.
