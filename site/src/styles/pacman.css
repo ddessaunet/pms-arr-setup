@@ -590,8 +590,23 @@ mobile-starlight-toc a[aria-current='true']::after { background-color: var(--pac
 /* ── requests (/requests/) ────────────────────────────────────────────────────
    One dashboard card per open request: the verdict's level badge, its sentence,
    the next step after a "Next" label, the search's details as reasons, and an
-   AI answer, when asked, as an inset block with a blue wall. */
+   AI answer, when asked, as an inset block with a blue wall. The cards come in
+   two groups, "Needs attention" then "On track", each under a Pinky pixel
+   heading with its count, on a row of pellets like the prose's h2. */
 .req { display: grid; gap: 0.75rem; }
+.req-groups { display: grid; gap: 2rem; }
+.req-group { display: grid; gap: 1rem; }
+.req-group-head {
+  margin: 0;
+  padding-bottom: 0.6rem;
+  font-family: var(--pac-font-pixel);
+  font-weight: 400;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--pac-pink);
+  background: radial-gradient(circle, var(--sl-color-gray-4) 2px, transparent 2.5px) left bottom / 14px 6px repeat-x;
+}
+.req-group-count { color: var(--sl-color-gray-2); }
 .req-list { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); }
 .req-summary { color: var(--sl-color-white); font-size: var(--sl-text-sm); }
 .req-next { color: var(--sl-color-gray-1); font-size: var(--sl-text-sm); }

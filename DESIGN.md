@@ -135,8 +135,10 @@ Buttons live on the control page (`/control/`), the login page and the header's 
   sentence.
 - **Requests** (`/requests/`) are the dashboard's cards: the title in pixels, the
   verdict's level badge (word and mark, as the status levels), its sentence in text-strong,
-  then the next step after a Pinky "Next" label, and the search's details as reasons. The
-  ones that need something come first. Analyse is a small maze-cell button; while one
+  then the next step after a Pinky "Next" label, and the search's details as reasons. They
+  come in two groups, each under a Pinky pixel heading with its count in text-muted, on a
+  row of pellets: "Needs attention" (every level but ok; when it is empty, a line says so)
+  and below it "On track" (only when there is one). Analyse is a small maze-cell button; while one
   search runs, every Analyse is disabled and the running one says "Searching…". Ask AI
   is the same button under it, with the AI sparkle (a 7×7 pixel sprite at two CSS pixels
   each, in the text's colour) in place of the word: "Ask", "Ask again", "Asking… 1:23"

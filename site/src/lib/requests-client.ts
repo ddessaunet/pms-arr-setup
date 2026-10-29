@@ -12,7 +12,6 @@ import { LEVELS, type Level } from './status-view.ts';
 import {
   adviceLine,
   adviceParagraphs,
-  byAttention,
   elapsed,
   modelLabel,
   parseAdviseState,
@@ -20,6 +19,7 @@ import {
   parseRequests,
   requestedLine,
   searchLine,
+  splitByHealth,
   titleOf,
   pickModel,
   whereLine,
@@ -204,12 +204,30 @@ function render() {
     return;
   }
   renderPicker(doc.ai);
-  const open = [...doc.open].sort(byAttention);
-  meta.textContent = `${open.length} open · ${doc.available} available in Seerr · checked ${new Date(doc.generatedAt).toLocaleTimeString()}`;
+  const { issues, ok } = splitByHealth(doc.open);
+  meta.textContent = `${doc.open.length} open · ${doc.available} available in Seerr · checked ${new Date(doc.generatedAt).toLocaleTimeString()}`;
   errs.replaceChildren(...doc.errors.map((e) => el('li', 'reason reason-down', e)));
+  if (!doc.open.length) {
+    list.replaceChildren(el('p', 'dash-empty', 'Nothing open: every request is available.'));
+    return;
+  }
+  // What needs something on top, always (an empty one says so); what is on track below, when there is any.
   list.replaceChildren(
-    ...(open.length ? open.map(card) : [el('p', 'dash-empty', 'Nothing open: every request is available.')]),
+    group('issues', 'Needs attention', issues, 'Nothing needs you: every open request is on track.'),
+    ...(ok.length ? [group('ok', 'On track', ok, '')] : []),
   );
+}
+
+function group(id: string, title: string, rows: RequestReport[], empty: string): HTMLElement {
+  const s = el('section', 'req-group');
+  s.setAttribute('aria-labelledby', `req-group-${id}`);
+  const h = el('h2', 'req-group-head', title);
+  h.id = `req-group-${id}`;
+  h.append(' ', el('span', 'req-group-count', String(rows.length)));
+  const cards = el('div', 'req-list');
+  cards.append(...(rows.length ? rows.map(card) : [el('p', 'dash-empty', empty)]));
+  s.append(h, cards);
+  return s;
 }
 
 async function load() {
