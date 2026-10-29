@@ -10,6 +10,7 @@ colors:
   warning-text: "#FBBF5A"
   danger: "#DC2626"
   danger-text: "#FCA5A5"
+  plex: "#E5A00D"
   surface: "#080A1C"
   surface-raised: "#0C0F24"
   text: "#C5C9E2"
@@ -70,6 +71,8 @@ Contrast is WCAG, against `surface`.
 - **Warning (#D97706) / text (#FBBF5A):** the by-hand profile's role colour, and Pac-Man. 11.9:1.
 - **Danger (#DC2626) / text (#FCA5A5):** errors and the dashboard's DOWN. The token itself is
   4.1:1 on the surface, under 4.5:1, so it draws borders only; text uses danger-text, 10.3:1.
+- **Plex (#E5A00D):** Plex gold, for the Plex chevron on the login page. A sprite fill
+  only, never text.
 - **Surface (#080A1C):** the maze at night, navy-tinted rather than pure black, with a faint
   pellet grid.
 - **Text (#C5C9E2):** body, 12:1. **Text strong (#F7F7FB):** headings, 18.4:1.
@@ -125,8 +128,9 @@ Buttons live on the control page (`/control/`), the login page and the header's 
   running ◐ (Pinky wall), done ● (success), failed ✕ (danger wall, danger-text), skipped –
   (dashed).
 - **The login page** (`/login/`) is a splash: one double-walled panel (the deploy panel's
-  maze wall) with Pinky's ghost, an "Owner only" heading in Pinky, and the Sign in with
-  Plex button. Its message line is text-muted, or the level tones' text (danger-text,
+  maze wall) with the chase (the Plex chevron as Pac-Man, its open side the mouth,
+  chomping a row of pellets with Pinky after it; still under reduced motion), an "Owner
+  only" heading in Pinky, and the Sign in with Plex button. Its message line is text-muted, or the level tones' text (danger-text,
   warning-text) on the raised surface when the sign-in failed or expired, always as a
   sentence.
 - **Requests** (`/requests/`) are the dashboard's cards: the title in pixels, the
