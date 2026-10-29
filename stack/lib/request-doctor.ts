@@ -171,6 +171,46 @@ export interface RequestReport {
   releases: ReleaseSummary | null;
   /** Whether a release search can run for it (it is in the app and still missing something). */
   canAnalyse: boolean;
+  /** The last AI answer about it, while its facts are unchanged (jobs/stack-api adds it). */
+  advice?: Advice | null;
+}
+
+/** One AI answer about a request: what is going on and what to do next, in prose. */
+export interface Advice {
+  text: string;
+  provider: string;
+  model: string;
+  /** When it was written (ISO). */
+  at: string;
+  /** How long the model took. */
+  seconds: number;
+}
+
+/** A model the page may ask: id "ollama/qwen2.5:3b", the provider, then its own name. */
+export interface AiModel {
+  id: string;
+  provider: string;
+  model: string;
+}
+
+/** The answer being written now (one at a time), so a reload finds it. */
+export interface AiJob {
+  id: number;
+  model: string;
+  startedAt: string;
+}
+
+/** GET /api/requests/:id/advise: where that request's answer stands. */
+export type AdviseState =
+  | { state: 'running'; job: AiJob }
+  | { state: 'done'; advice: Advice }
+  | { state: 'failed'; error: string }
+  | { state: 'idle' };
+
+/** The models stack-api allows (its .env's AI_MODELS), and the one asked by default. */
+export interface AiInfo {
+  models: AiModel[];
+  default: string;
 }
 
 export interface RequestsDoc {
@@ -180,6 +220,10 @@ export interface RequestsDoc {
   available: number;
   /** What could not be read (an app away). */
   errors: string[];
+  /** The models Ask AI may use; null when AI is off, absent from a stack-api without it. */
+  ai?: AiInfo | null;
+  /** The answer being written now, if any. */
+  advising?: AiJob | null;
 }
 
 // ─── formatting ───────────────────────────────────────────────────────────────

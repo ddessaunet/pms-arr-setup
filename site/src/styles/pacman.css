@@ -586,10 +586,26 @@ mobile-starlight-toc a[aria-current='true']::after { background-color: var(--pac
 
 /* ── requests (/requests/) ────────────────────────────────────────────────────
    One dashboard card per open request: the verdict's level badge, its sentence,
-   the next step after a "Next" label, the search's details as reasons. */
+   the next step after a "Next" label, the search's details as reasons, and an
+   AI answer, when asked, as an inset block with a blue wall. */
 .req { display: grid; gap: 0.75rem; }
 .req-list { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); }
 .req-summary { color: var(--sl-color-white); font-size: var(--sl-text-sm); }
 .req-next { color: var(--sl-color-gray-1); font-size: var(--sl-text-sm); }
 .req-next .ctl-label { margin-right: 0.35rem; color: var(--pac-pink); }
-.req-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; margin-top: auto; }
+.req-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 1rem; }
+.req-foot { display: grid; gap: 0.4rem; margin-top: auto; }
+.req-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; }
+.req-advice {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-inline-start: 3px solid var(--pac-blue);
+  border-radius: var(--pac-radius-sm);
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-gray-1);
+  font-size: var(--sl-text-sm);
+}
+.req-advice p { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.req-advice .ctl-label { color: var(--pac-pink); }
+.req-advice .req-advice-note { color: var(--sl-color-gray-2); font-size: var(--sl-text-xs); }
