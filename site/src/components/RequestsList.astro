@@ -1,10 +1,14 @@
 ---
 // The requests page's list: filled by lib/requests-client.ts from
-// jobs/stack-api's /api/requests (behind the sign-in).
+// jobs/stack-api's /api/requests (behind the sign-in), with the picker for
+// the model Ask AI uses (data-requests-ai; empty while AI is off).
 ---
 
 <section class="req" aria-label="Open requests">
-  <p class="ctl-meta" data-requests-meta aria-live="polite">Loading…</p>
+  <div class="req-head">
+    <p class="ctl-meta" data-requests-meta aria-live="polite">Loading…</p>
+    <div data-requests-ai hidden></div>
+  </div>
   <ul class="dash-reasons" data-requests-errors></ul>
   <div class="req-list" data-requests></div>
 </section>

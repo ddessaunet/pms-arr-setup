@@ -137,7 +137,14 @@ Buttons live on the control page (`/control/`), the login page and the header's 
   verdict's level badge (word and mark, as the status levels), its sentence in text-strong,
   then the next step after a Pinky "Next" label, and the search's details as reasons. The
   ones that need something come first. Analyse is a small maze-cell button; while one
-  search runs, every Analyse is disabled and the running one says "Searching…".
+  search runs, every Analyse is disabled and the running one says "Searching…". Ask AI
+  is the same button under it, with the AI sparkle (a 7×7 pixel sprite at two CSS pixels
+  each, in the text's colour) in place of the word: "Ask", "Ask again", "Asking… 1:23"
+  while it is written, one answer at a time; a screen reader still hears "Ask AI". Its answer is an inset
+  block on the sunken surface with a brand-blue left wall (a border, never text), a
+  Pinky label naming the model after the sparkle, the prose in text, and a text-muted line saying a model
+  wrote it. The model picker is a form select beside the page's meta line, or a line of
+  text-muted when there is one model.
 - **Sign out** is a small maze-cell button at the right of the header, on every page but
   the login page.
 - **The Mock tag** is warning-text on warning-low with a warning border, as the Degraded
