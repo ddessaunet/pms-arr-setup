@@ -5,7 +5,7 @@
 // looks adds or extends the scenes that show it (.claude/skills/pr-screenshots).
 
 import type { Page } from 'playwright';
-import type { RequestReport, RequestsDoc } from '../../stack/lib/request-doctor.ts';
+import type { AiInfo, RequestReport, RequestsDoc } from '../../stack/lib/request-doctor.ts';
 
 export interface Answer {
   status?: number;
@@ -164,6 +164,39 @@ export const REQUESTS_DOC: RequestsDoc = {
   errors: [],
 };
 
+// ─── /requests/ with Ask AI (PR 83) ───────────────────────────────────────────
+
+const AI: AiInfo = {
+  models: [
+    { id: 'ollama/qwen2.5:3b', provider: 'ollama', model: 'qwen2.5:3b' },
+    { id: 'ollama/llama3.2:3b', provider: 'ollama', model: 'llama3.2:3b' },
+  ],
+  default: 'ollama/qwen2.5:3b',
+};
+
+const ADVICE_TEXT = [
+  'Radarr found 19 releases of The Glass Orchard, but none fits: every 2160p one is a full Bluray encode of about 62 GB, twice the size cap for a 155-minute film.',
+  'Nothing is broken; the releases are just big. A WEB release is usually a third of that size and tends to appear a few weeks after the Bluray.',
+  'Next step: wait a week for a WEB release, or pick "4K HDR or 1080p" for it in Seerr to get a 1080p copy now.',
+].join('\n\n');
+
+const withAdvice = REQUESTS.map((r) =>
+  r.id === 101
+    ? {
+        ...r,
+        advice: {
+          text: ADVICE_TEXT,
+          provider: 'ollama',
+          model: 'qwen2.5:3b',
+          at: new Date(NOW - 4 * 60_000).toISOString(),
+          seconds: 142,
+        },
+      }
+    : r,
+);
+
+const asking = { id: 103, model: 'qwen2.5:3b', startedAt: new Date(NOW - 83_000).toISOString() };
+
 // ─── the scenes ───────────────────────────────────────────────────────────────
 
 export const SCENES: Record<string, Scene> = {
@@ -174,4 +207,55 @@ export const SCENES: Record<string, Scene> = {
     clip: '.req',
   },
   'quality-profiles': { path: '/quality-profiles/' },
+  'requests-all-ok': {
+    path: '/requests/',
+    api: {
+      'GET /api/requests': {
+        body: { ...REQUESTS_DOC, open: REQUESTS.filter((r) => r.verdict.level === 'ok'), ai: null },
+      },
+    },
+    steps: (page) => page.locator('[data-request]').first().waitFor(),
+    clip: '.req',
+  },
+  'requests-ai': {
+    path: '/requests/',
+    api: { 'GET /api/requests': { body: { ...REQUESTS_DOC, open: withAdvice, ai: AI, advising: null } } },
+    steps: (page) => page.locator('.req-advice').waitFor(),
+    clip: '.req',
+  },
+  'requests-asking': {
+    path: '/requests/',
+    api: {
+      'GET /api/requests': { body: { ...REQUESTS_DOC, ai: AI, advising: asking } },
+      'GET /api/requests/103/advise': { body: { state: 'running', job: asking } },
+    },
+    steps: (page) => page.getByText('Asking… 1:23').waitFor(),
+    clip: '[data-request="103"]',
+  },
+  'requests-one-model': {
+    path: '/requests/',
+    api: {
+      'GET /api/requests': {
+        body: {
+          ...REQUESTS_DOC,
+          open: REQUESTS.slice(0, 1),
+          ai: { models: AI.models.slice(0, 1), default: 'ollama/qwen2.5:3b' },
+        },
+      },
+    },
+    steps: (page) => page.locator('[data-request]').first().waitFor(),
+    clip: '.req',
+  },
+  'requests-not-set-up': {
+    path: '/requests/',
+    api: {
+      'GET /api/requests': { body: { ...REQUESTS_DOC, open: REQUESTS.slice(0, 1) } },
+      'POST /api/requests/101/advise': { status: 404, body: { error: 'not found' } },
+    },
+    steps: async (page) => {
+      await page.getByRole('button', { name: 'Ask AI' }).first().click();
+      await page.getByText('AI advice is not set up on this stack-api yet.').waitFor();
+    },
+    clip: '[data-request="101"]',
+  },
 };

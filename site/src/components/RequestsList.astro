@@ -1,7 +1,9 @@
 ---
 // The requests page's list: filled by lib/requests-client.ts from
 // jobs/stack-api's /api/requests (behind the sign-in), with the picker for
-// the model Ask AI uses (data-requests-ai; empty while AI is off).
+// the model Ask AI uses (data-requests-ai; empty while AI is off). The cards
+// come in two groups (data-requests): the ones that need something, then the
+// ones on track.
 ---
 
 <section class="req" aria-label="Open requests">
@@ -10,7 +12,7 @@
     <div data-requests-ai hidden></div>
   </div>
   <ul class="dash-reasons" data-requests-errors></ul>
-  <div class="req-list" data-requests></div>
+  <div class="req-groups" data-requests></div>
 </section>
 
 <script>

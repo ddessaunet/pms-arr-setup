@@ -13,6 +13,7 @@ import {
   parseRequests,
   requestedLine,
   searchLine,
+  splitByHealth,
   titleOf,
   whereLine,
   type RequestReport,
@@ -162,5 +163,38 @@ test('byAttention: down, degraded, unknown, then ok; newest first within', () =>
   assert.deepEqual(
     rows.sort(byAttention).map((r) => r.id),
     [3, 4, 5, 2, 1],
+  );
+});
+
+test('splitByHealth: every level but ok needs attention, unknown included; each group in byAttention order', () => {
+  const lvl = (id: number, level: RequestReport['verdict']['level'], requestedAt = '2026-10-27T23:19:20.000Z') =>
+    row({ id, requestedAt, verdict: { ...row().verdict, level } });
+  const { issues, ok } = splitByHealth([
+    lvl(1, 'ok', '2026-10-20T00:00:00Z'),
+    lvl(2, 'unknown'),
+    lvl(3, 'ok', '2026-10-28T00:00:00Z'),
+    lvl(4, 'down'),
+    lvl(5, 'degraded'),
+  ]);
+  assert.deepEqual(
+    issues.map((r) => r.id),
+    [4, 5, 2],
+  );
+  assert.deepEqual(
+    ok.map((r) => r.id),
+    [3, 1],
+  );
+});
+
+test('splitByHealth: empty groups, and the input is left as it was', () => {
+  assert.deepEqual(splitByHealth([]), { issues: [], ok: [] });
+  const input = [row({ id: 1, verdict: { ...row().verdict, level: 'ok' } }), row({ id: 2 })];
+  assert.deepEqual(
+    splitByHealth(input).ok.map((r) => r.id),
+    [1],
+  );
+  assert.deepEqual(
+    input.map((r) => r.id),
+    [1, 2],
   );
 });

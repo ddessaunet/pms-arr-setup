@@ -104,6 +104,12 @@ const RANK: Record<string, number> = { down: 0, degraded: 1, unknown: 2, ok: 3 }
 export const byAttention = (a: RequestReport, b: RequestReport) =>
   (RANK[a.verdict.level] ?? 2) - (RANK[b.verdict.level] ?? 2) || b.requestedAt.localeCompare(a.requestedAt);
 
+/** The page's two groups: what needs something (any level but ok), and what is on track; each in byAttention's order. */
+export function splitByHealth(open: readonly RequestReport[]): { issues: RequestReport[]; ok: RequestReport[] } {
+  const sorted = [...open].sort(byAttention);
+  return { issues: sorted.filter((r) => r.verdict.level !== 'ok'), ok: sorted.filter((r) => r.verdict.level === 'ok') };
+}
+
 /** "AI · qwen2.5:3b · 2 min ago · took 38 s". */
 export function adviceLine(a: Advice, nowMs: number): string {
   const t = Date.parse(a.at);
