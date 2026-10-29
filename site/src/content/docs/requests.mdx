@@ -13,7 +13,7 @@ import RequestsList from '../../components/RequestsList.astro';
 Each open request is checked against Seerr, Radarr or Sonarr, and Prowlarr every time the page loads (kept for a
 minute): approved, monitored, out yet, downloading, failed. **Analyse** searches every indexer for it, as Interactive
 Search does, and says why each release was refused; the summary is kept for 6 hours. Nothing here changes the apps:
-the next step is yours. **Ask AI** has a model (the one picked above the list) put the same facts into a few
+the next step is yours. **Ask AI** (the ✦ **Ask** button) has a model (the one picked above the list) put the same facts into a few
 sentences and a next step; it runs only when clicked, one at a time, in the background (a few minutes on this
 box's CPU: the page can be left or reloaded), and its answer stays until the facts change.
 `jobs/stack-api` answers the page; the verdicts come from `stack/lib/request-doctor.ts`.

@@ -114,15 +114,10 @@ function card(r: RequestReport): HTMLElement {
   }
   if (aiOn()) {
     const row = el('p', 'req-actions');
-    const b = el(
-      'button',
-      'ctl-btn ctl-btn-small',
-      advising?.id === r.id
-        ? `Asking… ${elapsed(advising.startedAt, Date.now())}`
-        : r.advice
-          ? 'Ask AI again'
-          : 'Ask AI',
-    );
+    const b = el('button', 'ctl-btn ctl-btn-small req-ai-btn');
+    // The sparkle stands for "AI" on screen; a screen reader still hears "Ask AI".
+    if (advising?.id === r.id) b.append(sparkle(), `Asking… ${elapsed(advising.startedAt, Date.now())}`);
+    else b.append(sparkle(), 'Ask', el('span', 'sr-only', ' AI'), r.advice ? ' again' : '');
     b.type = 'button';
     // One answer at a time; and not while this card's search runs, so the answer sees it.
     b.disabled = advising !== null || busy === r.id;
@@ -146,10 +141,19 @@ function card(r: RequestReport): HTMLElement {
   return c;
 }
 
+/** The AI mark (pacman.css draws it), for sighted readers only. */
+function sparkle(): HTMLElement {
+  const s = el('span', 'req-ai-icon');
+  s.setAttribute('aria-hidden', 'true');
+  return s;
+}
+
 function advicePanel(a: Advice): HTMLElement {
   const s = el('section', 'req-advice');
   s.setAttribute('aria-label', 'AI advice');
-  s.append(el('p', 'ctl-label', adviceLine(a, Date.now())));
+  const head = el('p', 'ctl-label');
+  head.append(sparkle(), adviceLine(a, Date.now()));
+  s.append(head);
   for (const p of adviceParagraphs(a.text)) s.append(el('p', '', p));
   s.append(el('p', 'req-advice-note', 'Written by a model from the facts above; check before acting.'));
   return s;
